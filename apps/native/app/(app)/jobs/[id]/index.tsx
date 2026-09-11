@@ -1,0 +1,376 @@
+import Ionicons from '@expo/vector-icons/Ionicons';
+import { Image } from 'expo-image';
+import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
+import { useEffect, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  Linking,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
+import {
+  acceptInspection,
+  declineInspection,
+  fetchInspection,
+  fetchKeyCollection,
+} from '@/src/api/inspector';
+import { INSPECTION_PAY_LABEL } from '@/src/constants/inspection';
+import { useInspections } from '@/src/inspections/inspections-context';
+import { JobWorkspaceNav } from '@/src/jobs/workspace-nav';
+import { formatCurrency, formatDate, formatScheduleWhen } from '@/src/lib/datetime';
+import {
+  jobInspectionStarted,
+  jobPrimaryAction,
+} from '@/src/lib/inspection-job-cta';
+import { isPoolJob } from '@/src/lib/inspector-job-filters';
+import { toInspectionJob } from '@/src/lib/job-map';
+import {
+  isInspectionWorkflowFinished,
+  isKeyCollectComplete,
+  isKeyReturnComplete,
+  jobAccessMethodLabel,
+  jobKeysCountLabel,
+  keyAccessFromCollection,
+} from '@/src/lib/key-access';
+import { formatJobRefId, googleMapsUrl, propertyAddressLines } from '@/src/lib/property-address';
+import { jobDetail, jobHistory, jobKeys } from '@/src/lib/routes';
+import { colors } from '@/src/theme';
+
+function Banner({ tone, children }: { tone: 'amber' | 'danger'; children: string }) {
+  return (
+    <Text style={tone === 'danger' ? styles.danger : styles.amber}>{children}</Text>
+  );
+}
+
+export default function JobDetailsScreen() {
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const router = useRouter();
+  const { getJob, getDraft, upsertJob, claim, claimingId } = useInspections();
+  const cached = getJob(id);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!id) return;
+    void (async () => {
+      try {
+        const dto = await fetchInspection(id);
+        const job = toInspectionJob(dto);
+        try {
+          const collection = await fetchKeyCollection(id);
+          if (collection) job.keyAccess = keyAccessFromCollection(collection);
+        } catch {
+          // ignore
+        }
+        upsertJob(job);
+      } catch {
+        // Keep the cached card if the job is a pool preview.
+      }
+    })();
+  }, [id, upsertJob]);
+
+  const job = getJob(id) ?? cached;
+  if (!job) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['bottom']}>
+        <Stack.Screen options={{ title: 'Job' }} />
+        <Text style={styles.muted}>This job could not be found.</Text>
+      </SafeAreaView>
+    );
+  }
+
+  const poolPreview = isPoolJob(job);
+  const draft = getDraft(job.id);
+  const started = jobInspectionStarted(job, draft);
+  const primary = jobPrimaryAction(job, started);
+  const keyCollectDone = isKeyCollectComplete(job);
+  const keyReturnDone = isKeyReturnComplete(job);
+  const inspectionFinished = isInspectionWorkflowFinished(job);
+  const paymentBlocked = Boolean(job.awaitingAgentPayment);
+  const keysBlocked = Boolean(job.keyAccess && !keyCollectDone);
+  const returnPending =
+    Boolean(job.keyAccess && inspectionFinished && !keyReturnDone && job.status !== 'completed');
+  const { street, locality } = propertyAddressLines(job);
+  const title = poolPreview
+    ? 'Job preview'
+    : `${INSPECTION_PAY_LABEL[job.type] ?? job.type} Inspection`;
+
+  const handoverNext = Boolean(job.keyAccess && !keyCollectDone && !paymentBlocked);
+  const ctaHref = paymentBlocked
+    ? jobDetail(job.id)
+    : returnPending
+      ? jobKeys(job.id, 'return')
+      : handoverNext
+        ? jobKeys(job.id, 'collect')
+        : primary.href;
+  const ctaLabel = paymentBlocked
+    ? 'Waiting for agency payment'
+    : returnPending
+      ? 'Return keys'
+      : job.status === 'awaiting_approval'
+        ? 'Pending Approval'
+        : job.status === 'completed'
+          ? 'View inspection report'
+          : handoverNext
+            ? 'Continue to Handover'
+            : primary.label;
+  const ctaDisabled =
+    paymentBlocked ||
+    (job.status === 'awaiting_approval' && !returnPending) ||
+    (handoverNext ? false : keysBlocked);
+
+  const onAccept = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      if (isPoolJob(job)) {
+        const next = await claim(job.id);
+        if (next.awaitingAgentPayment) return;
+        router.push(jobPrimaryAction(next, false).href as never);
+        return;
+      }
+      const dto = await acceptInspection(job.id);
+      const next = toInspectionJob(dto);
+      upsertJob({ ...job, ...next, keyAccess: job.keyAccess });
+      if (next.awaitingAgentPayment) return;
+      router.push(jobPrimaryAction({ ...job, ...next }, false).href as never);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not accept this job.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const onDecline = async () => {
+    setBusy(true);
+    try {
+      await declineInspection(job.id);
+      router.replace('/pool');
+    } catch (err) {
+      Alert.alert('Could not decline', err instanceof Error ? err.message : 'Try again.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (poolPreview) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['bottom']}>
+        <Stack.Screen options={{ title, headerBackTitle: 'Back' }} />
+        <ScrollView contentContainerStyle={styles.inner}>
+          <Text style={styles.hint}>
+            Review scheduled date, address, payout, and job type. Accept to open the{' '}
+            {job.type} inspection workflow.
+          </Text>
+          {paymentBlocked ? (
+            <Banner tone="amber">
+              Waiting for the agency to pay the platform fee. You can accept this job, but you cannot start until payment clears.
+            </Banner>
+          ) : null}
+          {error ? <Text style={styles.danger}>{error}</Text> : null}
+          <View style={styles.card}>
+            <Text style={styles.street}>{street}</Text>
+            {locality ? <Text style={styles.muted}>{locality}</Text> : null}
+            <Text style={styles.meta}>{formatScheduleWhen(job.scheduledTime)}</Text>
+            <Text style={styles.fee}>{formatCurrency(job.laborAmount)} Est. Fee</Text>
+          </View>
+          <Pressable
+            onPress={() => {
+              void onAccept();
+            }}
+            disabled={busy || claimingId === job.id}
+            style={[styles.primary, (busy || claimingId === job.id) && styles.disabled]}
+          >
+            {busy ? <ActivityIndicator color={colors.primaryFg} /> : <Text style={styles.primaryText}>Accept job</Text>}
+          </Pressable>
+          <Pressable onPress={() => void onDecline()} style={styles.secondary}>
+            <Text style={styles.secondaryText}>Decline</Text>
+          </Pressable>
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
+
+  return (
+    <SafeAreaView style={styles.safe} edges={['bottom']}>
+      <Stack.Screen options={{ title, headerBackTitle: 'Back' }} />
+      <JobWorkspaceNav job={job} active="details" />
+      <ScrollView contentContainerStyle={styles.inner}>
+        {paymentBlocked ? (
+          <Banner tone="amber">
+            Waiting for the agency to pay the platform fee. You cannot start this job until payment clears.
+          </Banner>
+        ) : keysBlocked ? (
+          <Banner tone="amber">Complete handover before starting the inspection.</Banner>
+        ) : null}
+        {job.reportDeclineReason &&
+        job.status !== 'completed' &&
+        job.status !== 'awaiting_approval' ? (
+          <Banner tone="danger">
+            {`Report declined — ${job.reportDeclineReason} Redo the inspection and resubmit your report.`}
+          </Banner>
+        ) : null}
+        {returnPending ? (
+          <Banner tone="amber">Inspection finished — return the keys to complete this task.</Banner>
+        ) : null}
+
+        <View style={styles.card}>
+          <View style={styles.cardHead}>
+            <Text style={styles.cardTitle}>Job Details</Text>
+            <View style={styles.typeChip}>
+              <Text style={styles.typeChipText}>{job.type.toUpperCase()}</Text>
+            </View>
+          </View>
+          <View style={styles.thumbRow}>
+            {job.propertyImageUrl ? (
+              <Image source={{ uri: job.propertyImageUrl }} style={styles.thumb} />
+            ) : (
+              <View style={styles.thumbPlaceholder}>
+                <Text style={styles.muted}>NO IMAGE</Text>
+              </View>
+            )}
+            <View style={{ flex: 1 }}>
+              <Text style={styles.street}>{street}</Text>
+              {locality ? <Text style={styles.muted}>{locality}</Text> : null}
+            </View>
+          </View>
+          <Text style={styles.meta}>{formatScheduleWhen(job.scheduledTime)}</Text>
+          <Text style={styles.meta}>Job #{formatJobRefId(job.id)}</Text>
+          <Pressable
+            onPress={() => {
+              void Linking.openURL(googleMapsUrl(job));
+            }}
+            style={styles.secondary}
+          >
+            <Ionicons name="compass-outline" size={16} color={colors.primary} />
+            <Text style={styles.secondaryText}>Directions</Text>
+          </Pressable>
+          <Text style={styles.fee}>
+            {job.status === 'completed' ? 'Fee' : 'Est. Fee'} {formatCurrency(job.laborAmount)}
+          </Text>
+        </View>
+
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Key Details</Text>
+          <Detail label="Tenant" value={job.tenantName?.trim() || '-'} />
+          <Detail label="Lease Start" value={job.leaseStart ? formatDate(job.leaseStart) : '-'} />
+          <Detail label="Lease End" value={job.leaseEnd ? formatDate(job.leaseEnd) : '-'} />
+          <Detail label="Property Manager" value={job.agentName || job.agentCompany || '-'} />
+          <Detail label="Access Method" value={jobAccessMethodLabel(job)} />
+          <Detail label="Keys" value={jobKeysCountLabel(job)} />
+          <Detail label="Special Instructions" value={job.notes?.trim() || '-'} />
+        </View>
+
+        <Pressable
+          disabled={ctaDisabled}
+          onPress={() => {
+            if (job.status === 'completed') router.push(jobHistory(job.id) as never);
+            else router.push(ctaHref as never);
+          }}
+          style={[styles.primary, ctaDisabled && styles.disabled]}
+        >
+          <Text style={styles.primaryText}>{ctaLabel}</Text>
+          <Ionicons name="chevron-forward" size={16} color={colors.primaryFg} />
+        </Pressable>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+function Detail({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.detailRow}>
+      <Text style={styles.muted}>{label}</Text>
+      <Text style={styles.detailValue} numberOfLines={1}>
+        {value}
+      </Text>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: colors.background },
+  inner: { padding: 16, paddingBottom: 40, gap: 12 },
+  hint: { color: colors.muted, fontSize: 12 },
+  amber: {
+    color: colors.amber,
+    backgroundColor: colors.amberBg,
+    borderWidth: 1,
+    borderColor: colors.amberBorder,
+    borderRadius: 8,
+    padding: 10,
+    fontSize: 12,
+    overflow: 'hidden',
+  },
+  danger: {
+    color: colors.destructive,
+    backgroundColor: 'rgba(239,68,68,0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(239,68,68,0.3)',
+    borderRadius: 8,
+    padding: 10,
+    fontSize: 12,
+    overflow: 'hidden',
+  },
+  card: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.card,
+    borderRadius: 16,
+    padding: 16,
+    gap: 8,
+  },
+  cardHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  cardTitle: { color: colors.text, fontSize: 14, fontWeight: '600' },
+  typeChip: {
+    backgroundColor: 'rgba(0,212,164,0.15)',
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  typeChipText: { color: colors.primary, fontSize: 10, fontWeight: '700' },
+  thumbRow: { flexDirection: 'row', gap: 12 },
+  thumb: { width: 64, height: 64, borderRadius: 8 },
+  thumbPlaceholder: {
+    width: 64,
+    height: 64,
+    borderRadius: 8,
+    backgroundColor: colors.secondary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  street: { color: colors.text, fontSize: 16, fontWeight: '600' },
+  muted: { color: colors.muted, fontSize: 12 },
+  meta: { color: colors.muted, fontSize: 12 },
+  fee: { color: colors.primary, fontSize: 16, fontWeight: '700', marginTop: 4 },
+  primary: {
+    backgroundColor: colors.primary,
+    borderRadius: 8,
+    paddingVertical: 14,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  primaryText: { color: colors.primaryFg, fontWeight: '700' },
+  secondary: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    paddingVertical: 12,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  secondaryText: { color: colors.text, fontWeight: '600' },
+  disabled: { opacity: 0.45 },
+  detailRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 12, paddingVertical: 8 },
+  detailValue: { color: colors.text, fontSize: 12, fontWeight: '500', flexShrink: 1, textAlign: 'right' },
+});
