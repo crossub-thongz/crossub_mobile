@@ -14,6 +14,11 @@ import {
 import { useInbox } from '@/src/inbox/inbox-context';
 import { useInspections } from '@/src/inspections/inspections-context';
 import { formatRelative } from '@/src/lib/datetime';
+import {
+  MAX_MESSAGE_ATTACHMENTS,
+  pickMessageAttachments,
+  type PendingAttachment,
+} from '@/src/lib/message-attachments';
 import { messageDetail } from '@/src/lib/routes';
 import { colors } from '@/src/theme';
 import { AppHeader } from '@/src/ui/app-header';
@@ -28,12 +33,13 @@ export default function MessagesScreen() {
   const [body, setBody] = useState('');
   const [inspectionId, setInspectionId] = useState('');
   const [sending, setSending] = useState(false);
+  const [pendingFiles, setPendingFiles] = useState<PendingAttachment[]>([]);
 
   const cases = useMemo(
     () =>
       jobs
         .filter((job) => job.status !== 'available' && job.status !== 'declined')
-        .map((job) => ({ id: job.id, label: `${job.type} ∑ ${job.propertyAddress}` })),
+        .map((job) => ({ id: job.id, label: `${job.type} ù ${job.propertyAddress}` })),
     [jobs],
   );
 
@@ -44,21 +50,23 @@ export default function MessagesScreen() {
       Alert.alert('Add a subject');
       return;
     }
-    if (!trimmedBody) {
-      Alert.alert('Add a message');
+    if (!trimmedBody && pendingFiles.length === 0) {
+      Alert.alert('Add a message or attachment');
       return;
     }
     setSending(true);
     try {
       const id = await createThread({
         subject: trimmedSubject,
-        body: trimmedBody,
+        body: trimmedBody || pendingFiles[0]?.fileName || 'Attachment',
         inspectionId: inspectionId || undefined,
+        attachments: pendingFiles.length > 0 ? pendingFiles : undefined,
       });
       setComposing(false);
       setSubject('');
       setBody('');
       setInspectionId('');
+      setPendingFiles([]);
       router.push(messageDetail(id));
     } catch (err) {
       Alert.alert("Couldn't start the conversation", err instanceof Error ? err.message : '');
@@ -83,7 +91,7 @@ export default function MessagesScreen() {
         }
       >
         <View style={styles.toolbar}>
-          <Text style={styles.hint}>Message the office ó pick a case when it relates to a job.</Text>
+          <Text style={styles.hint}>Message the office ù pick a case when it relates to a job.</Text>
           <Pressable
             onPress={() => setComposing((open) => !open)}
             style={[styles.newBtn, composing && styles.newBtnOutline]}
@@ -129,22 +137,46 @@ export default function MessagesScreen() {
               style={styles.input}
             />
             <TextInput
-              placeholder="Write your messageÖ"
+              placeholder="Write your messageù"
               placeholderTextColor={colors.muted}
               value={body}
               onChangeText={setBody}
               style={[styles.input, styles.textarea]}
               multiline
             />
-            <Pressable
-              disabled={sending}
-              onPress={() => {
-                void handleCreate();
-              }}
-              style={[styles.send, sending && { opacity: 0.55 }]}
-            >
-              <Text style={styles.sendText}>Send</Text>
-            </Pressable>
+            {pendingFiles.length > 0 ? (
+              <Text style={styles.hint}>
+                {pendingFiles.map((file) => file.fileName).join(' ∑ ')}
+              </Text>
+            ) : null}
+            <View style={styles.composeActions}>
+              <Pressable
+                onPress={() => {
+                  void pickMessageAttachments(pendingFiles.length)
+                    .then((files) => setPendingFiles((current) => [...current, ...files]))
+                    .catch((err) =>
+                      Alert.alert(
+                        "Couldn't attach file",
+                        err instanceof Error ? err.message : '',
+                      ),
+                    );
+                }}
+                style={styles.attachBtn}
+              >
+                <Text style={styles.attachText}>
+                  Attach ({pendingFiles.length}/{MAX_MESSAGE_ATTACHMENTS})
+                </Text>
+              </Pressable>
+              <Pressable
+                disabled={sending}
+                onPress={() => {
+                  void handleCreate();
+                }}
+                style={[styles.send, sending && { opacity: 0.55 }]}
+              >
+                <Text style={styles.sendText}>Send</Text>
+              </Pressable>
+            </View>
           </View>
         ) : null}
 
@@ -177,8 +209,8 @@ export default function MessagesScreen() {
                 {item.lastMessage}
               </Text>
               <Text style={styles.meta}>
-                {formatRelative(item.lastAt)} ∑ {item.category}
-                {item.inspectionTrackingNumber ? ` ∑ #${item.inspectionTrackingNumber}` : ''}
+                {formatRelative(item.lastAt)} ù {item.category}
+                {item.inspectionTrackingNumber ? ` ù #${item.inspectionTrackingNumber}` : ''}
               </Text>
             </Pressable>
           ))
@@ -240,6 +272,15 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   textarea: { minHeight: 96, textAlignVertical: 'top' },
+  composeActions: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  attachBtn: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  attachText: { color: colors.text, fontWeight: '600', fontSize: 12 },
   send: {
     alignSelf: 'flex-end',
     backgroundColor: colors.primary,

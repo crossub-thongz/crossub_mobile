@@ -24,7 +24,7 @@ import { AppHeader } from '@/src/ui/app-header';
 
 export default function RegisterScreen() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const { registration, draft, registrationComplete, saveRegistration } = useAccount();
   const rosterOnlyComplete = registrationComplete && !registration;
   const [mobile, setMobile] = useState('');
@@ -133,7 +133,8 @@ export default function RegisterScreen() {
         bankAccountNumber: bankAccountNumber.trim(),
       });
       Alert.alert('Profile saved', 'Your application is with Inspection Dept for review.');
-      router.replace(profilePath);
+      await refreshUser();
+      router.replace('/');
     } catch (err) {
       Alert.alert(
         'Could not save',
@@ -245,7 +246,7 @@ export default function RegisterScreen() {
         <Text style={styles.section}>Access level</Text>
         <Text style={styles.meta}>
           New inspectors start at Level 1 (Outgoing, Ingoing). CROSSUB staff set your level
-          from the admin portal after review — it cannot be changed here.
+          from the admin portal after review ? it cannot be changed here.
         </Text>
         <Pressable
           onPress={() => setTribunalQualified((value) => !value)}
@@ -284,7 +285,7 @@ export default function RegisterScreen() {
 
         {formError ? <Text style={styles.error}>{formError}</Text> : null}
         <Pressable disabled={busy} onPress={() => void onSubmit()} style={[styles.cta, busy && styles.ctaOff]}>
-          <Text style={styles.ctaText}>{busy ? 'Saving…' : 'Save profile & continue'}</Text>
+          <Text style={styles.ctaText}>{busy ? 'Saving?' : 'Save profile & continue'}</Text>
         </Pressable>
       </ScrollView>
     </View>

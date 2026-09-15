@@ -5,7 +5,6 @@ import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  Linking,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -22,6 +21,8 @@ import {
 } from '@/src/api/inspector';
 import { INSPECTION_PAY_LABEL } from '@/src/constants/inspection';
 import { useInspections } from '@/src/inspections/inspections-context';
+import { CancelTaskSheet } from '@/src/jobs/cancel-task-sheet';
+import { JobPayBreakdown, JobTravelCard } from '@/src/jobs/job-travel-pay';
 import { JobWorkspaceNav } from '@/src/jobs/workspace-nav';
 import { formatCurrency, formatDate, formatScheduleWhen } from '@/src/lib/datetime';
 import {
@@ -38,7 +39,7 @@ import {
   jobKeysCountLabel,
   keyAccessFromCollection,
 } from '@/src/lib/key-access';
-import { formatJobRefId, googleMapsUrl, propertyAddressLines } from '@/src/lib/property-address';
+import { formatJobRefId, propertyAddressLines } from '@/src/lib/property-address';
 import { jobDetail, jobHistory, jobKeys } from '@/src/lib/routes';
 import { colors } from '@/src/theme';
 
@@ -51,10 +52,11 @@ function Banner({ tone, children }: { tone: 'amber' | 'danger'; children: string
 export default function JobDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { getJob, getDraft, upsertJob, claim, claimingId } = useInspections();
+  const { getJob, getDraft, upsertJob, claim, claimingId, refresh, deviceLocation } = useInspections();
   const cached = getJob(id);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [cancelOpen, setCancelOpen] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -242,19 +244,14 @@ export default function JobDetailsScreen() {
           </View>
           <Text style={styles.meta}>{formatScheduleWhen(job.scheduledTime)}</Text>
           <Text style={styles.meta}>Job #{formatJobRefId(job.id)}</Text>
-          <Pressable
-            onPress={() => {
-              void Linking.openURL(googleMapsUrl(job));
-            }}
-            style={styles.secondary}
-          >
-            <Ionicons name="compass-outline" size={16} color={colors.primary} />
-            <Text style={styles.secondaryText}>Directions</Text>
-          </Pressable>
-          <Text style={styles.fee}>
-            {job.status === 'completed' ? 'Fee' : 'Est. Fee'} {formatCurrency(job.laborAmount)}
-          </Text>
+          <JobPayBreakdown
+            hours={job.estimatedHours}
+            laborAmount={job.laborAmount}
+            durationLabel={job.durationLabel}
+          />
         </View>
+
+        <JobTravelCard job={job} deviceLocation={deviceLocation} />
 
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Key Details</Text>
@@ -278,7 +275,23 @@ export default function JobDetailsScreen() {
           <Text style={styles.primaryText}>{ctaLabel}</Text>
           <Ionicons name="chevron-forward" size={16} color={colors.primaryFg} />
         </Pressable>
+        {job.status === 'in_progress' ? (
+          <Pressable onPress={() => setCancelOpen(true)} style={styles.secondary}>
+            <Text style={styles.dangerText}>Cancel task</Text>
+          </Pressable>
+        ) : null}
       </ScrollView>
+      <CancelTaskSheet
+        visible={cancelOpen}
+        inspectionId={job.id}
+        urgent={job.priority === 'urgent'}
+        onClose={() => setCancelOpen(false)}
+        onReleased={() => {
+          setCancelOpen(false);
+          void refresh();
+          router.replace('/');
+        }}
+      />
     </SafeAreaView>
   );
 }
@@ -370,6 +383,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   secondaryText: { color: colors.text, fontWeight: '600' },
+  dangerText: { color: colors.destructive, fontWeight: '600' },
   disabled: { opacity: 0.45 },
   detailRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 12, paddingVertical: 8 },
   detailValue: { color: colors.text, fontSize: 12, fontWeight: '500', flexShrink: 1, textAlign: 'right' },

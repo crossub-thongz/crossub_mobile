@@ -84,7 +84,11 @@ export function InspectJobRow({
           </View>
         </View>
       </Pressable>
-      {!completed && !action.disabled ? (
+      {completed && job.status === 'completed' ? (
+        <Pressable onPress={() => onAction(action.href)} style={styles.cta}>
+          <Text style={styles.ctaText}>View report</Text>
+        </Pressable>
+      ) : !completed && !action.disabled ? (
         <Pressable onPress={() => onAction(action.href)} style={styles.cta}>
           {action.label === 'Re-Open' ? null : (
             <Ionicons name="play" size={12} color={colors.primaryFg} />

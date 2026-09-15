@@ -1,5 +1,5 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -13,7 +13,7 @@ import {
 import { InspectJobRow } from '@/src/inspections/inspect-job-row';
 import { InspectNextCard } from '@/src/inspections/inspect-next-card';
 import { useInspections } from '@/src/inspections/inspections-context';
-import { jobDetail } from '@/src/lib/routes';
+import { jobDetail, historyPath } from '@/src/lib/routes';
 import { colors } from '@/src/theme';
 import { AppHeader } from '@/src/ui/app-header';
 import { EmptyState } from '@/src/ui/empty-state';
@@ -44,6 +44,10 @@ export default function InspectScreen() {
     deviceLocation,
     refresh,
   } = useInspections();
+
+  useEffect(() => {
+    if (tab === 'completed') router.replace(historyPath as never);
+  }, [tab, router]);
 
   const setTab = (next: ScheduleTab) => {
     if (next === 'today') router.setParams({ tab: undefined });
@@ -95,7 +99,7 @@ export default function InspectScreen() {
         ? `Upcoming • ${upcomingJobs.length} inspection${upcomingJobs.length === 1 ? '' : 's'}`
         : `Overdue • ${overdueJobs.length} inspection${overdueJobs.length === 1 ? '' : 's'}`;
 
-  const goJob = (id: string) => router.push(jobDetail(id));
+  const goJob = (id: string) => router.push(jobDetail(id) as never);
   const goHref = (href: string) => router.push(href as never);
 
   return (
@@ -186,10 +190,10 @@ export default function InspectScreen() {
           </Text>
         </Pressable>
         <Pressable
-          onPress={() => setTab('completed')}
-          style={[styles.floatBtn, tab === 'completed' && styles.floatOn]}
+          onPress={() => router.push(historyPath as never)}
+          style={styles.floatBtn}
         >
-          <Text style={[styles.floatText, tab === 'completed' && styles.floatTextOn]}>
+          <Text style={styles.floatText}>
             Completed ({completedJobs.length})
           </Text>
         </Pressable>

@@ -4,6 +4,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
@@ -11,9 +12,11 @@ import {
 import {
   acceptInspection,
   claimInspection,
+  fetchInspectorProfile,
   fetchInspections,
   fetchKeyCollection,
   fetchPoolInspections,
+  setInspectorPoolAvailability,
   type InspectorInspection,
 } from '@/src/api/inspector';
 import { useAuth } from '@/src/auth/auth-context';
@@ -27,6 +30,7 @@ import {
 } from '@/src/lib/inspector-job-filters';
 import { mapAssignedJobs, mapPoolJobs, toInspectionJob } from '@/src/lib/job-map';
 import { keyAccessFromCollection } from '@/src/lib/key-access';
+import { loadAllDrafts, saveDraftLocal } from '@/src/offline/db';
 import type { GeoPoint } from '@/src/lib/travel';
 import type { InspectionJob, RoutineExecutionDraft } from '@/src/lib/types';
 import { useDeviceLocation } from '@/src/lib/use-device-location';
@@ -45,7 +49,7 @@ type InspectionsContextValue = {
   claimingId: string | null;
   receivingJobs: boolean;
   deviceLocation: GeoPoint | null;
-  toggleReceivingJobs: () => void;
+  toggleReceivingJobs: () => Promise<void>;
   refresh: () => Promise<void>;
   claim: (inspectionId: string) => Promise<InspectionJob>;
   upsertJob: (job: InspectionJob) => void;
@@ -92,26 +96,39 @@ export function InspectionsProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const [claimingId, setClaimingId] = useState<string | null>(null);
   const [receivingJobs, setReceivingJobs] = useState(true);
+  const receivingRef = useRef(receivingJobs);
+  receivingRef.current = receivingJobs;
   const deviceLocation = useDeviceLocation({
     enabled: status === 'authed',
     pingServer: receivingJobs,
   });
 
-  const load = useCallback(async (mode: 'initial' | 'refresh') => {
+  useEffect(() => {
+    void loadAllDrafts().then(setDrafts);
+  }, []);
+
+  const load = useCallback(async (mode: 'initial' | 'refresh', receivingOverride?: boolean) => {
     if (mode === 'initial') setLoading(true);
     else setRefreshing(true);
     setError(null);
     try {
+      let receiving = receivingOverride ?? receivingRef.current;
+      if (mode === 'initial' && receivingOverride == null) {
+        const profile = await fetchInspectorProfile().catch(() => null);
+        receiving = profile?.roster?.receivingPoolJobs !== false;
+        setReceivingJobs(receiving);
+        receivingRef.current = receiving;
+      }
       const [assignedDtos, poolDtos] = await Promise.all([
         fetchInspections(),
-        fetchPoolInspections(),
+        receiving ? fetchPoolInspections() : Promise.resolve([]),
       ]);
       const [assignedJobs, poolJobs] = await Promise.all([
         enrichKeys(mapAssignedJobs(assignedDtos)),
         Promise.resolve(mapPoolJobs(poolDtos)),
       ]);
       setJobs(assignedJobs);
-      setPool(poolJobs);
+      setPool(receiving ? poolJobs : []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load jobs');
     } finally {
@@ -159,11 +176,23 @@ export function InspectionsProvider({ children }: { children: ReactNode }) {
 
   const setDraft = useCallback((id: string, draft: RoutineExecutionDraft) => {
     setDrafts((current) => ({ ...current, [id]: draft }));
+    void saveDraftLocal(id, draft);
   }, []);
 
-  const toggleReceivingJobs = useCallback(() => {
-    setReceivingJobs((current) => !current);
-  }, []);
+  const toggleReceivingJobs = useCallback(async () => {
+    const next = !receivingRef.current;
+    setReceivingJobs(next);
+    receivingRef.current = next;
+    try {
+      await setInspectorPoolAvailability(next);
+      if (next) await load('refresh', true);
+      else setPool([]);
+    } catch (err) {
+      setReceivingJobs(!next);
+      receivingRef.current = !next;
+      setError(err instanceof Error ? err.message : 'Could not sync availability');
+    }
+  }, [load]);
 
   const claim = useCallback(
     async (inspectionId: string) => {

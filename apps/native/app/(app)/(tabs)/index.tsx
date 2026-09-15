@@ -9,6 +9,7 @@ import {
   View,
 } from 'react-native';
 
+import { JobReminders } from '@/src/jobs/job-reminders';
 import { useInspections } from '@/src/inspections/inspections-context';
 import { INSPECTION_PAY_LABEL } from '@/src/constants/inspection';
 import {
@@ -96,6 +97,7 @@ export default function HomeScreen() {
         }
       >
         {error ? <Text style={styles.error}>{error}</Text> : null}
+        <JobReminders />
 
         <View style={styles.glance}>
           <Pressable onPress={() => router.push('/inspect')} style={styles.glanceCard}>

@@ -16,6 +16,7 @@ import { inspectorLevelAllows } from '@/src/lib/inspector-access-level';
 import {
   earningsPath,
   helpPath,
+  historyPath,
   keyManagementPath,
   profilePath,
   settingsPath,
@@ -73,6 +74,12 @@ export default function MoreScreen() {
       icon: 'time-outline' as const,
       title: 'Time Availability',
       subtitle: 'Select the times you can take jobs',
+    },
+    {
+      href: historyPath,
+      icon: 'document-text-outline' as const,
+      title: 'Job history',
+      subtitle: 'Search completed inspections by address or suburb',
     },
     {
       href: earningsPath,

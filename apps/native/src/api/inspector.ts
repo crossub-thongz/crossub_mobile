@@ -33,6 +33,12 @@ export type InspectorCalendarAvailability =
 export type InspectorJob = components['schemas']['InspectorJobResponseDto'];
 export type InspectorTribunalCaseDto =
   components['schemas']['InspectorTribunalCaseDto'];
+export type InspectorOpenViewing =
+  components['schemas']['InspectorOpenViewingResponseDto'];
+export type InspectorOpenViewingVisitor =
+  components['schemas']['InspectorOpenViewingVisitorDto'];
+export type ReleaseInspectorInspection =
+  components['schemas']['ReleaseInspectorInspectionDto'];
 export type InspectionDraftKind = 'ingoing' | 'routine' | 'outgoing';
 export type FindingRating = NonNullable<
   components['schemas']['InspectorFindingAreaInput']['rating']
@@ -307,9 +313,76 @@ export async function declineInspection(
   return data;
 }
 
+export async function releaseInspection(
+  inspectionId: string,
+  body: ReleaseInspectorInspection,
+): Promise<InspectorInspection> {
+  const { data, error, response } = await crossub.POST(
+    '/inspector/inspections/{inspectionId}/release',
+    { params: { path: { inspectionId } }, body },
+  );
+  if (error || !data) {
+    throwIfFailed(error, response, 'Failed to release inspection');
+  }
+  return data;
+}
+
+export async function fetchOpenViewing(
+  inspectionId: string,
+): Promise<InspectorOpenViewing | null> {
+  const { data, error, response } = await crossub.GET(
+    '/inspector/inspections/{inspectionId}/open-viewing',
+    { params: { path: { inspectionId } } },
+  );
+  if (response.status === 404) return null;
+  if (error || !data) {
+    throwIfFailed(error, response, 'Failed to load open viewing');
+  }
+  return data;
+}
+
+export async function startOpenViewing(
+  inspectionId: string,
+): Promise<InspectorOpenViewing> {
+  const { data, error, response } = await crossub.POST(
+    '/inspector/inspections/{inspectionId}/open-viewing/start',
+    { params: { path: { inspectionId } } },
+  );
+  if (error || !data) {
+    throwIfFailed(error, response, 'Could not start open inspection');
+  }
+  return data;
+}
+
+export async function clearInspectionAreaPhotos(
+  inspectionId: string,
+  areaName: string,
+): Promise<void> {
+  const { error, response } = await crossub.POST(
+    '/inspector/inspections/{inspectionId}/photos/clear-area',
+    { params: { path: { inspectionId } }, body: { areaName } },
+  );
+  if (response.status === 204 || response.ok) return;
+  throwIfFailed(error, response, 'Failed to clear area photos');
+}
+
+export async function linkInspectionAreaPhotos(
+  inspectionId: string,
+  body: { areaName: string; urls: string[] },
+): Promise<void> {
+  const { error, response } = await crossub.POST(
+    '/inspector/inspections/{inspectionId}/photos/link-area',
+    { params: { path: { inspectionId } }, body },
+  );
+  if (error) {
+    throwIfFailed(error, response, 'Failed to link area photos');
+  }
+}
+
 export async function recordKeyCustody(
   inspectionId: string,
   phase: 'collect' | 'return',
+  body: { notes?: string } = {},
 ): Promise<InspectorKeyCustody> {
   const path =
     phase === 'collect'
@@ -317,7 +390,7 @@ export async function recordKeyCustody(
       : '/inspector/inspections/{inspectionId}/key-custody/return';
   const { data, error, response } = await crossub.POST(path, {
     params: { path: { inspectionId } },
-    body: {},
+    body,
   });
   if (error || !data) {
     throwIfFailed(error, response, 'Failed to record key custody');
@@ -418,6 +491,18 @@ export async function setInspectorLocation(
   });
   if (error) {
     throwIfFailed(error, response, 'Could not sync location');
+  }
+}
+
+/** Receiving / Break (`PATCH /api/v1/inspector/availability`). */
+export async function setInspectorPoolAvailability(
+  receivingPoolJobs: boolean,
+): Promise<void> {
+  const { error, response } = await crossub.PATCH('/inspector/availability', {
+    body: { receivingPoolJobs },
+  });
+  if (error) {
+    throwIfFailed(error, response, 'Could not sync availability');
   }
 }
 

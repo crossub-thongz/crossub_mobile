@@ -62,6 +62,10 @@ export function formatDistanceKm(distanceKm: number): string {
   return `${distanceKm.toFixed(1)} km`;
 }
 
+export function formatTravelSummary(travel: TravelEstimate): string {
+  return `${formatDistanceKm(travel.distanceKm)} · ~${travel.travelMinutes} min`;
+}
+
 export function jobDestination(job: {
   latitude?: number;
   longitude?: number;

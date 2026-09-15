@@ -8,9 +8,28 @@ import {
   saveSession,
 } from '@/src/auth/session';
 import { parseAuthUser, type AuthUser } from '@/src/auth/types';
+import type { SystemAccessAgreementView } from '@/src/lib/system-access-agreement';
 
 function isAuthUrl(url: string): boolean {
-  return /\/auth\/(login|login-with-token|refresh|logout)(\?|$)/.test(url);
+  return /\/auth\/(login|login-with-token|refresh|logout|register-inspector|forgot-password|reset-password)(\?|$)/.test(
+    url,
+  );
+}
+
+async function readApiMessage(res: Response, fallback: string): Promise<string> {
+  try {
+    const json = (await res.json()) as { message?: string | string[] };
+    const msg = json.message;
+    if (typeof msg === 'string' && msg.trim()) return msg;
+    if (Array.isArray(msg) && msg.length > 0) return msg.join(', ');
+  } catch {
+    // body was not JSON
+  }
+  return fallback;
+}
+
+function authUrl(path: string): string {
+  return `${getApiOrigin()}/api${path}`;
 }
 
 async function attachAccessToken(request: Request): Promise<Request> {
@@ -51,7 +70,7 @@ async function refreshSession(): Promise<boolean> {
   return refreshInFlight;
 }
 
-async function fetchWithBearer(
+export async function fetchWithBearer(
   input: RequestInfo | URL,
   init?: RequestInit,
 ): Promise<Response> {
@@ -120,6 +139,43 @@ export async function loginWithPassword(
   return user;
 }
 
+export async function loginWithToken(token: string): Promise<AuthUser> {
+  let data: {
+    accessToken?: string;
+    refreshToken?: string;
+    user?: unknown;
+  } | undefined;
+  let error: unknown;
+  let status = 0;
+  try {
+    const result = await crossub.POST('/auth/login-with-token', {
+      body: { token },
+    });
+    data = result.data;
+    error = result.error;
+    status = result.response.status;
+  } catch {
+    throw new Error(
+      `Could not reach Nest at ${getApiOrigin()}. Check EXPO_PUBLIC_API_URL.`,
+    );
+  }
+  if (status === 401) {
+    throw new Error('This sign-in link is invalid or has expired.');
+  }
+  if (error || !data?.accessToken || !data.refreshToken) {
+    throw new Error(apiErrorMessage(error, 'Could not sign you in. Request a new link from the office.'));
+  }
+  const user = parseAuthUser(data.user);
+  if (!user) {
+    throw new Error('Login succeeded but the API did not return a user.');
+  }
+  await saveSession(
+    { accessToken: data.accessToken, refreshToken: data.refreshToken },
+    user,
+  );
+  return user;
+}
+
 export async function fetchCurrentUser(): Promise<AuthUser> {
   const res = await fetchWithBearer(`${getApiOrigin()}/api/auth/me`, {
     headers: { Accept: 'application/json' },
@@ -165,6 +221,102 @@ export async function changePassword(body: {
   } catch {
     return null;
   }
+}
+
+export async function registerInspectorAccount(body: {
+  email: string;
+  password: string;
+  firstName: string;
+  lastName: string;
+}): Promise<AuthUser> {
+  let res: Response;
+  try {
+    res = await fetch(authUrl('/auth/register-inspector'), {
+      method: 'POST',
+      headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+  } catch {
+    throw new Error(`Could not reach Nest at ${getApiOrigin()}. Check EXPO_PUBLIC_API_URL.`);
+  }
+  if (res.status === 409) {
+    throw new Error('An account with this email already exists. Sign in instead.');
+  }
+  if (res.status === 403) {
+    throw new Error(
+      await readApiMessage(
+        res,
+        'This email is not invited to register. Ask Operations to send you an invite.',
+      ),
+    );
+  }
+  if (res.status === 400) {
+    throw new Error(
+      await readApiMessage(res, 'Check your details — password must be at least 10 characters.'),
+    );
+  }
+  if (!res.ok) {
+    throw new Error(await readApiMessage(res, 'Could not create account.'));
+  }
+  return loginWithPassword(body.email, body.password);
+}
+
+export async function requestPasswordReset(email: string): Promise<void> {
+  let res: Response;
+  try {
+    res = await fetch(authUrl('/auth/forgot-password'), {
+      method: 'POST',
+      headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    });
+  } catch {
+    throw new Error(`Could not reach Nest at ${getApiOrigin()}. Check EXPO_PUBLIC_API_URL.`);
+  }
+  if (!res.ok) {
+    throw new Error(await readApiMessage(res, `Request failed (${res.status})`));
+  }
+}
+
+export async function resetPasswordWithToken(token: string, newPassword: string): Promise<void> {
+  let res: Response;
+  try {
+    res = await fetch(authUrl('/auth/reset-password'), {
+      method: 'POST',
+      headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, newPassword }),
+    });
+  } catch {
+    throw new Error(`Could not reach Nest at ${getApiOrigin()}. Check EXPO_PUBLIC_API_URL.`);
+  }
+  if (res.status === 401) {
+    throw new Error('This reset link is invalid or has expired.');
+  }
+  if (!res.ok) {
+    throw new Error(await readApiMessage(res, 'Unable to reset password. Please try again.'));
+  }
+}
+
+export async function fetchSystemAccessAgreement(): Promise<SystemAccessAgreementView> {
+  const res = await fetchWithBearer(
+    authUrl('/auth/system-access-agreement?portal=inspector'),
+    { headers: { Accept: 'application/json' } },
+  );
+  if (!res.ok) {
+    throw new Error(await readApiMessage(res, 'Unable to load the system access agreement.'));
+  }
+  return (await res.json()) as SystemAccessAgreementView;
+}
+
+export async function acceptSystemAccessAgreement(signerName: string): Promise<void> {
+  const res = await fetchWithBearer(authUrl('/auth/system-access-agreement/accept'), {
+    method: 'POST',
+    headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+    body: JSON.stringify({ signerName, agreed: true, portal: 'inspector' }),
+  });
+  if (!res.ok) {
+    throw new Error(await readApiMessage(res, 'Unable to record your agreement.'));
+  }
+  await refreshSession();
 }
 
 export async function logoutRemote(): Promise<void> {

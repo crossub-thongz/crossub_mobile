@@ -1,5 +1,5 @@
-import { FieldWorkflowScreen } from '@/src/jobs/field-workflow';
+import { OpenViewingScreen } from '@/src/jobs/open-viewing-screen';
 
 export default function OpenWorkflow() {
-  return <FieldWorkflowScreen type="open" />;
+  return <OpenViewingScreen />;
 }

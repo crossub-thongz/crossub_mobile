@@ -27,7 +27,7 @@ import { colors } from '@/src/theme';
 
 const MORE_NAV_BASE = [
   { href: '/open-batch', label: 'Open task pool', need: 'open' as const },
-  { href: '/inspect?tab=completed', label: 'Job history', need: null },
+  { href: '/history', label: 'Job history', need: null },
   { href: '/earnings', label: 'Earnings', need: null },
   { href: '/key-management', label: 'Key management', need: null },
   { href: '/register', label: 'Registration', need: null },

@@ -14,7 +14,14 @@ export type AuthUser = {
   lastName?: string | null;
   mustChangePassword?: boolean;
   mustChangePasswordWithoutCurrent?: boolean;
+  systemAccessAgreementRequired?: boolean;
+  systemAccessAccepted?: boolean;
+  inspectorPortalAgreementAccepted?: boolean;
 };
+
+function optionalBool(value: unknown): boolean | undefined {
+  return typeof value === 'boolean' ? value : undefined;
+}
 
 export function parseAuthUser(value: unknown): AuthUser | null {
   if (!value || typeof value !== 'object') return null;
@@ -25,15 +32,13 @@ export function parseAuthUser(value: unknown): AuthUser | null {
     email: record.email,
     role: typeof record.role === 'string' ? record.role : '',
     status: typeof record.status === 'string' ? record.status : '',
-    profileCompleted:
-      typeof record.profileCompleted === 'boolean' ? record.profileCompleted : undefined,
+    profileCompleted: optionalBool(record.profileCompleted),
     firstName: typeof record.firstName === 'string' ? record.firstName : null,
     lastName: typeof record.lastName === 'string' ? record.lastName : null,
-    mustChangePassword:
-      typeof record.mustChangePassword === 'boolean' ? record.mustChangePassword : undefined,
-    mustChangePasswordWithoutCurrent:
-      typeof record.mustChangePasswordWithoutCurrent === 'boolean'
-        ? record.mustChangePasswordWithoutCurrent
-        : undefined,
+    mustChangePassword: optionalBool(record.mustChangePassword),
+    mustChangePasswordWithoutCurrent: optionalBool(record.mustChangePasswordWithoutCurrent),
+    systemAccessAgreementRequired: optionalBool(record.systemAccessAgreementRequired),
+    systemAccessAccepted: optionalBool(record.systemAccessAccepted),
+    inspectorPortalAgreementAccepted: optionalBool(record.inspectorPortalAgreementAccepted),
   };
 }

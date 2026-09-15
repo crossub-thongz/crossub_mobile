@@ -1,3 +1,7 @@
+import type { CustomAreaDefinition } from '@/src/lib/custom-inspection-areas';
+import type { ItemConditionMarks } from '@/src/lib/item-condition-marks';
+import type { SpecialReportingDraft } from '@/src/lib/special-reporting';
+
 export type InspectionType =
   | 'open'
   | 'ingoing'
@@ -71,6 +75,11 @@ export type RoutineAreaIssueDraft = {
   available: boolean | null;
   notes: string;
   areaPhotos: string[];
+  itemMarks?: Record<string, ItemConditionMarks>;
+  itemComments?: Record<string, string>;
+  activeSections?: string[];
+  photosBySection?: Record<string, { ingoingPhotoUrls: string[]; outgoingPhotoUrls: string[] }>;
+  responsibility?: string;
 };
 
 export type RoutineExecutionDraft = {
@@ -79,6 +88,10 @@ export type RoutineExecutionDraft = {
   method: 'physical' | 'self';
   issues: Record<string, RoutineAreaIssueDraft>;
   selectedAreaNames?: string[];
+  customAreas?: CustomAreaDefinition[];
   areaSetupComplete?: boolean;
   updatedAt?: string;
+  specialReporting?: SpecialReportingDraft;
+  specialReportingComplete?: boolean;
+  workflowStep?: 'areas' | 'special';
 };

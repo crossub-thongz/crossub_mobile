@@ -13,9 +13,10 @@ export function AuthGate() {
   useEffect(() => {
     if (status === 'loading') return;
     const inAuthGroup = segments[0] === '(auth)';
+    const onMagicLink = inAuthGroup && segments[1] === 'login' && segments.length > 2;
     if (status !== 'authed' && !inAuthGroup) {
       router.replace('/login');
-    } else if (status === 'authed' && inAuthGroup) {
+    } else if (status === 'authed' && inAuthGroup && !onMagicLink) {
       router.replace('/');
     }
   }, [status, segments, router]);

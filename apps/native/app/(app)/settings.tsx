@@ -1,13 +1,15 @@
 import { useRouter } from 'expo-router';
-import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { WeeklyTimetableCard } from '@/src/account/weekly-timetable-card';
 import { changePasswordPath } from '@/src/lib/routes';
+import { useOffline } from '@/src/offline/offline-context';
 import { colors } from '@/src/theme';
 import { AppHeader } from '@/src/ui/app-header';
 
 export default function SettingsScreen() {
   const router = useRouter();
+  const { pendingSync, syncing, lastError, syncNow } = useOffline();
 
   return (
     <View style={styles.safe}>
@@ -28,9 +30,36 @@ export default function SettingsScreen() {
         <View style={styles.card}>
           <Text style={styles.title}>Offline Mode</Text>
           <Text style={styles.body}>
-            Field work currently needs a connection. Drafts and photo blobs are not queued
-            on the phone yet — stay online to save findings and evidence.
+            Drafts, findings, and photo blobs are stored on this phone in SQLite. They
+            upload automatically when the connection returns.
           </Text>
+          {pendingSync > 0 ? (
+            <Text style={styles.pending}>
+              {pendingSync} change{pendingSync === 1 ? '' : 's'} waiting to sync
+            </Text>
+          ) : (
+            <Text style={styles.body}>Nothing waiting to sync.</Text>
+          )}
+          {lastError ? <Text style={styles.danger}>{lastError}</Text> : null}
+          <Pressable
+            onPress={() => {
+              void syncNow()
+                .then((result) => {
+                  if (result.synced > 0) {
+                    Alert.alert('Synced', `${result.synced} change(s) uploaded.`);
+                  } else if (result.remaining === 0) {
+                    Alert.alert('Up to date', 'Nothing was waiting to sync.');
+                  }
+                })
+                .catch((err) =>
+                  Alert.alert('Sync failed', err instanceof Error ? err.message : 'Try again.'),
+                );
+            }}
+            disabled={syncing}
+            style={styles.outline}
+          >
+            <Text style={styles.outlineText}>{syncing ? 'Syncing...' : 'Sync now'}</Text>
+          </Pressable>
         </View>
 
         <View style={styles.card}>
@@ -65,5 +94,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   outlineText: { color: colors.text, fontWeight: '600' },
+  pending: { color: colors.amber, fontSize: 12 },
+  danger: { color: colors.destructive, fontSize: 12 },
   link: { color: colors.primary, fontSize: 13, textDecorationLine: 'underline' },
 });

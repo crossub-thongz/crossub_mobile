@@ -39,8 +39,23 @@ type InboxContextValue = {
     subject: string;
     body: string;
     inspectionId?: string;
+    attachments?: Array<{
+      fileName: string;
+      mimeType: string;
+      sizeBytes: number;
+      contentBase64: string;
+    }>;
   }) => Promise<string>;
-  sendReply: (threadId: string, body: string) => Promise<void>;
+  sendReply: (
+    threadId: string,
+    body: string,
+    attachments?: Array<{
+      fileName: string;
+      mimeType: string;
+      sizeBytes: number;
+      contentBase64: string;
+    }>,
+  ) => Promise<void>;
 };
 
 const InboxContext = createContext<InboxContextValue | undefined>(undefined);
@@ -97,11 +112,22 @@ export function InboxProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const createThread = useCallback(
-    async (input: { subject: string; body: string; inspectionId?: string }) => {
+    async (input: {
+      subject: string;
+      body: string;
+      inspectionId?: string;
+      attachments?: Array<{
+        fileName: string;
+        mimeType: string;
+        sizeBytes: number;
+        contentBase64: string;
+      }>;
+    }) => {
       const thread = await createInspectorMessage({
         subject: input.subject,
         body: input.body,
         inspectionId: input.inspectionId,
+        attachments: input.attachments,
       });
       await refresh();
       return thread.id;
@@ -110,13 +136,23 @@ export function InboxProvider({ children }: { children: ReactNode }) {
   );
 
   const sendReply = useCallback(
-    async (threadId: string, body: string) => {
+    async (
+      threadId: string,
+      body: string,
+      attachments?: Array<{
+        fileName: string;
+        mimeType: string;
+        sizeBytes: number;
+        contentBase64: string;
+      }>,
+    ) => {
       const optimistic: ThreadMessage = {
         id: `local-${Date.now()}`,
         from: 'You',
-        body,
+        body: body || attachments?.[0]?.fileName || 'Attachment',
         at: new Date().toISOString(),
         fromSelf: true,
+        attachments: attachments?.map((file) => ({ name: file.fileName, url: '' })),
       };
       setThreadMessages((current) => ({
         ...current,
@@ -125,12 +161,12 @@ export function InboxProvider({ children }: { children: ReactNode }) {
       setMessages((current) =>
         current.map((item) =>
           item.id === threadId
-            ? { ...item, lastMessage: body, lastAt: optimistic.at, unread: 0 }
+            ? { ...item, lastMessage: optimistic.body, lastAt: optimistic.at, unread: 0 }
             : item,
         ),
       );
       try {
-        await replyInspectorMessage(threadId, { body });
+        await replyInspectorMessage(threadId, { body, attachments });
         await refresh();
       } catch {
         // Keep the optimistic bubble if the reply request fails.

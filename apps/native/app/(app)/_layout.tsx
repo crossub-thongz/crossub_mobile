@@ -1,6 +1,7 @@
 import { Stack } from 'expo-router';
 
 import { AccountProvider } from '@/src/account/account-context';
+import { OnboardingGate } from '@/src/account/onboarding-gate';
 import { LedgerProvider } from '@/src/account/ledger-context';
 import { InboxProvider } from '@/src/inbox/inbox-context';
 import { InspectionsProvider } from '@/src/inspections/inspections-context';
@@ -10,6 +11,7 @@ export default function AppLayout() {
   return (
     <InspectionsProvider>
       <AccountProvider>
+        <OnboardingGate />
         <LedgerProvider>
           <InboxProvider>
             <Stack
@@ -20,7 +22,7 @@ export default function AppLayout() {
                 contentStyle: { backgroundColor: colors.background },
               }}
             >
-              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+              <Stack.Screen name="history" options={{ headerShown: false }} />
               <Stack.Screen name="jobs/[id]" options={{ headerShown: false }} />
               <Stack.Screen name="messages" options={{ headerShown: false }} />
               <Stack.Screen name="notifications" options={{ headerShown: false }} />
@@ -33,6 +35,7 @@ export default function AppLayout() {
               <Stack.Screen name="help" options={{ headerShown: false }} />
               <Stack.Screen name="earnings" options={{ headerShown: false }} />
               <Stack.Screen name="key-management" options={{ headerShown: false }} />
+              <Stack.Screen name="system-access-agreement" options={{ headerShown: false }} />
             </Stack>
           </InboxProvider>
         </LedgerProvider>

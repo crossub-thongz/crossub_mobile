@@ -1,3 +1,4 @@
+import { Link } from 'expo-router';
 import { useState } from 'react';
 import {
   ActivityIndicator,
@@ -90,6 +91,15 @@ export default function LoginScreen() {
 
           {error ? <Text style={styles.error}>{error}</Text> : null}
 
+          <View style={styles.links}>
+            <Link href="/signup" style={styles.link}>
+              Create account
+            </Link>
+            <Link href="/forgot-password" style={styles.link}>
+              Forgot password?
+            </Link>
+          </View>
+
           <Pressable
             onPress={onSubmit}
             disabled={submitting}
@@ -149,5 +159,11 @@ const styles = StyleSheet.create({
   buttonPressed: { opacity: 0.85 },
   buttonDisabled: { opacity: 0.6 },
   buttonText: { color: '#0b0f10', fontSize: 16, fontWeight: '700' },
+  links: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 16,
+  },
+  link: { color: '#00d4a4', fontSize: 14 },
   meta: { color: '#6b7280', fontSize: 12, marginTop: 28, lineHeight: 18 },
 });

@@ -24,6 +24,7 @@
   ],
   "scripts": {
     "build": "tsup src/index.ts --format esm --dts --clean",
+    "prepare": "pnpm run build",
     "generate": "pnpm --filter @crossub/api contract",
     "prepublishOnly": "pnpm run build"
   },

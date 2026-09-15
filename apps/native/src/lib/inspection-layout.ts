@@ -1,5 +1,6 @@
 import { ONE_BED_AREAS } from '@/src/constants/inspection';
 import type { InspectorInspectionDetail } from '@/src/api/inspector';
+import { resolveAreaDefinition, type CustomAreaDefinition } from '@/src/lib/custom-inspection-areas';
 import type { PropertyInspectionSpec, RoutineAreaIssueDraft } from '@/src/lib/types';
 
 export function areasFromBedroomCount(bedrooms: number | null | undefined): string[] {
@@ -44,6 +45,7 @@ export function emptyRoutineIssue(): RoutineAreaIssueDraft {
 export function seedAreasForStart(
   record: Record<string, RoutineAreaIssueDraft>,
   areaNames: string[],
+  customAreas: CustomAreaDefinition[] = [],
 ): Record<string, RoutineAreaIssueDraft> {
   const next = { ...record };
   for (const name of areaNames) {
@@ -52,7 +54,12 @@ export function seedAreasForStart(
       next[name] = current;
       continue;
     }
-    next[name] = { ...current, available: true };
+    const definition = resolveAreaDefinition(name, customAreas);
+    const sections =
+      current.activeSections && current.activeSections.length > 0
+        ? current.activeSections
+        : [...definition.defaultSections];
+    next[name] = { ...current, available: true, activeSections: sections };
   }
   return next;
 }

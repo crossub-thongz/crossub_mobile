@@ -33,8 +33,13 @@ export type InspectorNotification = {
 export function toNativeHref(href: string): string {
   if (!href) return '/';
   if (href.startsWith('/jobs/')) return href;
+  if (href.startsWith('/signup')) return '/signup';
+  if (href.startsWith('/forgot-password')) return '/forgot-password';
+  if (href.startsWith('/reset-password')) return href;
+  if (href.startsWith('/system-access-agreement')) return '/system-access-agreement';
   if (href.startsWith('/messages')) return href;
   if (href.startsWith('/notifications')) return '/notifications';
+  if (href.startsWith('/history')) return '/history';
   if (href.startsWith('/inspections')) return '/inspect';
   if (href.startsWith('/job-pool')) return '/pool';
   if (href.startsWith('/open-batch')) return '/open-batch';

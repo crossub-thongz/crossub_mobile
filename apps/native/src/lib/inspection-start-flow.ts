@@ -31,6 +31,11 @@ export function inspectionStartCopy(kind: CoreInspectionType) {
   return START_COPY[kind];
 }
 
+export function setupStartLabel(kind: CoreInspectionType, continuing: boolean): string {
+  const copy = START_COPY[kind];
+  return continuing ? copy.continueLabel : copy.startLabel;
+}
+
 export function jobStartCta(type: InspectionType, started: boolean): string {
   if (type === 'ingoing' || type === 'outgoing' || type === 'routine' || type === 'open') {
     const copy = START_COPY[type];

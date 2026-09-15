@@ -11,7 +11,9 @@ import {
 import {
   fetchCurrentUser,
   loginWithPassword,
+  loginWithToken,
   logoutRemote,
+  registerInspectorAccount,
 } from '@/src/api/client';
 import { clearSession, getAccessToken, loadStoredUser, saveUser } from '@/src/auth/session';
 import type { AuthUser } from '@/src/auth/types';
@@ -22,6 +24,13 @@ type AuthContextValue = {
   user: AuthUser | null;
   status: AuthStatus;
   login: (email: string, password: string) => Promise<void>;
+  loginWithMagicLink: (token: string) => Promise<void>;
+  register: (body: {
+    email: string;
+    password: string;
+    firstName: string;
+    lastName: string;
+  }) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
 };
@@ -80,6 +89,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setStatus('authed');
   }, []);
 
+  const loginWithMagicLink = useCallback(async (token: string) => {
+    const next = await loginWithToken(token);
+    const live = await fetchCurrentUser().catch(() => next);
+    await saveUser(live);
+    setUser(live);
+    setStatus('authed');
+  }, []);
+
+  const register = useCallback(
+    async (body: {
+      email: string;
+      password: string;
+      firstName: string;
+      lastName: string;
+    }) => {
+      const next = await registerInspectorAccount(body);
+      const live = await fetchCurrentUser().catch(() => next);
+      await saveUser(live);
+      setUser(live);
+      setStatus('authed');
+    },
+    [],
+  );
+
   const logout = useCallback(async () => {
     await logoutRemote();
     setUser(null);
@@ -94,8 +127,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo(
-    () => ({ user, status, login, logout, refreshUser }),
-    [user, status, login, logout, refreshUser],
+    () => ({ user, status, login, loginWithMagicLink, register, logout, refreshUser }),
+    [user, status, login, loginWithMagicLink, register, logout, refreshUser],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

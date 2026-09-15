@@ -1,7 +1,8 @@
 import type { InspectionType } from '@/src/lib/types';
 
 export const jobDetail = (id: string) => `/jobs/${id}` as const;
-export const jobHistory = (id: string) => `/jobs/${id}` as const;
+export const jobHistory = (id: string) => `/jobs/${id}/history` as const;
+export const historyPath = '/history' as const;
 export const jobKeys = (id: string, tab?: 'collect' | 'return') =>
   tab ? (`/jobs/${id}/keys?tab=${tab}` as const) : (`/jobs/${id}/keys` as const);
 export const jobWorkflow = (id: string, type: InspectionType) =>
@@ -24,3 +25,7 @@ export const earningsPath = '/earnings' as const;
 export const keyManagementPath = '/key-management' as const;
 export const tribunalPath = '/tribunal' as const;
 export const tribunalDetailPath = (id: string) => `/tribunal/${id}` as const;
+export const signupPath = '/signup' as const;
+export const forgotPasswordPath = '/forgot-password' as const;
+export const resetPasswordPath = (token: string) => `/reset-password/${token}` as const;
+export const systemAccessAgreementPath = '/system-access-agreement' as const;

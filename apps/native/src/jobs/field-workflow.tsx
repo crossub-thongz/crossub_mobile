@@ -16,18 +16,26 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import {
   acceptInspection,
+  clearInspectionAreaPhotos,
   completeInspection,
   fetchInspectionDetail,
-  saveInspectionExecutionDraft,
-  saveInspectionFindings,
-  uploadInspectionPhoto,
 } from '@/src/api/inspector';
 import { getDeviceId } from '@/src/auth/session';
 import { INSPECTION_PAY_LABEL, isCoreInspectionType } from '@/src/constants/inspection';
 import { useInspections } from '@/src/inspections/inspections-context';
+import { AreaSetupPanel } from '@/src/jobs/area-setup-panel';
+import { CancelTaskSheet } from '@/src/jobs/cancel-task-sheet';
+import { ChecklistWalk } from '@/src/jobs/checklist-walk';
 import { compressPhotoForUpload, type LocalPhoto } from '@/src/jobs/compress-photo';
 import { JobCamera } from '@/src/jobs/job-camera';
 import { JobWorkspaceNav } from '@/src/jobs/workspace-nav';
+import {
+  appendSelectedAreaName,
+  classifyAddedAreaName,
+  omitNamedRecordKey,
+  removeSelectedAreaName,
+  type CustomAreaSectionMode,
+} from '@/src/lib/custom-inspection-areas';
 import { attendanceWindowFromHours, routineFindingsPayload } from '@/src/lib/findings';
 import { inspectionStartCopy, layoutSourceLabel, preInspectionSmsHref } from '@/src/lib/inspection-start-flow';
 import {
@@ -37,7 +45,10 @@ import {
   roomsFromIngoingDetail,
   seedAreasForStart,
 } from '@/src/lib/inspection-layout';
+import { moveIndex, rekeyRecord, renameCustomArea } from '@/src/lib/inspection-layout-edit';
 import { isKeyCollectComplete } from '@/src/lib/key-access';
+import { queueExecutionDraft, queueInspectionFindings, queueInspectionPhoto } from '@/src/offline/sync';
+import { useOffline } from '@/src/offline/offline-context';
 import { jobDetail, jobInspect, jobKeys } from '@/src/lib/routes';
 import type { InspectionType, RoutineExecutionDraft } from '@/src/lib/types';
 import { colors } from '@/src/theme';
@@ -51,13 +62,15 @@ export function FieldWorkflowScreen({ type }: { type: InspectionType }) {
   const { id, view: viewParam } = useLocalSearchParams<{ id: string; view?: string }>();
   const router = useRouter();
   const { getJob, getDraft, setDraft, patchJob, upsertJob, refresh } = useInspections();
+  const { refreshPending } = useOffline();
   const job = getJob(id);
   const view = type === 'open' ? 'inspect' : parseView(viewParam);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [layoutSource, setLayoutSource] = useState<'template' | 'copied' | 'manual'>('template');
+  const [existingAreas, setExistingAreas] = useState<string[]>([]);
   const [cameraOpen, setCameraOpen] = useState(false);
-  const [newArea, setNewArea] = useState('');
+  const [cancelOpen, setCancelOpen] = useState(false);
 
   const kind = type === 'ingoing' || type === 'outgoing' ? type : 'routine';
   const stored = (id ? getDraft(id) : undefined) ?? null;
@@ -79,18 +92,19 @@ export function FieldWorkflowScreen({ type }: { type: InspectionType }) {
       void (async () => {
         try {
           const deviceId = await getDeviceId();
-          await saveInspectionExecutionDraft(id, {
+          await queueExecutionDraft(id, {
             deviceId,
             kind,
             updatedAt: stamped.updatedAt,
             draft: stamped as unknown as Record<string, unknown>,
           });
+          void refreshPending();
         } catch {
-          // Local draft still holds.
+          // SQLite still holds the draft.
         }
       })();
     },
-    [id, kind, setDraft],
+    [id, kind, setDraft, refreshPending],
   );
 
   useEffect(() => {
@@ -114,10 +128,11 @@ export function FieldWorkflowScreen({ type }: { type: InspectionType }) {
         const base = stored ?? draft;
         if (!draftNeedsLayoutSeed(base)) return;
         if (copied.length > 0) {
-          persist({ ...base, selectedAreaNames: copied, issues: seedAreasForStart(base.issues, copied) });
+          setExistingAreas(copied);
+          persist({ ...base, selectedAreaNames: copied, issues: seedAreasForStart(base.issues, copied, base.customAreas) });
           setLayoutSource('copied');
         } else {
-          persist({ ...base, selectedAreaNames: template, issues: seedAreasForStart(base.issues, template) });
+          persist({ ...base, selectedAreaNames: template, issues: seedAreasForStart(base.issues, template, base.customAreas) });
           setLayoutSource('template');
         }
       } catch {
@@ -153,31 +168,165 @@ export function FieldWorkflowScreen({ type }: { type: InspectionType }) {
       ...draft,
       areaSetupComplete: true,
       areaIndex: 0,
-      issues: seedAreasForStart(draft.issues, names),
+      issues: seedAreasForStart(draft.issues, names, draft.customAreas ?? []),
     });
     if (id) router.replace(jobInspect(id, type) as never);
+  };
+
+  const handleAddCustomArea = (name: string, sectionMode: CustomAreaSectionMode) => {
+    const classified = classifyAddedAreaName(name);
+    const setupComplete = draft.areaSetupComplete === true;
+    let nextCustom = draft.customAreas ?? [];
+    if (classified.kind === 'custom') {
+      const exists = nextCustom.some(
+        (area) => area.name.trim().toLowerCase() === classified.name.toLowerCase(),
+      );
+      if (!exists) nextCustom = [...nextCustom, { name: classified.name, sectionMode }];
+    }
+    const nextSelected = appendSelectedAreaName(draft.selectedAreaNames, classified.name);
+    let nextIssues = {
+      ...draft.issues,
+      [classified.name]: draft.issues[classified.name] ?? emptyRoutineIssue(),
+    };
+    if (setupComplete) {
+      nextIssues = seedAreasForStart(nextIssues, [classified.name], nextCustom);
+    }
+    persist({
+      ...draft,
+      customAreas: nextCustom,
+      selectedAreaNames: nextSelected,
+      areaIndex: setupComplete
+        ? Math.max(0, nextSelected.findIndex((item) => item === classified.name))
+        : draft.areaIndex,
+      issues: nextIssues,
+    });
+  };
+
+  const handleRemoveSetupArea = (name: string) => {
+    const nextSelected = removeSelectedAreaName(draft.selectedAreaNames, name);
+    persist({
+      ...draft,
+      selectedAreaNames: nextSelected,
+      customAreas: (draft.customAreas ?? []).filter(
+        (item) => item.name.trim().toLowerCase() !== name.trim().toLowerCase(),
+      ),
+      issues: omitNamedRecordKey(draft.issues, name),
+      areaIndex: Math.min(draft.areaIndex, Math.max(nextSelected.length - 1, 0)),
+    });
+  };
+
+  const handleMoveSetupArea = (from: number, to: number) => {
+    persist({
+      ...draft,
+      selectedAreaNames: moveIndex(names, from, to),
+    });
+  };
+
+  const handleRenameSetupArea = (from: string, to: string) => {
+    if (from === to) return;
+    persist({
+      ...draft,
+      selectedAreaNames: names.map((name) => (name === from ? to : name)),
+      customAreas: renameCustomArea(draft.customAreas ?? [], from, to),
+      issues: rekeyRecord(draft.issues, from, to),
+    });
+  };
+
+  const addAllFromIngoing = () => {
+    const extras = existingAreas.filter(
+      (name) => !names.some((selected) => selected.toLowerCase() === name.toLowerCase()),
+    );
+    if (extras.length === 0) return;
+    const nextIssues = { ...draft.issues };
+    for (const name of extras) {
+      if (!nextIssues[name]) nextIssues[name] = emptyRoutineIssue();
+    }
+    persist({
+      ...draft,
+      selectedAreaNames: [...names, ...extras],
+      issues: nextIssues,
+    });
+  };
+
+  const resetInspection = () => {
+    Alert.alert(
+      'Reset inspection?',
+      'This clears your area checklist, section progress, and uploaded photos for this inspection on this device. You will start again from area setup.',
+      [
+        { text: 'Keep progress', style: 'cancel' },
+        {
+          text: 'Reset inspection',
+          style: 'destructive',
+          onPress: () => {
+            void (async () => {
+              if (!id) return;
+              setBusy('reset');
+              try {
+                try {
+                  const detail = await fetchInspectionDetail(id);
+                  const areaNames = [
+                    ...new Set(
+                      (detail.areas ?? [])
+                        .map((area) => area.name?.trim())
+                        .filter((name): name is string => Boolean(name)),
+                    ),
+                  ];
+                  await Promise.all(areaNames.map((areaName) => clearInspectionAreaPhotos(id, areaName)));
+                } catch {
+                  // Local reset still applies.
+                }
+                const blank: RoutineExecutionDraft = {
+                  kind,
+                  areaIndex: 0,
+                  method: 'physical',
+                  issues: {},
+                  selectedAreaNames: existingAreas.length
+                    ? existingAreas
+                    : job
+                      ? layoutTemplateFromProperty(job.property)
+                      : [],
+                  customAreas: [],
+                  areaSetupComplete: false,
+                };
+                persist(blank);
+                setLayoutSource(existingAreas.length ? 'copied' : 'template');
+                if (id) router.replace(`/jobs/${id}/${type}` as never);
+              } finally {
+                setBusy(null);
+              }
+            })();
+          },
+        },
+      ],
+    );
   };
 
   const goArea = (index: number) => {
     persist({ ...draft, areaIndex: Math.max(0, Math.min(index, names.length - 1)) });
   };
 
-  const onCapture = async (photo: LocalPhoto) => {
-    if (!id || !currentName) return;
+  const onBurst = async (photos: LocalPhoto[]) => {
+    if (!id || !currentName || photos.length === 0) return;
     setBusy('photo');
     setError(null);
     try {
       await ensureAccepted();
-      const body = await compressPhotoForUpload(photo);
-      const uploaded = await uploadInspectionPhoto(id, { ...body, areaName: currentName });
-      const nextIssue = {
-        ...current,
-        available: true as const,
-        areaPhotos: [...current.areaPhotos, uploaded.url],
-      };
+      const urls: string[] = [];
+      for (const photo of photos) {
+        const body = await compressPhotoForUpload(photo);
+        const uploaded = await queueInspectionPhoto(id, { ...body, areaName: currentName }, photo.uri);
+        urls.push(uploaded.url);
+      }
       persist({
         ...draft,
-        issues: { ...draft.issues, [currentName]: nextIssue },
+        issues: {
+          ...draft.issues,
+          [currentName]: {
+            ...current,
+            available: true as const,
+            areaPhotos: [...current.areaPhotos, ...urls],
+          },
+        },
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Photo upload failed — please retry');
@@ -222,7 +371,15 @@ export function FieldWorkflowScreen({ type }: { type: InspectionType }) {
     try {
       await ensureAccepted();
       const payload = routineFindingsPayload(draft.method, names, draft.issues);
-      await saveInspectionFindings(id, payload);
+      const findingsState = await queueInspectionFindings(id, payload);
+      void refreshPending();
+      if (findingsState === 'queued') {
+        Alert.alert(
+          'Saved on this phone',
+          'Findings will upload when you are back online. Open Settings and tap Sync now, then complete the report.',
+        );
+        return;
+      }
       if (job.keyAccess && !job.keyAccess.returnComplete && kind === 'routine') {
         patchJob(id, {
           workflowData: { ...job.workflowData, inspectionFinished: true },
@@ -267,81 +424,105 @@ export function FieldWorkflowScreen({ type }: { type: InspectionType }) {
     <SafeAreaView style={styles.safe} edges={['bottom']}>
       <Stack.Screen options={{ title, headerBackTitle: 'Back' }} />
       <JobWorkspaceNav job={job} active={view === 'areas' ? 'areas' : 'start'} />
+      {view === 'inspect' && (type === 'ingoing' || type === 'outgoing') ? (
+        <View style={styles.flex}>
+          <Pressable onPress={() => setCancelOpen(true)} style={styles.cancelLink}>
+            <Text style={styles.cancelLinkText}>Cancel task</Text>
+          </Pressable>
+          <ChecklistWalk
+            inspectionId={id}
+            type={type}
+            draft={draft}
+            persist={persist}
+            names={names}
+            areaIndex={areaIndex}
+            goArea={goArea}
+            ensureAccepted={ensureAccepted}
+            busy={busy}
+            setBusy={setBusy}
+            error={error}
+            setError={setError}
+            customAreas={draft.customAreas ?? []}
+            onAfterFindings={async () => {
+              if (job.keyAccess && !job.keyAccess.returnComplete) {
+                patchJob(id, {
+                  workflowData: { ...job.workflowData, inspectionFinished: true },
+                });
+                Alert.alert('Report generated', 'Return the keys to complete this task.');
+                router.replace(jobKeys(id, 'return') as never);
+                return;
+              }
+              const completed = await completeInspection(
+                id,
+                attendanceWindowFromHours(job.estimatedHours),
+              );
+              upsertJob({
+                ...job,
+                status: completed.status === 'COMPLETED' ? 'completed' : job.status,
+              });
+              await refresh();
+              Alert.alert(
+                'Inspection complete',
+                `${INSPECTION_PAY_LABEL[job.type] ?? job.type} report sent to agent and landlord.`,
+                [{ text: 'Home', onPress: () => router.replace('/') }],
+              );
+            }}
+          />
+        </View>
+      ) : (
       <ScrollView contentContainerStyle={styles.inner} keyboardShouldPersistTaps="handled">
         {error ? <Text style={styles.error}>{error}</Text> : null}
+        {view === 'inspect' ? (
+          <Pressable onPress={() => setCancelOpen(true)}>
+            <Text style={styles.cancelLinkText}>Cancel task</Text>
+          </Pressable>
+        ) : null}
 
         {view === 'areas' ? (
           <>
             <Text style={styles.title}>{copy.startLabel.replace(/^(Start|Continue) /, '')}</Text>
             <Text style={styles.body}>{copy.body}</Text>
-            {sourceLabel ? <Text style={styles.banner}>{sourceLabel}</Text> : null}
-            {type === 'routine' ? (
-              <View style={styles.methodRow}>
-                {(['physical', 'self'] as const).map((method) => (
-                  <Pressable
-                    key={method}
-                    onPress={() => persist({ ...draft, method })}
-                    style={[styles.chip, draft.method === method && styles.chipOn]}
-                  >
-                    <Text style={[styles.chipText, draft.method === method && styles.chipTextOn]}>
-                      {method === 'physical' ? 'Physical' : 'Tenant self-inspect'}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
-            ) : null}
-            {sms ? (
-              <Pressable onPress={() => void Linking.openURL(sms)} style={styles.secondary}>
-                <Text style={styles.secondaryText}>SMS tenant reminder</Text>
-              </Pressable>
-            ) : null}
-
-            {names.map((name, index) => (
-              <View key={name} style={styles.areaRow}>
-                <Text style={styles.areaName}>{name}</Text>
-                <Pressable
-                  onPress={() =>
-                    persist({
-                      ...draft,
-                      selectedAreaNames: names.filter((_, i) => i !== index),
-                    })
-                  }
-                >
-                  <Text style={styles.remove}>Remove</Text>
-                </Pressable>
-              </View>
-            ))}
-            <View style={styles.addRow}>
-              <TextInput
-                value={newArea}
-                onChangeText={setNewArea}
-                placeholder="Add an area"
-                placeholderTextColor={colors.muted}
-                style={styles.input}
-              />
-              <Pressable
-                onPress={() => {
-                  const name = newArea.trim();
-                  if (name.length < 2) {
-                    setError('Enter an area name (at least 2 characters).');
-                    return;
-                  }
-                  if (names.some((item) => item.toLowerCase() === name.toLowerCase())) {
-                    setError('An area with this name already exists.');
-                    return;
-                  }
-                  persist({ ...draft, selectedAreaNames: [...names, name] });
-                  setNewArea('');
-                  setError(null);
-                }}
-                style={styles.addBtn}
-              >
-                <Text style={styles.addBtnText}>Add</Text>
-              </Pressable>
-            </View>
-            <Pressable onPress={completeSetup} style={styles.primary}>
-              <Text style={styles.primaryText}>{copy.startLabel}</Text>
+            <Pressable onPress={resetInspection} style={styles.secondary}>
+              <Text style={styles.cancelLinkText}>Reset inspection</Text>
             </Pressable>
+            <AreaSetupPanel
+              kind={kind}
+              selectedAreaNames={names}
+              existingAreaNames={existingAreas}
+              continuing={Boolean(draft.areaSetupComplete || names.length > 0 || areaIndex > 0)}
+              sourceLabel={sourceLabel}
+              extraHeader={
+                <>
+                  {type === 'routine' ? (
+                    <View style={styles.methodRow}>
+                      {(['physical', 'self'] as const).map((method) => (
+                        <Pressable
+                          key={method}
+                          onPress={() => persist({ ...draft, method })}
+                          style={[styles.chip, draft.method === method && styles.chipOn]}
+                        >
+                          <Text style={[styles.chipText, draft.method === method && styles.chipTextOn]}>
+                            {method === 'physical' ? 'Physical' : 'Tenant self-inspect'}
+                          </Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                  ) : null}
+                  {sms ? (
+                    <Pressable onPress={() => void Linking.openURL(sms)} style={styles.secondary}>
+                      <Text style={styles.secondaryText}>SMS tenant reminder</Text>
+                    </Pressable>
+                  ) : null}
+                </>
+              }
+              onAddBuiltInArea={(name) => handleAddCustomArea(name, 'standard')}
+              onAddCustomArea={handleAddCustomArea}
+              onRemoveArea={handleRemoveSetupArea}
+              onRenameArea={handleRenameSetupArea}
+              onMoveArea={handleMoveSetupArea}
+              onAddAllExisting={existingAreas.length > 0 ? addAllFromIngoing : undefined}
+              onComplete={completeSetup}
+            />
           </>
         ) : (
           <>
@@ -404,7 +585,7 @@ export function FieldWorkflowScreen({ type }: { type: InspectionType }) {
                 </Text>
                 <Pressable onPress={() => setCameraOpen(true)} style={styles.secondary}>
                   <Text style={styles.secondaryText}>
-                    {busy === 'photo' ? 'Uploading photos…' : 'Take photo'}
+                    {busy === 'photo' ? 'Uploading photos…' : 'Take photos'}
                   </Text>
                 </Pressable>
                 <Pressable onPress={skipArea} style={styles.secondary}>
@@ -430,11 +611,24 @@ export function FieldWorkflowScreen({ type }: { type: InspectionType }) {
           </>
         )}
       </ScrollView>
+      )}
       <JobCamera
         visible={cameraOpen}
+        mode="burst"
         onClose={() => setCameraOpen(false)}
-        onCapture={(photo) => {
-          void onCapture(photo);
+        onBurstComplete={(photos) => {
+          void onBurst(photos);
+        }}
+      />
+      <CancelTaskSheet
+        visible={cancelOpen}
+        inspectionId={id}
+        urgent={job.priority === 'urgent'}
+        onClose={() => setCancelOpen(false)}
+        onReleased={() => {
+          setCancelOpen(false);
+          void refresh();
+          router.replace('/');
         }}
       />
     </SafeAreaView>
@@ -521,4 +715,7 @@ const styles = StyleSheet.create({
   thumb: { height: 160, borderRadius: 8, backgroundColor: colors.card },
   meta: { color: colors.muted, fontSize: 12 },
   disabled: { opacity: 0.55 },
+  flex: { flex: 1 },
+  cancelLink: { alignSelf: 'flex-end', paddingHorizontal: 16, paddingTop: 8 },
+  cancelLinkText: { color: colors.destructive, fontSize: 13, fontWeight: '600' },
 });
