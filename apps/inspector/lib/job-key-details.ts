@@ -22,3 +22,15 @@ export function jobKeysCountLabel(job: InspectionJob): string {
   if (job.keyAccess) return '1 set';
   return '—';
 }
+
+/** `tel:` href so the inspector can call the tenant from Key Details. */
+export function tenantPhoneHref(phone: string | undefined | null): string | null {
+  const digits = phone?.replace(/[^\d+]/g, '') ?? '';
+  return digits.length >= 6 ? `tel:${digits}` : null;
+}
+
+/** `mailto:` href so the inspector can email the tenant from Key Details. */
+export function tenantEmailHref(email: string | undefined | null): string | null {
+  const trimmed = email?.trim() ?? '';
+  return trimmed.includes('@') ? `mailto:${trimmed}` : null;
+}

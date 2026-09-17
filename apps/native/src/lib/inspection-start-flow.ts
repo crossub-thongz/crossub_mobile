@@ -58,6 +58,20 @@ export function layoutSourceLabel(
   return null;
 }
 
+export function tenantPhoneHref(phone?: string | null): string | null {
+  const trimmed = phone?.trim();
+  if (!trimmed) return null;
+  const digits = trimmed.replace(/[^\d+]/g, '');
+  if (!digits) return null;
+  return `tel:${digits}`;
+}
+
+export function tenantEmailHref(email?: string | null): string | null {
+  const trimmed = email?.trim();
+  if (!trimmed || !trimmed.includes('@')) return null;
+  return `mailto:${trimmed}`;
+}
+
 export function preInspectionSmsHref(job: {
   tenantPhone?: string;
   tenantName?: string;
@@ -65,9 +79,10 @@ export function preInspectionSmsHref(job: {
   scheduledTime: string;
   scheduledDate: string;
 }): string | null {
-  if (!job.tenantPhone?.trim()) return null;
+  const tel = tenantPhoneHref(job.tenantPhone);
+  if (!tel) return null;
   const name = job.tenantName?.trim() || 'there';
   const when = job.scheduledTime || job.scheduledDate;
   const body = `Hi ${name}, reminder that your routine inspection at ${job.propertyAddress} is scheduled for ${when}. Please ensure access. — Crossub Inspections`;
-  return `sms:${job.tenantPhone.replace(/[^\d+]/g, '')}?body=${encodeURIComponent(body)}`;
+  return `sms:${tel.slice('tel:'.length)}?body=${encodeURIComponent(body)}`;
 }

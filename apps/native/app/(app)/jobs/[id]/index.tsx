@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Linking,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -29,6 +30,7 @@ import {
   jobInspectionStarted,
   jobPrimaryAction,
 } from '@/src/lib/inspection-job-cta';
+import { tenantEmailHref, tenantPhoneHref } from '@/src/lib/inspection-start-flow';
 import { isPoolJob } from '@/src/lib/inspector-job-filters';
 import { toInspectionJob } from '@/src/lib/job-map';
 import {
@@ -256,6 +258,16 @@ export default function JobDetailsScreen() {
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Key Details</Text>
           <Detail label="Tenant" value={job.tenantName?.trim() || '-'} />
+          <Detail
+            label="Phone"
+            value={job.tenantPhone?.trim() || '-'}
+            href={tenantPhoneHref(job.tenantPhone)}
+          />
+          <Detail
+            label="Email"
+            value={job.tenantEmail?.trim() || '-'}
+            href={tenantEmailHref(job.tenantEmail)}
+          />
           <Detail label="Lease Start" value={job.leaseStart ? formatDate(job.leaseStart) : '-'} />
           <Detail label="Lease End" value={job.leaseEnd ? formatDate(job.leaseEnd) : '-'} />
           <Detail label="Property Manager" value={job.agentName || job.agentCompany || '-'} />
@@ -296,13 +308,27 @@ export default function JobDetailsScreen() {
   );
 }
 
-function Detail({ label, value }: { label: string; value: string }) {
+function Detail({
+  label,
+  value,
+  href,
+}: {
+  label: string;
+  value: string;
+  href?: string | null;
+}) {
   return (
     <View style={styles.detailRow}>
       <Text style={styles.muted}>{label}</Text>
-      <Text style={styles.detailValue} numberOfLines={1}>
-        {value}
-      </Text>
+      {href ? (
+        <Pressable onPress={() => void Linking.openURL(href)} hitSlop={8}>
+          <Text style={styles.detailLink}>{value}</Text>
+        </Pressable>
+      ) : (
+        <Text style={styles.detailValue} numberOfLines={1}>
+          {value}
+        </Text>
+      )}
     </View>
   );
 }
@@ -387,4 +413,11 @@ const styles = StyleSheet.create({
   disabled: { opacity: 0.45 },
   detailRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 12, paddingVertical: 8 },
   detailValue: { color: colors.text, fontSize: 12, fontWeight: '500', flexShrink: 1, textAlign: 'right' },
+  detailLink: {
+    color: colors.primary,
+    fontSize: 12,
+    fontWeight: '700',
+    flexShrink: 1,
+    textAlign: 'right',
+  },
 });

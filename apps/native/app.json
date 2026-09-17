@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "CROSSUB Inspector",
+    "name": "CROSSUB Mobile",
     "slug": "crossub-inspector",
     "owner": "justinlth18",
     "version": "0.1.0",
@@ -12,6 +12,9 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.crossub.inspector",
       "buildNumber": "1",
+      "config": {
+        "usesNonExemptEncryption": false
+      },
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
@@ -27,6 +30,9 @@
       },
       "predictiveBackGestureEnabled": false,
       "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
         "android.permission.CAMERA",
         "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.ACCESS_FINE_LOCATION"
@@ -78,6 +84,12 @@
       "eas": {
         "projectId": "bdd9750e-e39f-4ef2-abbc-35f28c26e116"
       }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/bdd9750e-e39f-4ef2-abbc-35f28c26e116"
     }
   }
 }
