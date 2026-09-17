@@ -23,8 +23,16 @@ import {
 import { INSPECTION_PAY_LABEL } from '@/src/constants/inspection';
 import { useInspections } from '@/src/inspections/inspections-context';
 import { CancelTaskSheet } from '@/src/jobs/cancel-task-sheet';
+import { FieldWorkflowScreen } from '@/src/jobs/field-workflow';
+import { JobHandoverPanel } from '@/src/jobs/job-handover';
 import { JobPayBreakdown, JobTravelCard } from '@/src/jobs/job-travel-pay';
-import { JobWorkspaceNav } from '@/src/jobs/workspace-nav';
+import { OpenViewingScreen } from '@/src/jobs/open-viewing-screen';
+import {
+  JobWorkspaceNav,
+  parseKeysPhase,
+  parseWorkspaceTab,
+  type WorkspaceTab,
+} from '@/src/jobs/workspace-nav';
 import { formatCurrency, formatDate, formatScheduleWhen } from '@/src/lib/datetime';
 import {
   jobInspectionStarted,
@@ -42,7 +50,7 @@ import {
   keyAccessFromCollection,
 } from '@/src/lib/key-access';
 import { formatJobRefId, propertyAddressLines } from '@/src/lib/property-address';
-import { jobDetail, jobHistory, jobKeys } from '@/src/lib/routes';
+import { jobHistory } from '@/src/lib/routes';
 import { colors } from '@/src/theme';
 
 function Banner({ tone, children }: { tone: 'amber' | 'danger'; children: string }) {
@@ -52,13 +60,19 @@ function Banner({ tone, children }: { tone: 'amber' | 'danger'; children: string
 }
 
 export default function JobDetailsScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, tab: tabParam, keys: keysParam } = useLocalSearchParams<{
+    id: string;
+    tab?: string;
+    keys?: string;
+  }>();
   const router = useRouter();
   const { getJob, getDraft, upsertJob, claim, claimingId, refresh, deviceLocation } = useInspections();
   const cached = getJob(id);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [cancelOpen, setCancelOpen] = useState(false);
+  const [tab, setTab] = useState<WorkspaceTab>(() => parseWorkspaceTab(tabParam));
+  const [keysPhase, setKeysPhase] = useState<'collect' | 'return'>(() => parseKeysPhase(keysParam));
 
   useEffect(() => {
     if (!id) return;
@@ -78,6 +92,24 @@ export default function JobDetailsScreen() {
       }
     })();
   }, [id, upsertJob]);
+
+  useEffect(() => {
+    setTab(parseWorkspaceTab(tabParam));
+  }, [tabParam]);
+
+  useEffect(() => {
+    setKeysPhase(parseKeysPhase(keysParam));
+  }, [keysParam]);
+
+  const selectTab = (next: WorkspaceTab, extras?: { keys?: 'collect' | 'return' }) => {
+    const nextKeys = extras?.keys ?? (next === 'handover' ? keysPhase : undefined);
+    if (extras?.keys) setKeysPhase(extras.keys);
+    setTab(next);
+    router.setParams({
+      tab: next,
+      keys: nextKeys ?? '',
+    });
+  };
 
   const job = getJob(id) ?? cached;
   if (!job) {
@@ -106,13 +138,6 @@ export default function JobDetailsScreen() {
     : `${INSPECTION_PAY_LABEL[job.type] ?? job.type} Inspection`;
 
   const handoverNext = Boolean(job.keyAccess && !keyCollectDone && !paymentBlocked);
-  const ctaHref = paymentBlocked
-    ? jobDetail(job.id)
-    : returnPending
-      ? jobKeys(job.id, 'return')
-      : handoverNext
-        ? jobKeys(job.id, 'collect')
-        : primary.href;
   const ctaLabel = paymentBlocked
     ? 'Waiting for agency payment'
     : returnPending
@@ -136,14 +161,16 @@ export default function JobDetailsScreen() {
       if (isPoolJob(job)) {
         const next = await claim(job.id);
         if (next.awaitingAgentPayment) return;
-        router.push(jobPrimaryAction(next, false).href as never);
+        const tabPart = jobPrimaryAction(next, false).href.split('tab=')[1]?.split('&')[0];
+        selectTab(parseWorkspaceTab(tabPart));
         return;
       }
       const dto = await acceptInspection(job.id);
       const next = toInspectionJob(dto);
       upsertJob({ ...job, ...next, keyAccess: job.keyAccess });
       if (next.awaitingAgentPayment) return;
-      router.push(jobPrimaryAction({ ...job, ...next }, false).href as never);
+      const tabPart = jobPrimaryAction({ ...job, ...next }, false).href.split('tab=')[1]?.split('&')[0];
+      selectTab(parseWorkspaceTab(tabPart));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not accept this job.');
     } finally {
@@ -166,7 +193,7 @@ export default function JobDetailsScreen() {
   if (poolPreview) {
     return (
       <SafeAreaView style={styles.safe} edges={['bottom']}>
-        <Stack.Screen options={{ title, headerBackTitle: 'Back' }} />
+        <Stack.Screen options={{ title }} />
         <ScrollView contentContainerStyle={styles.inner}>
           <Text style={styles.hint}>
             Review scheduled date, address, payout, and job type. Accept to open the{' '}
@@ -203,8 +230,27 @@ export default function JobDetailsScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['bottom']}>
-      <Stack.Screen options={{ title, headerBackTitle: 'Back' }} />
-      <JobWorkspaceNav job={job} active="details" />
+      <Stack.Screen options={{ title }} />
+      <JobWorkspaceNav job={job} active={tab} onSelect={selectTab} />
+      {tab === 'handover' && id ? (
+        <JobHandoverPanel
+          id={id}
+          phase={keysPhase}
+          onChangeTab={selectTab}
+          onFinished={() => router.replace('/')}
+        />
+      ) : null}
+      {tab === 'areas' && job.type !== 'open' ? (
+        <FieldWorkflowScreen type={job.type} view="areas" onChangeTab={selectTab} />
+      ) : null}
+      {tab === 'start' && job.type === 'open' ? (
+        <OpenViewingScreen onChangeTab={selectTab} />
+      ) : null}
+      {tab === 'start' && job.type !== 'open' ? (
+        <FieldWorkflowScreen type={job.type} view="inspect" onChangeTab={selectTab} />
+      ) : null}
+      {tab === 'details' ? (
+      <>
       <ScrollView contentContainerStyle={styles.inner}>
         {paymentBlocked ? (
           <Banner tone="amber">
@@ -279,8 +325,14 @@ export default function JobDetailsScreen() {
         <Pressable
           disabled={ctaDisabled}
           onPress={() => {
-            if (job.status === 'completed') router.push(jobHistory(job.id) as never);
-            else router.push(ctaHref as never);
+            if (job.status === 'completed') {
+              router.push(jobHistory(job.id) as never);
+              return;
+            }
+            if (returnPending) selectTab('handover', { keys: 'return' });
+            else if (handoverNext) selectTab('handover', { keys: 'collect' });
+            else if (job.type === 'open' || started) selectTab('start');
+            else selectTab('areas');
           }}
           style={[styles.primary, ctaDisabled && styles.disabled]}
         >
@@ -304,6 +356,8 @@ export default function JobDetailsScreen() {
           router.replace('/');
         }}
       />
+      </>
+      ) : null}
     </SafeAreaView>
   );
 }

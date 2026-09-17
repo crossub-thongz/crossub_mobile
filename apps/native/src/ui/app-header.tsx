@@ -24,6 +24,7 @@ import {
 } from '@/src/lib/datetime';
 import { inspectorLevelAllows } from '@/src/lib/inspector-access-level';
 import { colors } from '@/src/theme';
+import { BackLabelButton } from '@/src/ui/back-label';
 
 const MORE_NAV_BASE = [
   { href: '/open-batch', label: 'Open task pool', need: 'open' as const },
@@ -165,9 +166,7 @@ export function AppHeader({
       ) : variant === 'workspace' ? (
         <View style={styles.workspaceRow}>
           {backHref ? (
-            <Pressable onPress={() => router.push(backHref as never)} style={styles.iconBtn}>
-              <Ionicons name="arrow-back" size={20} color={colors.text} />
-            </Pressable>
+            <BackLabelButton onPress={() => router.push(backHref as never)} />
           ) : (
             <View style={styles.brandIconLg}>
               <Ionicons name="clipboard" size={16} color={colors.primary} />
@@ -182,9 +181,7 @@ export function AppHeader({
         <>
           <View style={styles.defaultRow}>
             {backHref ? (
-              <Pressable onPress={() => router.push(backHref as never)}>
-                <Text style={styles.back}>? Back</Text>
-              </Pressable>
+              <BackLabelButton onPress={() => router.push(backHref as never)} />
             ) : (
               <Pressable onPress={() => go('/')} style={styles.brand}>
                 <View style={styles.brandIcon}>
@@ -303,7 +300,6 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingHorizontal: 16,
   },
-  back: { color: colors.primary, fontSize: 14, fontWeight: '500' },
   brand: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   brandIcon: {
     width: 32,

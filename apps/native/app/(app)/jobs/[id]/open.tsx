@@ -1,5 +1,7 @@
-import { OpenViewingScreen } from '@/src/jobs/open-viewing-screen';
+import { Redirect, useLocalSearchParams } from 'expo-router';
 
-export default function OpenWorkflow() {
-  return <OpenViewingScreen />;
+export default function OpenRedirect() {
+  const { id } = useLocalSearchParams<{ id: string }>();
+  if (!id) return null;
+  return <Redirect href={`/jobs/${id}?tab=start`} />;
 }

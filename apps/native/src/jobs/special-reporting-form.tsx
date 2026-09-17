@@ -15,6 +15,7 @@ import {
   type YesNoNa,
 } from '@/src/lib/special-reporting';
 import { colors } from '@/src/theme';
+import { DateField } from '@/src/ui/date-field';
 
 const BOOL_SECTIONS: {
   title: string;
@@ -167,12 +168,10 @@ export function SpecialReportingForm({
           {section.title === 'Smoke alarms' ? (
             <>
               <Text style={styles.label}>Date last checked</Text>
-              <TextInput
+              <DateField
                 value={value.smokeAlarmsLastChecked}
-                onChangeText={(smokeAlarmsLastChecked) => patch({ smokeAlarmsLastChecked })}
-                placeholder="YYYY-MM-DD"
-                placeholderTextColor={colors.muted}
-                style={styles.input}
+                onChange={(smokeAlarmsLastChecked) => patch({ smokeAlarmsLastChecked })}
+                optional
               />
               <Text style={styles.label}>Removable batteries replaced in last 12 months</Text>
               <YesNoNaRow
@@ -180,14 +179,12 @@ export function SpecialReportingForm({
                 onChange={(smokeRemovableBatteries) => patch({ smokeRemovableBatteries })}
               />
               <Text style={styles.label}>Date batteries last changed</Text>
-              <TextInput
+              <DateField
                 value={value.smokeRemovableBatteriesDate}
-                onChangeText={(smokeRemovableBatteriesDate) =>
+                onChange={(smokeRemovableBatteriesDate) =>
                   patch({ smokeRemovableBatteriesDate })
                 }
-                placeholder="YYYY-MM-DD"
-                placeholderTextColor={colors.muted}
-                style={styles.input}
+                optional
               />
               <Text style={styles.label}>Removable lithium batteries replaced per manufacturer</Text>
               <YesNoNaRow
@@ -195,14 +192,12 @@ export function SpecialReportingForm({
                 onChange={(smokeLithiumBatteries) => patch({ smokeLithiumBatteries })}
               />
               <Text style={styles.label}>Date lithium batteries last changed</Text>
-              <TextInput
+              <DateField
                 value={value.smokeLithiumBatteriesDate}
-                onChangeText={(smokeLithiumBatteriesDate) =>
+                onChange={(smokeLithiumBatteriesDate) =>
                   patch({ smokeLithiumBatteriesDate })
                 }
-                placeholder="YYYY-MM-DD"
-                placeholderTextColor={colors.muted}
-                style={styles.input}
+                optional
               />
             </>
           ) : null}
@@ -214,14 +209,11 @@ export function SpecialReportingForm({
                 onChange={(dualFlushToilets) => patch({ dualFlushToilets })}
               />
               <Text style={styles.label}>Date last checked for water efficiency *</Text>
-              <TextInput
+              <DateField
                 value={value.waterEfficiencyLastChecked}
-                onChangeText={(waterEfficiencyLastChecked) =>
+                onChange={(waterEfficiencyLastChecked) =>
                   patch({ waterEfficiencyLastChecked })
                 }
-                placeholder="YYYY-MM-DD"
-                placeholderTextColor={colors.muted}
-                style={styles.input}
               />
               <Text style={styles.label}>Water meter reading at START of tenancy *</Text>
               <TextInput
@@ -232,12 +224,9 @@ export function SpecialReportingForm({
                 style={styles.input}
               />
               <Text style={styles.label}>Date of start reading *</Text>
-              <TextInput
+              <DateField
                 value={value.waterMeterStartDate}
-                onChangeText={(waterMeterStartDate) => patch({ waterMeterStartDate })}
-                placeholder="YYYY-MM-DD"
-                placeholderTextColor={colors.muted}
-                style={styles.input}
+                onChange={(waterMeterStartDate) => patch({ waterMeterStartDate })}
               />
               <Text style={styles.label}>Water meter reading at END of tenancy</Text>
               <TextInput
@@ -248,12 +237,10 @@ export function SpecialReportingForm({
                 style={styles.input}
               />
               <Text style={styles.label}>Date of end reading</Text>
-              <TextInput
+              <DateField
                 value={value.waterMeterEndDate}
-                onChangeText={(waterMeterEndDate) => patch({ waterMeterEndDate })}
-                placeholder="YYYY-MM-DD"
-                placeholderTextColor={colors.muted}
-                style={styles.input}
+                onChange={(waterMeterEndDate) => patch({ waterMeterEndDate })}
+                optional
               />
             </>
           ) : null}
@@ -271,38 +258,30 @@ export function SpecialReportingForm({
           style={[styles.input, styles.notes]}
         />
         <Text style={styles.label}>Installation of water efficiency measures</Text>
-        <TextInput
+        <DateField
           value={value.waterEfficiencyInstalledDate}
-          onChangeText={(waterEfficiencyInstalledDate) =>
+          onChange={(waterEfficiencyInstalledDate) =>
             patch({ waterEfficiencyInstalledDate })
           }
-          placeholder="YYYY-MM-DD"
-          placeholderTextColor={colors.muted}
-          style={styles.input}
+          optional
         />
         <Text style={styles.label}>Painting (external)</Text>
-        <TextInput
+        <DateField
           value={value.paintingExternalDate}
-          onChangeText={(paintingExternalDate) => patch({ paintingExternalDate })}
-          placeholder="YYYY-MM-DD"
-          placeholderTextColor={colors.muted}
-          style={styles.input}
+          onChange={(paintingExternalDate) => patch({ paintingExternalDate })}
+          optional
         />
         <Text style={styles.label}>Painting (internal)</Text>
-        <TextInput
+        <DateField
           value={value.paintingInternalDate}
-          onChangeText={(paintingInternalDate) => patch({ paintingInternalDate })}
-          placeholder="YYYY-MM-DD"
-          placeholderTextColor={colors.muted}
-          style={styles.input}
+          onChange={(paintingInternalDate) => patch({ paintingInternalDate })}
+          optional
         />
         <Text style={styles.label}>Flooring laid/replaced/cleaned</Text>
-        <TextInput
+        <DateField
           value={value.flooringDate}
-          onChangeText={(flooringDate) => patch({ flooringDate })}
-          placeholder="YYYY-MM-DD"
-          placeholderTextColor={colors.muted}
-          style={styles.input}
+          onChange={(flooringDate) => patch({ flooringDate })}
+          optional
         />
         <Text style={styles.label}>Landlord agrees to undertake work</Text>
         <TextInput
@@ -313,12 +292,10 @@ export function SpecialReportingForm({
           placeholderTextColor={colors.muted}
         />
         <Text style={styles.label}>Complete work by</Text>
-        <TextInput
+        <DateField
           value={value.landlordWorkBy}
-          onChangeText={(landlordWorkBy) => patch({ landlordWorkBy })}
-          placeholder="YYYY-MM-DD"
-          placeholderTextColor={colors.muted}
-          style={styles.input}
+          onChange={(landlordWorkBy) => patch({ landlordWorkBy })}
+          optional
         />
         <Text style={styles.label}>Landlord/agent signature</Text>
         <TextInput
@@ -328,12 +305,10 @@ export function SpecialReportingForm({
           style={styles.input}
         />
         <Text style={styles.label}>Signed date</Text>
-        <TextInput
+        <DateField
           value={value.landlordSignedDate}
-          onChangeText={(landlordSignedDate) => patch({ landlordSignedDate })}
-          placeholder="YYYY-MM-DD"
-          placeholderTextColor={colors.muted}
-          style={styles.input}
+          onChange={(landlordSignedDate) => patch({ landlordSignedDate })}
+          optional
         />
       </View>
 

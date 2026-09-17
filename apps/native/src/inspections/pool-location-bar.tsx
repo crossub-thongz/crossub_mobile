@@ -140,7 +140,11 @@ export function PoolLocationBar({
         </View>
         <Pressable onPress={openMaps} style={styles.map}>
           {tile.url ? (
-            <Image source={{ uri: tile.url }} style={StyleSheet.absoluteFill} contentFit="cover" />
+            <Image
+              source={{ uri: tile.url, headers: tile.headers }}
+              style={StyleSheet.absoluteFill}
+              contentFit="cover"
+            />
           ) : null}
           {origin || gps ? (
             <View

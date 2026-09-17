@@ -1,5 +1,5 @@
 import { Image } from 'expo-image';
-import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -13,7 +13,6 @@ import {
   Text,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
 import {
   acceptInspection,
@@ -25,7 +24,7 @@ import {
 } from '@/src/api/inspector';
 import { useInspections } from '@/src/inspections/inspections-context';
 import { CancelTaskSheet } from '@/src/jobs/cancel-task-sheet';
-import { JobWorkspaceNav } from '@/src/jobs/workspace-nav';
+import { type WorkspaceTab } from '@/src/jobs/workspace-nav';
 import { formatDateTime, formatInspectTime } from '@/src/lib/datetime';
 import { isKeyCollectComplete, isKeyReturnComplete } from '@/src/lib/key-access';
 import {
@@ -34,7 +33,6 @@ import {
   openInspectionRemainingRatio,
   splitOpenInspectionVisitors,
 } from '@/src/lib/open-viewing';
-import { jobKeys } from '@/src/lib/routes';
 import { colors } from '@/src/theme';
 
 function sourceLabel(source: string): string {
@@ -97,7 +95,7 @@ function VisitorDetailSheet({
             </Pressable>
           </View>
           <Text style={styles.muted}>
-            {kind === 'checkin' ? 'Check-in details' : 'Applicant details'} ù{' '}
+            {kind === 'checkin' ? 'Check-in details' : 'Applicant details'} ?{' '}
             {sourceLabel(visitor.registrationSource)}
           </Text>
           <View style={styles.detailRow}>
@@ -177,8 +175,8 @@ function VisitorList({
           >
             <Text style={styles.visitorName}>{visitor.name || 'Prospect'}</Text>
             <Text style={styles.muted}>
-              {[visitor.phone, visitor.email].filter(Boolean).join(' ù ') || 'No contact'}
-              {visitor.createdAt ? ` ù ${formatInspectTime(visitor.createdAt)}` : ''}
+              {[visitor.phone, visitor.email].filter(Boolean).join(' ? ') || 'No contact'}
+              {visitor.createdAt ? ` ? ${formatInspectTime(visitor.createdAt)}` : ''}
             </Text>
             <Text style={styles.link}>View</Text>
           </Pressable>
@@ -266,7 +264,11 @@ export function OpenViewingPanels({
   );
 }
 
-export function OpenViewingScreen() {
+export function OpenViewingScreen({
+  onChangeTab,
+}: {
+  onChangeTab?: (tab: WorkspaceTab, extras?: { keys?: 'collect' | 'return' }) => void;
+}) {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { getJob, upsertJob, patchJob, refresh } = useInspections();
@@ -306,9 +308,9 @@ export function OpenViewingScreen() {
 
   if (!job || !id) {
     return (
-      <SafeAreaView style={styles.safe}>
+      <View style={styles.safe}>
         <Text style={styles.muted}>This job could not be found.</Text>
-      </SafeAreaView>
+      </View>
     );
   }
 
@@ -358,8 +360,9 @@ export function OpenViewingScreen() {
       if (job.keyAccess && !isKeyReturnComplete(job)) {
         await completeInspection(id, { startTime, endTime }).catch(() => undefined);
         patchJob(id, { workflowData: { ...job.workflowData, inspectionFinished: true } });
-        Alert.alert('The viewing has ended', 'Hand the keys back ù the job is only complete after that handover is recorded.');
-        router.replace(jobKeys(id, 'return') as never);
+        Alert.alert('The viewing has ended', 'Hand the keys back - the job is only complete after that handover is recorded.');
+        if (onChangeTab) onChangeTab('handover', { keys: 'return' });
+        else router.replace(`/jobs/${id}?tab=handover&keys=return` as never);
         return;
       }
       const completed = await completeInspection(id, { startTime, endTime });
@@ -383,9 +386,7 @@ export function OpenViewingScreen() {
   }, [now, viewing?.endTime, live, ended]);
 
   return (
-    <SafeAreaView style={styles.safe} edges={['bottom']}>
-      <Stack.Screen options={{ title: 'Open Inspection', headerBackTitle: 'Back' }} />
-      <JobWorkspaceNav job={job} active="start" />
+    <View style={styles.safe}>
       <ScrollView contentContainerStyle={styles.inner}>
         {error ? <Text style={styles.error}>{error}</Text> : null}
         {paymentBlocked ? (
@@ -399,7 +400,7 @@ export function OpenViewingScreen() {
 
         {viewing ? (
           <Text style={styles.meta}>
-            {formatInspectTime(viewing.startTime)} ù {formatInspectTime(viewing.endTime)}
+            {formatInspectTime(viewing.startTime)} ? {formatInspectTime(viewing.endTime)}
           </Text>
         ) : (
           <ActivityIndicator color={colors.primary} />
@@ -474,11 +475,14 @@ export function OpenViewingScreen() {
         {returnPending ? (
           <>
             <Text style={styles.banner}>
-              The viewing has ended. Hand the keys back ù the job is only complete after that handover
+              The viewing has ended. Hand the keys back - the job is only complete after that handover
               is recorded.
             </Text>
             <Pressable
-              onPress={() => router.replace(jobKeys(id, 'return') as never)}
+              onPress={() => {
+                if (onChangeTab) onChangeTab('handover', { keys: 'return' });
+                else router.replace(`/jobs/${id}?tab=handover&keys=return` as never);
+              }}
               style={styles.primary}
             >
               <Text style={styles.primaryText}>Continue to handover</Text>
@@ -503,7 +507,7 @@ export function OpenViewingScreen() {
           router.replace('/pool');
         }}
       />
-    </SafeAreaView>
+    </View>
   );
 }
 

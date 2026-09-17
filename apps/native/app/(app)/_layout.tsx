@@ -16,12 +16,14 @@ export default function AppLayout() {
           <InboxProvider>
             <Stack
               screenOptions={{
+                headerShown: false,
                 headerStyle: { backgroundColor: colors.background },
                 headerTintColor: colors.text,
                 headerShadowVisible: false,
                 contentStyle: { backgroundColor: colors.background },
               }}
             >
+              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
               <Stack.Screen name="history" options={{ headerShown: false }} />
               <Stack.Screen name="jobs/[id]" options={{ headerShown: false }} />
               <Stack.Screen name="messages" options={{ headerShown: false }} />

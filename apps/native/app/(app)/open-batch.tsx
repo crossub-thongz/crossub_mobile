@@ -8,7 +8,6 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 
@@ -43,6 +42,7 @@ import {
 } from '@/src/lib/open-batch';
 import { colors } from '@/src/theme';
 import { AppHeader } from '@/src/ui/app-header';
+import { DateTimeField } from '@/src/ui/date-field';
 import { EmptyState } from '@/src/ui/empty-state';
 
 export default function OpenBatchScreen() {
@@ -106,7 +106,7 @@ export default function OpenBatchScreen() {
           routed.overflow.map((item) => item.address).join(', '),
         );
       } else {
-        Alert.alert('Route planned', `Routed ${routed.stops.length} opens — check the times below.`);
+        Alert.alert('Route planned', `Routed ${routed.stops.length} opens â€” check the times below.`);
       }
       await load();
     } catch (err) {
@@ -222,8 +222,8 @@ export default function OpenBatchScreen() {
                       <Text style={styles.meta}>{formatPlanWindow(plan)}</Text>
                     </View>
                     <Text style={styles.meta}>
-                      {plan.stops.length} opens · {formatDuration(plan.totalTravelMinutes)} travel
-                      {plan.totalDistanceKm != null ? ` · ${plan.totalDistanceKm} km` : ''}
+                      {plan.stops.length} opens Â· {formatDuration(plan.totalTravelMinutes)} travel
+                      {plan.totalDistanceKm != null ? ` Â· ${plan.totalDistanceKm} km` : ''}
                     </Text>
                     {missedPreferences.length > 0 && !allConfirmed ? (
                       <Text style={styles.warn}>
@@ -249,28 +249,27 @@ export default function OpenBatchScreen() {
                                 <Text style={styles.meta}>
                                   {formatDuration(stop.travelMinutesFromPrevious)} travel
                                   {stop.distanceKmFromPrevious != null
-                                    ? ` · ${stop.distanceKmFromPrevious} km`
+                                    ? ` Â· ${stop.distanceKmFromPrevious} km`
                                     : ''}
                                 </Text>
                               ) : null}
                               {basisNote ? <Text style={styles.italic}>{basisNote}</Text> : null}
                               {stop.confirmedAt ? (
-                                <Text style={styles.confirmed}>Confirmed — agent notified</Text>
+                                <Text style={styles.confirmed}>Confirmed â€” agent notified</Text>
                               ) : null}
                             </View>
                           </View>
                           {!stop.confirmedAt ? (
                             <View style={styles.editRow}>
-                              <TextInput
-                                value={editing ?? toSydneyInputValue(stop.startTime)}
-                                onChangeText={(value) =>
-                                  setEdits((prior) => ({ ...prior, [stop.inspectionId]: value }))
-                                }
-                                placeholder="YYYY-MM-DDTHH:mm"
-                                placeholderTextColor={colors.muted}
-                                autoCapitalize="none"
-                                style={styles.timeInput}
-                              />
+                              <View style={{ flex: 1, minWidth: 0 }}>
+                                <DateTimeField
+                                  value={editing ?? toSydneyInputValue(stop.startTime)}
+                                  onChange={(value) =>
+                                    setEdits((prior) => ({ ...prior, [stop.inspectionId]: value }))
+                                  }
+                                  placeholder="Pick date and time"
+                                />
+                              </View>
                               <Pressable
                                 disabled={busy}
                                 onPress={() => void dropStop(stop.inspectionId)}
@@ -355,7 +354,7 @@ export default function OpenBatchScreen() {
                                     ? formatOpenTime(item.suggestedStart)
                                     : OPEN_TIME_PENDING_LABEL}
                                 {item.agentPreferredStart
-                                  ? ` · agent asked ${formatOpenTime(item.agentPreferredStart)}`
+                                  ? ` Â· agent asked ${formatOpenTime(item.agentPreferredStart)}`
                                   : ''}
                               </Text>
                             </View>
@@ -441,16 +440,6 @@ const styles = StyleSheet.create({
   confirmed: { color: colors.primary, fontSize: 10, fontWeight: '600', marginTop: 4 },
   warn: { color: colors.muted, fontSize: 11, lineHeight: 16 },
   editRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  timeInput: {
-    flex: 1,
-    height: 36,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 8,
-    paddingHorizontal: 8,
-    color: colors.text,
-    fontSize: 12,
-  },
   drop: { color: colors.destructive, fontSize: 13, fontWeight: '600' },
   check: {
     width: 20,

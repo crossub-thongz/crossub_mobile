@@ -1,3 +1,4 @@
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useEffect, useState, type ReactNode } from 'react';
 import {
   Alert,
@@ -8,6 +9,8 @@ import {
   TextInput,
   View,
 } from 'react-native';
+
+import { DraggableNamedList } from '@/src/jobs/draggable-named-list';
 
 import {
   classifyAddedAreaName,
@@ -30,6 +33,7 @@ type AreaSetupPanelProps = {
   onRemoveArea: (name: string) => void;
   onRenameArea: (from: string, to: string) => void;
   onMoveArea: (from: number, to: number) => void;
+  onDraggingChange?: (dragging: boolean) => void;
   onAddAllExisting?: () => void;
   onComplete: () => void;
 };
@@ -46,6 +50,7 @@ export function AreaSetupPanel({
   onRemoveArea,
   onRenameArea,
   onMoveArea,
+  onDraggingChange,
   onAddAllExisting,
   onComplete,
 }: AreaSetupPanelProps) {
@@ -97,63 +102,55 @@ export function AreaSetupPanel({
       </Text>
 
       {selectedAreaNames.length === 0 ? (
-        <Text style={styles.empty}>Add at least one area, then start the inspection.</Text>
+        <View style={styles.emptyCard}>
+          <Text style={styles.empty}>Add at least one area, then start the inspection.</Text>
+        </View>
       ) : (
-        selectedAreaNames.map((name, index) => (
-          <View key={`${name}-${index}`} style={styles.row}>
-            <Text style={styles.areaName}>{name}</Text>
-            <Pressable
-              onPress={() => setMenuFor((current) => (current === name ? null : name))}
-              hitSlop={8}
-            >
-              <Text style={styles.menuDots}>...</Text>
-            </Pressable>
-            {menuFor === name ? (
-              <View style={styles.menu}>
+        <DraggableNamedList
+          items={selectedAreaNames}
+          onReorder={onMoveArea}
+          onDraggingChange={(dragging) => {
+            if (dragging) setMenuFor(null);
+            onDraggingChange?.(dragging);
+          }}
+          renderItem={(name) => (
+            <>
+              <Text style={styles.areaName}>{name}</Text>
+              <View style={styles.menuWrap}>
                 <Pressable
-                  onPress={() => {
-                    setMenuFor(null);
-                    setRenameFrom(name);
-                  }}
-                  style={styles.menuItem}
+                  onPress={() => setMenuFor((current) => (current === name ? null : name))}
+                  hitSlop={8}
+                  style={styles.menuBtn}
+                  accessibilityLabel={`More actions for ${name}`}
                 >
-                  <Text style={styles.menuText}>Rename</Text>
+                  <Ionicons name="ellipsis-vertical" size={16} color={colors.muted} />
                 </Pressable>
-                {index > 0 ? (
-                  <Pressable
-                    onPress={() => {
-                      setMenuFor(null);
-                      onMoveArea(index, index - 1);
-                    }}
-                    style={styles.menuItem}
-                  >
-                    <Text style={styles.menuText}>Move up</Text>
-                  </Pressable>
+                {menuFor === name ? (
+                  <View style={styles.menu}>
+                    <Pressable
+                      onPress={() => {
+                        setMenuFor(null);
+                        setRenameFrom(name);
+                      }}
+                      style={styles.menuItem}
+                    >
+                      <Text style={styles.menuText}>Rename</Text>
+                    </Pressable>
+                    <Pressable
+                      onPress={() => {
+                        setMenuFor(null);
+                        onRemoveArea(name);
+                      }}
+                      style={styles.menuItem}
+                    >
+                      <Text style={styles.menuDanger}>Delete</Text>
+                    </Pressable>
+                  </View>
                 ) : null}
-                {index < selectedAreaNames.length - 1 ? (
-                  <Pressable
-                    onPress={() => {
-                      setMenuFor(null);
-                      onMoveArea(index, index + 1);
-                    }}
-                    style={styles.menuItem}
-                  >
-                    <Text style={styles.menuText}>Move down</Text>
-                  </Pressable>
-                ) : null}
-                <Pressable
-                  onPress={() => {
-                    setMenuFor(null);
-                    onRemoveArea(name);
-                  }}
-                  style={styles.menuItem}
-                >
-                  <Text style={styles.menuDanger}>Delete</Text>
-                </Pressable>
               </View>
-            ) : null}
-          </View>
-        ))
+            </>
+          )}
+        />
       )}
 
       <Pressable
@@ -345,29 +342,26 @@ const styles = StyleSheet.create({
   addLink: { marginLeft: 'auto' },
   addLinkText: { color: colors.primary, fontWeight: '700', fontSize: 14 },
   hint: { color: colors.muted, fontSize: 12, lineHeight: 18 },
-  empty: { color: colors.muted, textAlign: 'center', paddingVertical: 24, fontSize: 12 },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  emptyCard: {
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.card,
-    borderRadius: 12,
-    padding: 12,
-    zIndex: 1,
+    borderRadius: 16,
   },
-  areaName: { color: colors.text, fontWeight: '600', flex: 1 },
-  menuDots: { color: colors.muted, fontSize: 18, fontWeight: '700', paddingHorizontal: 8 },
+  empty: { color: colors.muted, textAlign: 'center', paddingVertical: 24, fontSize: 12 },
+  areaName: { color: colors.text, fontWeight: '500', flex: 1, fontSize: 14 },
+  menuWrap: { position: 'relative', flexShrink: 0 },
+  menuBtn: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
   menu: {
     position: 'absolute',
-    right: 8,
-    top: 44,
+    right: 0,
+    bottom: 40,
     backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 8,
-    minWidth: 140,
-    zIndex: 20,
+    minWidth: 136,
+    zIndex: 50,
     elevation: 8,
   },
   menuItem: { paddingHorizontal: 12, paddingVertical: 10 },

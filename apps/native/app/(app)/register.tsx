@@ -21,6 +21,7 @@ import { displayName } from '@/src/lib/datetime';
 import { profilePath } from '@/src/lib/routes';
 import { colors } from '@/src/theme';
 import { AppHeader } from '@/src/ui/app-header';
+import { DateField } from '@/src/ui/date-field';
 
 export default function RegisterScreen() {
   const router = useRouter();
@@ -172,14 +173,12 @@ export default function RegisterScreen() {
           placeholder="04xx xxx xxx"
           placeholderTextColor={colors.muted}
         />
-        <Text style={styles.label}>Date of birth (YYYY-MM-DD)</Text>
-        <TextInput
+        <Text style={styles.label}>Date of birth</Text>
+        <DateField
           value={dateOfBirth}
-          onChangeText={setDateOfBirth}
-          style={styles.input}
-          placeholder="1990-01-31"
-          placeholderTextColor={colors.muted}
-          autoCapitalize="none"
+          onChange={setDateOfBirth}
+          placeholder="Select date of birth"
+          maximumDate={new Date()}
         />
         <Text style={styles.label}>Residential address</Text>
         <TextInput
@@ -217,14 +216,12 @@ export default function RegisterScreen() {
           style={styles.input}
           placeholderTextColor={colors.muted}
         />
-        <Text style={styles.label}>Licence expiry (optional, YYYY-MM-DD)</Text>
-        <TextInput
+        <Text style={styles.label}>Licence expiry (optional)</Text>
+        <DateField
           value={licenceExpiry}
-          onChangeText={setLicenceExpiry}
-          style={styles.input}
-          placeholder="2027-12-31"
-          placeholderTextColor={colors.muted}
-          autoCapitalize="none"
+          onChange={setLicenceExpiry}
+          placeholder="Select expiry date"
+          optional
         />
 
         <Text style={styles.section}>Service areas</Text>

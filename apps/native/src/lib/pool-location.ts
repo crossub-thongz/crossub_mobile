@@ -184,21 +184,35 @@ function lat2tile(lat: number, zoom: number) {
   return ((1 - Math.log(Math.tan(rad) + 1 / Math.cos(rad)) / Math.PI) / 2) * 2 ** zoom;
 }
 
+const GOOGLE_TILE_HEADERS = {
+  Accept: 'image/png,image/*;q=0.8,*/*;q=0.5',
+  'User-Agent':
+    'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
+};
+
 export function mapTile(origin: GeoPoint | null): {
   url: string | null;
+  headers: Record<string, string>;
   markerLeft: string;
   markerTop: string;
 } {
   if (!origin) {
-    return { url: null, markerLeft: '50%', markerTop: '50%' };
+    return {
+      url: null,
+      headers: GOOGLE_TILE_HEADERS,
+      markerLeft: '50%',
+      markerTop: '50%',
+    };
   }
   const zoom = 13;
   const tileXf = lon2tile(origin.longitude, zoom);
   const tileYf = lat2tile(origin.latitude, zoom);
   const tileX = Math.floor(tileXf);
   const tileY = Math.floor(tileYf);
+  const host = (tileX + tileY) % 4;
   return {
-    url: `https://basemaps.cartocdn.com/dark_all/${zoom}/${tileX}/${tileY}@2x.png`,
+    url: `https://mt${host}.google.com/vt/lyrs=m&hl=en&x=${tileX}&y=${tileY}&z=${zoom}&scale=2`,
+    headers: GOOGLE_TILE_HEADERS,
     markerLeft: `${(tileXf - tileX) * 100}%`,
     markerTop: `${(tileYf - tileY) * 100}%`,
   };

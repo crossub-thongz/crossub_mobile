@@ -1,9 +1,7 @@
-import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
-  Image,
   Linking,
   Pressable,
   ScrollView,
@@ -12,7 +10,6 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
 import {
   acceptInspection,
@@ -27,8 +24,11 @@ import { AreaSetupPanel } from '@/src/jobs/area-setup-panel';
 import { CancelTaskSheet } from '@/src/jobs/cancel-task-sheet';
 import { ChecklistWalk } from '@/src/jobs/checklist-walk';
 import { compressPhotoForUpload, type LocalPhoto } from '@/src/jobs/compress-photo';
+import { InspectionAreaActionBar } from '@/src/jobs/inspection-area-action-bar';
+import { InspectionAreaNav } from '@/src/jobs/inspection-area-nav';
+import { InspectionPhotosField } from '@/src/jobs/inspection-photos-field';
 import { JobCamera } from '@/src/jobs/job-camera';
-import { JobWorkspaceNav } from '@/src/jobs/workspace-nav';
+import { type WorkspaceTab } from '@/src/jobs/workspace-nav';
 import {
   appendSelectedAreaName,
   classifyAddedAreaName,
@@ -58,19 +58,28 @@ function parseView(value: string | string[] | undefined): 'areas' | 'inspect' {
   return raw === 'inspect' ? 'inspect' : 'areas';
 }
 
-export function FieldWorkflowScreen({ type }: { type: InspectionType }) {
+export function FieldWorkflowScreen({
+  type,
+  view: viewProp,
+  onChangeTab,
+}: {
+  type: InspectionType;
+  view?: 'areas' | 'inspect';
+  onChangeTab?: (tab: WorkspaceTab, extras?: { keys?: 'collect' | 'return' }) => void;
+}) {
   const { id, view: viewParam } = useLocalSearchParams<{ id: string; view?: string }>();
   const router = useRouter();
   const { getJob, getDraft, setDraft, patchJob, upsertJob, refresh } = useInspections();
   const { refreshPending } = useOffline();
   const job = getJob(id);
-  const view = type === 'open' ? 'inspect' : parseView(viewParam);
+  const view = viewProp ?? (type === 'open' ? 'inspect' : parseView(viewParam));
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [layoutSource, setLayoutSource] = useState<'template' | 'copied' | 'manual'>('template');
   const [existingAreas, setExistingAreas] = useState<string[]>([]);
   const [cameraOpen, setCameraOpen] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
+  const [areasDragging, setAreasDragging] = useState(false);
 
   const kind = type === 'ingoing' || type === 'outgoing' ? type : 'routine';
   const stored = (id ? getDraft(id) : undefined) ?? null;
@@ -109,6 +118,7 @@ export function FieldWorkflowScreen({ type }: { type: InspectionType }) {
 
   useEffect(() => {
     if (!id || !job) return;
+    if (onChangeTab) return;
     if (job.awaitingAgentPayment) {
       router.replace(jobDetail(id));
       return;
@@ -116,7 +126,7 @@ export function FieldWorkflowScreen({ type }: { type: InspectionType }) {
     if (job.keyAccess && !isKeyCollectComplete(job)) {
       router.replace(jobKeys(id, 'collect'));
     }
-  }, [id, job, router]);
+  }, [id, job, onChangeTab, router]);
 
   useEffect(() => {
     if (!id || !job || stored?.areaSetupComplete) return;
@@ -170,7 +180,10 @@ export function FieldWorkflowScreen({ type }: { type: InspectionType }) {
       areaIndex: 0,
       issues: seedAreasForStart(draft.issues, names, draft.customAreas ?? []),
     });
-    if (id) router.replace(jobInspect(id, type) as never);
+    if (id) {
+      if (onChangeTab) onChangeTab('start');
+      else router.replace(jobInspect(id, type) as never);
+    }
   };
 
   const handleAddCustomArea = (name: string, sectionMode: CustomAreaSectionMode) => {
@@ -343,7 +356,6 @@ export function FieldWorkflowScreen({ type }: { type: InspectionType }) {
         ...draft.issues,
         [currentName]: { ...current, available: false, areaPhotos: [] },
       },
-      areaIndex: areaIndex < names.length - 1 ? areaIndex + 1 : areaIndex,
     });
   };
 
@@ -354,7 +366,7 @@ export function FieldWorkflowScreen({ type }: { type: InspectionType }) {
       return;
     }
     if (current.available === true && current.areaPhotos.length === 0) {
-      setError('Snap at least one photo of this room');
+      setError('Snap at least one photo for this area');
       return;
     }
     if (areaIndex >= names.length - 1) {
@@ -385,7 +397,8 @@ export function FieldWorkflowScreen({ type }: { type: InspectionType }) {
           workflowData: { ...job.workflowData, inspectionFinished: true },
         });
         Alert.alert('Report generated', 'Return the keys to complete this task.');
-        router.replace(jobKeys(id, 'return') as never);
+        if (onChangeTab) onChangeTab('handover', { keys: 'return' });
+        else router.replace(jobKeys(id, 'return') as never);
         return;
       }
       const completed = await completeInspection(id, attendanceWindowFromHours(job.estimatedHours));
@@ -412,18 +425,14 @@ export function FieldWorkflowScreen({ type }: { type: InspectionType }) {
 
   if (!job || !id) {
     return (
-      <SafeAreaView style={styles.safe}>
+      <View style={styles.safe}>
         <Text style={styles.error}>This job could not be found.</Text>
-      </SafeAreaView>
+      </View>
     );
   }
 
-  const title = `${INSPECTION_PAY_LABEL[job.type] ?? job.type} Inspection`;
-
   return (
-    <SafeAreaView style={styles.safe} edges={['bottom']}>
-      <Stack.Screen options={{ title, headerBackTitle: 'Back' }} />
-      <JobWorkspaceNav job={job} active={view === 'areas' ? 'areas' : 'start'} />
+    <View style={styles.safe}>
       {view === 'inspect' && (type === 'ingoing' || type === 'outgoing') ? (
         <View style={styles.flex}>
           <Pressable onPress={() => setCancelOpen(true)} style={styles.cancelLink}>
@@ -449,7 +458,8 @@ export function FieldWorkflowScreen({ type }: { type: InspectionType }) {
                   workflowData: { ...job.workflowData, inspectionFinished: true },
                 });
                 Alert.alert('Report generated', 'Return the keys to complete this task.');
-                router.replace(jobKeys(id, 'return') as never);
+                if (onChangeTab) onChangeTab('handover', { keys: 'return' });
+                else router.replace(jobKeys(id, 'return') as never);
                 return;
               }
               const completed = await completeInspection(
@@ -469,147 +479,165 @@ export function FieldWorkflowScreen({ type }: { type: InspectionType }) {
             }}
           />
         </View>
-      ) : (
-      <ScrollView contentContainerStyle={styles.inner} keyboardShouldPersistTaps="handled">
-        {error ? <Text style={styles.error}>{error}</Text> : null}
-        {view === 'inspect' ? (
-          <Pressable onPress={() => setCancelOpen(true)}>
+      ) : view === 'inspect' ? (
+        <View style={styles.flex}>
+          <Pressable onPress={() => setCancelOpen(true)} style={styles.cancelLink}>
             <Text style={styles.cancelLinkText}>Cancel task</Text>
           </Pressable>
-        ) : null}
-
-        {view === 'areas' ? (
-          <>
-            <Text style={styles.title}>{copy.startLabel.replace(/^(Start|Continue) /, '')}</Text>
-            <Text style={styles.body}>{copy.body}</Text>
-            <Pressable onPress={resetInspection} style={styles.secondary}>
-              <Text style={styles.cancelLinkText}>Reset inspection</Text>
-            </Pressable>
-            <AreaSetupPanel
-              kind={kind}
-              selectedAreaNames={names}
-              existingAreaNames={existingAreas}
-              continuing={Boolean(draft.areaSetupComplete || names.length > 0 || areaIndex > 0)}
-              sourceLabel={sourceLabel}
-              extraHeader={
-                <>
-                  {type === 'routine' ? (
-                    <View style={styles.methodRow}>
-                      {(['physical', 'self'] as const).map((method) => (
-                        <Pressable
-                          key={method}
-                          onPress={() => persist({ ...draft, method })}
-                          style={[styles.chip, draft.method === method && styles.chipOn]}
-                        >
-                          <Text style={[styles.chipText, draft.method === method && styles.chipTextOn]}>
-                            {method === 'physical' ? 'Physical' : 'Tenant self-inspect'}
-                          </Text>
-                        </Pressable>
-                      ))}
-                    </View>
-                  ) : null}
-                  {sms ? (
-                    <Pressable onPress={() => void Linking.openURL(sms)} style={styles.secondary}>
-                      <Text style={styles.secondaryText}>SMS tenant reminder</Text>
-                    </Pressable>
-                  ) : null}
-                </>
-              }
-              onAddBuiltInArea={(name) => handleAddCustomArea(name, 'standard')}
-              onAddCustomArea={handleAddCustomArea}
-              onRemoveArea={handleRemoveSetupArea}
-              onRenameArea={handleRenameSetupArea}
-              onMoveArea={handleMoveSetupArea}
-              onAddAllExisting={existingAreas.length > 0 ? addAllFromIngoing : undefined}
-              onComplete={completeSetup}
+          {names.length > 0 ? (
+            <InspectionAreaNav
+              names={names}
+              areaIndex={areaIndex}
+              isComplete={(_index, name) => {
+                const rec = draft.issues[name];
+                return rec?.available === false || (rec?.areaPhotos.length ?? 0) > 0;
+              }}
+              onGoToArea={goArea}
             />
-          </>
-        ) : (
-          <>
+          ) : null}
+          {error ? <Text style={styles.errorPad}>{error}</Text> : null}
+          <ScrollView contentContainerStyle={styles.inner} keyboardShouldPersistTaps="handled" style={styles.flex}>
             {names.length === 0 ? (
               <Text style={styles.body}>No areas selected for this inspection.</Text>
-            ) : (
+            ) : current.available === false ? (
               <>
-                <View style={styles.pips}>
-                  {names.map((name, index) => {
-                    const rec = draft.issues[name];
-                    const done = rec?.available === false || (rec?.areaPhotos.length ?? 0) > 0;
-                    return (
-                      <Pressable
-                        key={name}
-                        onPress={() => goArea(index)}
-                        style={[
-                          styles.pip,
-                          index === areaIndex && styles.pipOn,
-                          done && styles.pipDone,
-                        ]}
-                      />
-                    );
-                  })}
-                </View>
-                <Text style={styles.kicker}>
-                  Area {areaIndex + 1} of {names.length}
+                <Text style={styles.body}>
+                  This area was marked unavailable. You can change that and photograph it, or continue.
                 </Text>
-                <Text style={styles.title}>{currentName}</Text>
-                {current.available === false ? (
-                  <Text style={styles.banner}>
-                    This area was marked unavailable. You can change that and photograph it, or continue.
-                  </Text>
-                ) : (
-                  <Text style={styles.body}>
-                    Photograph the room as it is now. Add notes if anything needs attention.
-                  </Text>
-                )}
-                <TextInput
-                  value={current.notes}
-                  onChangeText={(notes) => {
+                <Pressable
+                  onPress={() => {
                     if (!currentName) return;
                     persist({
                       ...draft,
                       issues: {
                         ...draft.issues,
-                        [currentName]: { ...current, notes, available: current.available ?? true },
+                        [currentName]: { ...current, available: true },
                       },
                     });
                   }}
-                  placeholder="Notes"
-                  placeholderTextColor={colors.muted}
-                  multiline
-                  style={[styles.input, styles.notes]}
-                />
-                {current.areaPhotos[0] ? (
-                  <Image source={{ uri: current.areaPhotos[0] }} style={styles.thumb} />
-                ) : null}
-                <Text style={styles.meta}>
-                  {current.areaPhotos.length} photo{current.areaPhotos.length === 1 ? '' : 's'}
-                </Text>
-                <Pressable onPress={() => setCameraOpen(true)} style={styles.secondary}>
-                  <Text style={styles.secondaryText}>
-                    {busy === 'photo' ? 'Uploading photos…' : 'Take photos'}
-                  </Text>
-                </Pressable>
-                <Pressable onPress={skipArea} style={styles.secondary}>
-                  <Text style={styles.secondaryText}>Skip this area instead</Text>
-                </Pressable>
-                <Pressable
-                  onPress={() => {
-                    void nextArea();
-                  }}
-                  disabled={busy != null}
-                  style={[styles.primary, busy != null && styles.disabled]}
+                  style={styles.secondary}
                 >
-                  {busy === 'complete' ? (
-                    <ActivityIndicator color={colors.primaryFg} />
-                  ) : (
-                    <Text style={styles.primaryText}>
-                      {areaIndex >= names.length - 1 ? 'Complete' : 'Next area'}
-                    </Text>
-                  )}
+                  <Text style={styles.secondaryText}>Mark available and photograph</Text>
+                </Pressable>
+              </>
+            ) : (
+              <>
+                <InspectionPhotosField
+                  label="Area photos"
+                  photoUrls={current.areaPhotos ?? []}
+                  uploading={busy === 'photo'}
+                  disabled={busy === 'complete'}
+                  emptyLabel="Snap several photos of this room, then attach them here."
+                  onTakePhotos={() => setCameraOpen(true)}
+                  onRemove={(index) => {
+                    if (!currentName) return;
+                    persist({
+                      ...draft,
+                      issues: {
+                        ...draft.issues,
+                        [currentName]: {
+                          ...current,
+                          areaPhotos: current.areaPhotos.filter((_, i) => i !== index),
+                        },
+                      },
+                    });
+                  }}
+                />
+                <View>
+                  <Text style={styles.notesLabel}>Area notes</Text>
+                  <TextInput
+                    value={current.notes}
+                    onChangeText={(notes) => {
+                      if (!currentName) return;
+                      persist({
+                        ...draft,
+                        issues: {
+                          ...draft.issues,
+                          [currentName]: { ...current, notes, available: current.available ?? true },
+                        },
+                      });
+                    }}
+                    placeholder={
+                      draft.method === 'physical'
+                        ? 'Inspector notes'
+                        : 'Review notes for tenant submission'
+                    }
+                    placeholderTextColor={colors.muted}
+                    multiline
+                    style={[styles.input, styles.notes]}
+                  />
+                </View>
+                <Pressable onPress={skipArea} style={styles.skip}>
+                  <Text style={styles.skipText}>Skip this area instead</Text>
                 </Pressable>
               </>
             )}
-          </>
-        )}
+          </ScrollView>
+          {names.length > 0 ? (
+            <InspectionAreaActionBar
+              checked={current.available === true && (current.areaPhotos?.length ?? 0) > 0 ? 1 : 0}
+              total={current.available === false ? 0 : 1}
+              issues={0}
+              busy={busy != null}
+              busyLabel={busy === 'photo' ? 'Uploading photos...' : undefined}
+              isLast={areaIndex >= names.length - 1}
+              onNext={() => {
+                void nextArea();
+              }}
+            />
+          ) : null}
+        </View>
+      ) : (
+      <ScrollView
+        contentContainerStyle={styles.inner}
+        keyboardShouldPersistTaps="handled"
+        scrollEnabled={!areasDragging}
+      >
+        {error ? <Text style={styles.error}>{error}</Text> : null}
+        <Text style={styles.title}>{copy.startLabel.replace(/^(Start|Continue) /, '')}</Text>
+        <Text style={styles.body}>{copy.body}</Text>
+        <Pressable onPress={resetInspection} style={styles.secondary}>
+          <Text style={styles.cancelLinkText}>Reset inspection</Text>
+        </Pressable>
+        <AreaSetupPanel
+          kind={kind}
+          selectedAreaNames={names}
+          existingAreaNames={existingAreas}
+          continuing={Boolean(draft.areaSetupComplete || names.length > 0 || areaIndex > 0)}
+          sourceLabel={sourceLabel}
+          extraHeader={
+            <>
+              {type === 'routine' ? (
+                <View style={styles.methodRow}>
+                  {(['physical', 'self'] as const).map((method) => (
+                    <Pressable
+                      key={method}
+                      onPress={() => persist({ ...draft, method })}
+                      style={[styles.chip, draft.method === method && styles.chipOn]}
+                    >
+                      <Text style={[styles.chipText, draft.method === method && styles.chipTextOn]}>
+                        {method === 'physical' ? 'Physical' : 'Tenant self-inspect'}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+              ) : null}
+              {sms ? (
+                <Pressable onPress={() => void Linking.openURL(sms)} style={styles.secondary}>
+                  <Text style={styles.secondaryText}>SMS tenant reminder</Text>
+                </Pressable>
+              ) : null}
+            </>
+          }
+          onAddBuiltInArea={(name) => handleAddCustomArea(name, 'standard')}
+          onAddCustomArea={handleAddCustomArea}
+          onRemoveArea={handleRemoveSetupArea}
+          onRenameArea={handleRenameSetupArea}
+          onMoveArea={handleMoveSetupArea}
+          onDraggingChange={setAreasDragging}
+          onAddAllExisting={existingAreas.length > 0 ? addAllFromIngoing : undefined}
+          onComplete={completeSetup}
+        />
       </ScrollView>
       )}
       <JobCamera
@@ -631,7 +659,7 @@ export function FieldWorkflowScreen({ type }: { type: InspectionType }) {
           router.replace('/');
         }}
       />
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -650,6 +678,10 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   error: { color: colors.destructive, fontSize: 13 },
+  errorPad: { color: colors.destructive, fontSize: 13, paddingHorizontal: 16, paddingTop: 8 },
+  notesLabel: { color: colors.text, fontSize: 13, fontWeight: '600', marginBottom: 6 },
+  skip: { alignItems: 'center', paddingVertical: 8 },
+  skipText: { color: colors.muted, fontSize: 13, fontWeight: '600' },
   methodRow: { flexDirection: 'row', gap: 8 },
   chip: {
     borderWidth: 1,

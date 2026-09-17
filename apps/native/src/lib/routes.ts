@@ -4,13 +4,15 @@ export const jobDetail = (id: string) => `/jobs/${id}` as const;
 export const jobHistory = (id: string) => `/jobs/${id}/history` as const;
 export const historyPath = '/history' as const;
 export const jobKeys = (id: string, tab?: 'collect' | 'return') =>
-  tab ? (`/jobs/${id}/keys?tab=${tab}` as const) : (`/jobs/${id}/keys` as const);
-export const jobWorkflow = (id: string, type: InspectionType) =>
-  `/jobs/${id}/${type}` as const;
-export const jobAreas = (id: string, type: InspectionType) =>
-  `/jobs/${id}/${type}?view=areas` as const;
-export const jobInspect = (id: string, type: InspectionType) =>
-  `/jobs/${id}/${type}?view=inspect` as const;
+  tab
+    ? (`/jobs/${id}?tab=handover&keys=${tab}` as const)
+    : (`/jobs/${id}?tab=handover` as const);
+export const jobWorkflow = (id: string, _type: InspectionType) =>
+  `/jobs/${id}?tab=start` as const;
+export const jobAreas = (id: string, _type: InspectionType) =>
+  `/jobs/${id}?tab=areas` as const;
+export const jobInspect = (id: string, _type: InspectionType) =>
+  `/jobs/${id}?tab=start` as const;
 export const messagesPath = '/messages' as const;
 export const notificationsPath = '/notifications' as const;
 export const messageDetail = (id: string) => `/messages/${id}` as const;

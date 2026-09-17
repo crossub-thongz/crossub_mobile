@@ -220,7 +220,7 @@ export default function JobHistoryScreen() {
   if (!job) {
     return (
       <SafeAreaView style={styles.safe} edges={['bottom']}>
-        <Stack.Screen options={{ title: 'Inspection report', headerBackTitle: 'Back' }} />
+        <Stack.Screen options={{ title: 'Inspection report' }} />
         <Text style={styles.pageMuted}>
           {missing ? 'Report not found' : 'Loading report?'}
         </Text>
@@ -237,7 +237,7 @@ export default function JobHistoryScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['bottom']}>
-      <Stack.Screen options={{ title: 'Inspection report', headerBackTitle: 'Back' }} />
+      <Stack.Screen options={{ title: 'Inspection report' }} />
       <View style={styles.tabs}>
         {tabs.map((item) => (
           <Pressable
