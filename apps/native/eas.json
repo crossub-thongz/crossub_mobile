@@ -18,6 +18,9 @@
     "production": {
       "autoIncrement": true,
       "channel": "production",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://crossub-api-staging.onrender.com"
+      },
       "android": {
         "buildType": "app-bundle"
       }
