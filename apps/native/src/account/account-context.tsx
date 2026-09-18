@@ -33,6 +33,7 @@ type AccountContextValue = {
   accessLevel: InspectorAccessLevel;
   tribunalQualified: boolean;
   registrationComplete: boolean;
+  registrationResolved: boolean;
   loading: boolean;
   error: string | null;
   refresh: () => Promise<void>;
@@ -41,9 +42,12 @@ type AccountContextValue = {
 
 const AccountContext = createContext<AccountContextValue | undefined>(undefined);
 
-function isComplete(profile: InspectorProfileDto | null): boolean {
+function isComplete(
+  profile: InspectorProfileDto | null,
+  draft: RegistrationDraft | null,
+): boolean {
   if (profile?.roster) return true;
-  const status = profile?.registration?.registrationStatus;
+  const status = profile?.registration?.registrationStatus ?? draft?.submittedStatus;
   return status === 'approved' || status === 'pending_review';
 }
 
@@ -52,13 +56,16 @@ export function AccountProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<InspectorProfileDto | null>(null);
   const [draft, setDraft] = useState<RegistrationDraft | null>(null);
   const [loading, setLoading] = useState(true);
+  const [resolved, setResolved] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
+    if (status === 'loading') return;
     if (status !== 'authed' || !user?.email) {
       setProfile(null);
       setDraft(null);
       setLoading(false);
+      setResolved(true);
       return;
     }
     setLoading(true);
@@ -74,6 +81,7 @@ export function AccountProvider({ children }: { children: ReactNode }) {
       setError(err instanceof Error ? err.message : 'Failed to load profile');
     } finally {
       setLoading(false);
+      setResolved(true);
     }
   }, [status, user?.email]);
 
@@ -101,6 +109,13 @@ export function AccountProvider({ children }: { children: ReactNode }) {
       await saveRegistrationDraft(user.email, nextDraft);
       setDraft(nextDraft);
       const serverReg = await submitInspectorRegistration(body);
+      const confirmed: RegistrationDraft = {
+        ...nextDraft,
+        submittedStatus:
+          serverReg.registrationStatus === 'approved' ? 'approved' : 'pending_review',
+      };
+      await saveRegistrationDraft(user.email, confirmed);
+      setDraft(confirmed);
       setProfile((current) =>
         current
           ? { ...current, registration: serverReg }
@@ -131,7 +146,8 @@ export function AccountProvider({ children }: { children: ReactNode }) {
       draft,
       accessLevel,
       tribunalQualified,
-      registrationComplete: isComplete(profile),
+      registrationComplete: isComplete(profile, draft),
+      registrationResolved: resolved,
       loading,
       error,
       refresh: load,
@@ -147,6 +163,7 @@ export function AccountProvider({ children }: { children: ReactNode }) {
       error,
       load,
       saveRegistration,
+      resolved,
     ],
   );
 

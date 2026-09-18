@@ -32,7 +32,8 @@
     },
     "production": {
       "ios": {
-        "ascAppId": "6812279119"
+        "ascAppId": "6812279119",
+        "groups": ["Dev Test"]
       },
       "android": {
         "track": "internal",

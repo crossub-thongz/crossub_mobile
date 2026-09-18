@@ -1,5 +1,5 @@
 import { usePathname, useRouter } from 'expo-router';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 
 import { useAccount } from '@/src/account/account-context';
 import { useAuth } from '@/src/auth/auth-context';
@@ -27,24 +27,42 @@ function isExempt(pathname: string): boolean {
 
 export function OnboardingGate() {
   const { user, status } = useAuth();
-  const { registrationComplete, loading } = useAccount();
+  const { registrationComplete, registrationResolved, loading } = useAccount();
   const pathname = usePathname();
   const router = useRouter();
+  const leftOnboarding = useRef(false);
 
   useEffect(() => {
-    if (status !== 'authed' || !user || loading || isExempt(pathname)) return;
+    if (status !== 'authed') {
+      leftOnboarding.current = false;
+      return;
+    }
+    if (!user || loading || !registrationResolved) return;
+
     if (!registrationComplete) {
-      router.replace(registerPath);
+      if (!isExempt(pathname)) router.replace(registerPath);
       return;
     }
     if (needsSystemAccessAgreement(user)) {
-      router.replace(systemAccessAgreementPath);
+      if (pathname !== systemAccessAgreementPath) {
+        router.replace(systemAccessAgreementPath);
+      }
       return;
     }
     if (needsPasswordChange(user)) {
-      router.replace(changePasswordPath);
+      if (pathname !== changePasswordPath) {
+        router.replace(changePasswordPath);
+      }
+      return;
     }
-  }, [status, user, loading, registrationComplete, pathname, router]);
+
+    if (!leftOnboarding.current && pathname === registerPath) {
+      leftOnboarding.current = true;
+      router.replace('/');
+      return;
+    }
+    leftOnboarding.current = true;
+  }, [status, user, loading, registrationResolved, registrationComplete, pathname, router]);
 
   return null;
 }

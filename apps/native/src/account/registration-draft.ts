@@ -13,6 +13,7 @@ export type RegistrationDraft = {
   bankAccountName?: string;
   bankBsb?: string;
   bankAccountNumber?: string;
+  submittedStatus?: 'pending_review' | 'approved';
 };
 
 function keyFor(email: string): string {

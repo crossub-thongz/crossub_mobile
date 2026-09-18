@@ -29,7 +29,7 @@ import { AppHeader } from '@/src/ui/app-header';
 export default function SystemAccessAgreementScreen() {
   const router = useRouter();
   const { user, status, refreshUser } = useAuth();
-  const { registrationComplete, loading: accountLoading } = useAccount();
+  const { registrationComplete, registrationResolved, loading: accountLoading } = useAccount();
   const [agreement, setAgreement] = useState<SystemAccessAgreementView | null>(null);
   const [signerName, setSignerName] = useState('');
   const [agreed, setAgreed] = useState(false);
@@ -38,7 +38,7 @@ export default function SystemAccessAgreementScreen() {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    if (status !== 'authed' || !user || accountLoading) return;
+    if (status !== 'authed' || !user || accountLoading || !registrationResolved) return;
     if (!registrationComplete) {
       router.replace(registerPath);
       return;
@@ -69,7 +69,7 @@ export default function SystemAccessAgreementScreen() {
     return () => {
       active = false;
     };
-  }, [status, user, registrationComplete, accountLoading, router]);
+  }, [status, user, registrationComplete, registrationResolved, accountLoading, router]);
 
   const onAccept = async () => {
     if (!signerName.trim()) {
@@ -93,7 +93,7 @@ export default function SystemAccessAgreementScreen() {
     }
   };
 
-  if (status === 'loading' || accountLoading || loading) {
+  if (status === 'loading' || accountLoading || !registrationResolved || loading) {
     return (
       <View style={styles.safe}>
         <AppHeader title="Inspector Portal Access Agreement" />
@@ -117,7 +117,7 @@ export default function SystemAccessAgreementScreen() {
           <View style={styles.doc}>
             <Text style={styles.docTitle}>{agreement.title}</Text>
             <Text style={styles.meta}>
-              Version {agreement.version} ù {agreement.fileName}
+              Version {agreement.version} ? {agreement.fileName}
             </Text>
             <Pressable
               onPress={() => {

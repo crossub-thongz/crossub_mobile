@@ -26,7 +26,8 @@ import { DateField } from '@/src/ui/date-field';
 export default function RegisterScreen() {
   const router = useRouter();
   const { user, refreshUser } = useAuth();
-  const { registration, draft, registrationComplete, saveRegistration } = useAccount();
+  const { registration, draft, registrationComplete, registrationResolved, saveRegistration } =
+    useAccount();
   const rosterOnlyComplete = registrationComplete && !registration;
   const [mobile, setMobile] = useState('');
   const [dateOfBirth, setDateOfBirth] = useState('');
@@ -44,10 +45,9 @@ export default function RegisterScreen() {
   const [formError, setFormError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (rosterOnlyComplete) {
-      router.replace(profilePath);
-    }
-  }, [rosterOnlyComplete, router]);
+    if (!registrationResolved || !rosterOnlyComplete) return;
+    router.replace('/');
+  }, [registrationResolved, rosterOnlyComplete, router]);
 
   useEffect(() => {
     setMobile(draft?.mobile ?? registration?.mobile ?? '');
