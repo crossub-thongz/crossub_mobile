@@ -1,8 +1,9 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { useState } from 'react';
+import { Image } from 'expo-image';
+import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Image,
+  FlatList,
   Modal,
   Pressable,
   StyleSheet,
@@ -11,6 +12,30 @@ import {
 } from 'react-native';
 
 import { colors } from '@/src/theme';
+
+const INLINE_THUMB_LIMIT = 9;
+
+function PhotoThumb({
+  uri,
+  onPress,
+}: {
+  uri: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable onPress={onPress} style={styles.thumbBtn}>
+      <Image
+        source={{ uri }}
+        style={StyleSheet.absoluteFill}
+        contentFit="cover"
+        cachePolicy="disk"
+        recyclingKey={uri}
+        allowDownscaling
+        transition={0}
+      />
+    </Pressable>
+  );
+}
 
 export function InspectionPhotosField({
   label = 'Photos',
@@ -32,7 +57,14 @@ export function InspectionPhotosField({
   onRemove?: (index: number) => void;
 }) {
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
+  const [showAll, setShowAll] = useState(false);
   const previewUrl = previewIndex != null ? photoUrls[previewIndex] : null;
+  const overflow = photoUrls.length > INLINE_THUMB_LIMIT;
+  const visible = useMemo(
+    () => (overflow ? photoUrls.slice(photoUrls.length - INLINE_THUMB_LIMIT) : photoUrls),
+    [overflow, photoUrls],
+  );
+  const visibleOffset = overflow ? photoUrls.length - INLINE_THUMB_LIMIT : 0;
 
   return (
     <View style={styles.wrap}>
@@ -72,31 +104,86 @@ export function InspectionPhotosField({
           <Text style={styles.emptyText}>{emptyLabel}</Text>
         </Pressable>
       ) : (
-        <View style={styles.grid}>
-          {photoUrls.map((url, index) => (
-            <View key={`${url.slice(0, 32)}-${index}`} style={styles.cell}>
-              <Pressable onPress={() => setPreviewIndex(index)} style={styles.thumbBtn}>
-                <Image source={{ uri: url }} style={styles.thumb} />
+        <>
+          <View style={styles.grid}>
+            {visible.map((url, index) => {
+              const actualIndex = visibleOffset + index;
+              return (
+                <View key={`${url.slice(-48)}-${actualIndex}`} style={styles.cell}>
+                  <PhotoThumb uri={url} onPress={() => setPreviewIndex(actualIndex)} />
+                  {!disabled && onRemove ? (
+                    <Pressable
+                      onPress={() => onRemove(actualIndex)}
+                      style={styles.remove}
+                      hitSlop={8}
+                      accessibilityLabel="Remove photo"
+                    >
+                      <Ionicons name="close" size={12} color="#fff" />
+                    </Pressable>
+                  ) : null}
+                </View>
+              );
+            })}
+            {!disabled ? (
+              <Pressable onPress={onTakePhotos} style={styles.addCell} accessibilityLabel="Add photo">
+                <Ionicons name="camera-outline" size={20} color={colors.muted} />
               </Pressable>
-              {!disabled && onRemove ? (
-                <Pressable
-                  onPress={() => onRemove(index)}
-                  style={styles.remove}
-                  hitSlop={8}
-                  accessibilityLabel="Remove photo"
-                >
-                  <Ionicons name="close" size={12} color="#fff" />
-                </Pressable>
-              ) : null}
-            </View>
-          ))}
-          {!disabled ? (
-            <Pressable onPress={onTakePhotos} style={styles.addCell} accessibilityLabel="Add photo">
-              <Ionicons name="camera-outline" size={20} color={colors.muted} />
+            ) : null}
+          </View>
+          {overflow ? (
+            <Pressable onPress={() => setShowAll(true)} style={styles.viewAll}>
+              <Text style={styles.viewAllText}>View all {photoUrls.length} photos</Text>
             </Pressable>
           ) : null}
-        </View>
+        </>
       )}
+
+      <Modal
+        visible={showAll}
+        animationType="slide"
+        onRequestClose={() => setShowAll(false)}
+      >
+        <View style={styles.allRoot}>
+          <View style={styles.allHead}>
+            <Text style={styles.allTitle}>{photoUrls.length} photos</Text>
+            <Pressable onPress={() => setShowAll(false)} accessibilityLabel="Close photo list">
+              <Text style={styles.allClose}>Done</Text>
+            </Pressable>
+          </View>
+          <FlatList
+            data={photoUrls}
+            numColumns={3}
+            keyExtractor={(url, index) => `${index}:${url.slice(-32)}`}
+            contentContainerStyle={styles.allList}
+            columnWrapperStyle={styles.allRow}
+            initialNumToRender={12}
+            maxToRenderPerBatch={9}
+            windowSize={5}
+            removeClippedSubviews
+            renderItem={({ item, index }) => (
+              <View style={styles.allCell}>
+                <PhotoThumb
+                  uri={item}
+                  onPress={() => {
+                    setShowAll(false);
+                    setPreviewIndex(index);
+                  }}
+                />
+                {!disabled && onRemove ? (
+                  <Pressable
+                    onPress={() => onRemove(index)}
+                    style={styles.remove}
+                    hitSlop={8}
+                    accessibilityLabel="Remove photo"
+                  >
+                    <Ionicons name="close" size={12} color="#fff" />
+                  </Pressable>
+                ) : null}
+              </View>
+            )}
+          />
+        </View>
+      </Modal>
 
       <Modal visible={previewUrl != null} transparent animationType="fade" onRequestClose={() => setPreviewIndex(null)}>
         <Pressable style={styles.preview} onPress={() => setPreviewIndex(null)}>
@@ -104,7 +191,14 @@ export function InspectionPhotosField({
             <Ionicons name="close" size={20} color="#fff" />
           </Pressable>
           {previewUrl ? (
-            <Image source={{ uri: previewUrl }} style={styles.previewImage} resizeMode="contain" />
+            <Image
+              source={{ uri: previewUrl }}
+              style={styles.previewImage}
+              contentFit="contain"
+              cachePolicy="disk"
+              recyclingKey={previewUrl}
+              transition={0}
+            />
           ) : null}
         </Pressable>
       </Modal>
@@ -136,7 +230,15 @@ export function BeforeAfterPhotoColumn({
         style={styles.square}
       >
         {primaryUrl ? (
-          <Image source={{ uri: primaryUrl }} style={styles.squareImage} />
+          <Image
+            source={{ uri: primaryUrl }}
+            style={styles.squareImage}
+            contentFit="cover"
+            cachePolicy="disk"
+            recyclingKey={primaryUrl}
+            allowDownscaling
+            transition={0}
+          />
         ) : (
           <Text style={styles.squareLabel}>{title}</Text>
         )}
@@ -159,6 +261,9 @@ export function BeforeAfterPhotoColumn({
             <Text style={styles.columnSnapText}>Snap</Text>
           )}
         </Pressable>
+      ) : null}
+      {photoUrls.length > 1 ? (
+        <Text style={styles.columnMore}>+{photoUrls.length - 1} more</Text>
       ) : null}
     </View>
   );
@@ -204,8 +309,7 @@ const styles = StyleSheet.create({
   emptyText: { color: colors.muted, fontSize: 12, flexShrink: 1 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   cell: { width: '31%', aspectRatio: 1, borderRadius: 8, overflow: 'hidden', position: 'relative' },
-  thumbBtn: { flex: 1 },
-  thumb: { width: '100%', height: '100%', backgroundColor: colors.secondary },
+  thumbBtn: { flex: 1, width: '100%', height: '100%', backgroundColor: colors.secondary },
   remove: {
     position: 'absolute',
     top: 4,
@@ -227,6 +331,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  viewAll: { alignSelf: 'flex-start', paddingVertical: 4 },
+  viewAllText: { color: colors.primary, fontSize: 12, fontWeight: '700' },
+  allRoot: { flex: 1, backgroundColor: colors.background, paddingTop: 52 },
+  allHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+  },
+  allTitle: { color: colors.text, fontSize: 18, fontWeight: '700' },
+  allClose: { color: colors.primary, fontSize: 16, fontWeight: '700' },
+  allList: { paddingHorizontal: 16, paddingBottom: 32 },
+  allRow: { gap: 8, marginBottom: 8, justifyContent: 'flex-start' },
+  allCell: { width: '31%', aspectRatio: 1, borderRadius: 8, overflow: 'hidden', position: 'relative' },
   preview: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.85)',
@@ -280,4 +399,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   columnSnapText: { color: colors.primaryFg, fontWeight: '700', fontSize: 12 },
+  columnMore: { color: colors.muted, fontSize: 11, textAlign: 'center' },
 });

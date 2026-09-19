@@ -6,7 +6,7 @@ import {
   linkInspectionAreaPhotos,
 } from '@/src/api/inspector';
 import { photoAreaName } from '@/src/constants/inspection-areas';
-import { compressPhotoForUpload, type LocalPhoto } from '@/src/jobs/compress-photo';
+import { INSPECTION_BURST_MAX, type LocalPhoto } from '@/src/jobs/compress-photo';
 import { InspectionAreaActionBar } from '@/src/jobs/inspection-area-action-bar';
 import { InspectionAreaNav } from '@/src/jobs/inspection-area-nav';
 import { InspectionPhotosField } from '@/src/jobs/inspection-photos-field';
@@ -30,7 +30,7 @@ import {
   specialReportingAsFindings,
 } from '@/src/lib/special-reporting';
 import type { RoutineAreaIssueDraft, RoutineExecutionDraft } from '@/src/lib/types';
-import { queueInspectionFindings, queueInspectionPhoto } from '@/src/offline/sync';
+import { queueInspectionFindings, queueInspectionPhotoBatch } from '@/src/offline/sync';
 import { useOffline } from '@/src/offline/offline-context';
 import { colors } from '@/src/theme';
 
@@ -180,13 +180,7 @@ export function ChecklistWalk({
   };
 
   const uploadPhotos = async (areaName: string, photos: LocalPhoto[]) => {
-    const uploaded: string[] = [];
-    for (const photo of photos) {
-      const body = await compressPhotoForUpload(photo);
-      const saved = await queueInspectionPhoto(inspectionId, { ...body, areaName }, photo.uri);
-      uploaded.push(saved.url);
-    }
-    return uploaded;
+    return queueInspectionPhotoBatch(inspectionId, photos, areaName);
   };
 
   const uploadForArea = async (photos: LocalPhoto[]) => {
@@ -571,6 +565,7 @@ export function ChecklistWalk({
       <JobCamera
         visible={cameraTarget != null}
         mode="burst"
+        maxPhotos={INSPECTION_BURST_MAX}
         onClose={() => setCameraTarget(null)}
         onBurstComplete={(photos) => {
           if (!cameraTarget) return;

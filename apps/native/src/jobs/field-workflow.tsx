@@ -23,7 +23,7 @@ import { useInspections } from '@/src/inspections/inspections-context';
 import { AreaSetupPanel } from '@/src/jobs/area-setup-panel';
 import { CancelTaskSheet } from '@/src/jobs/cancel-task-sheet';
 import { ChecklistWalk } from '@/src/jobs/checklist-walk';
-import { compressPhotoForUpload, type LocalPhoto } from '@/src/jobs/compress-photo';
+import { INSPECTION_BURST_MAX, type LocalPhoto } from '@/src/jobs/compress-photo';
 import { InspectionAreaActionBar } from '@/src/jobs/inspection-area-action-bar';
 import { InspectionAreaNav } from '@/src/jobs/inspection-area-nav';
 import { InspectionPhotosField } from '@/src/jobs/inspection-photos-field';
@@ -47,7 +47,7 @@ import {
 } from '@/src/lib/inspection-layout';
 import { moveIndex, rekeyRecord, renameCustomArea } from '@/src/lib/inspection-layout-edit';
 import { isKeyCollectComplete } from '@/src/lib/key-access';
-import { queueExecutionDraft, queueInspectionFindings, queueInspectionPhoto } from '@/src/offline/sync';
+import { queueExecutionDraft, queueInspectionFindings, queueInspectionPhotoBatch } from '@/src/offline/sync';
 import { useOffline } from '@/src/offline/offline-context';
 import { jobDetail, jobInspect, jobKeys } from '@/src/lib/routes';
 import type { InspectionType, RoutineExecutionDraft } from '@/src/lib/types';
@@ -324,12 +324,7 @@ export function FieldWorkflowScreen({
     setError(null);
     try {
       await ensureAccepted();
-      const urls: string[] = [];
-      for (const photo of photos) {
-        const body = await compressPhotoForUpload(photo);
-        const uploaded = await queueInspectionPhoto(id, { ...body, areaName: currentName }, photo.uri);
-        urls.push(uploaded.url);
-      }
+      const urls = await queueInspectionPhotoBatch(id, photos, currentName);
       persist({
         ...draft,
         issues: {
@@ -643,6 +638,7 @@ export function FieldWorkflowScreen({
       <JobCamera
         visible={cameraOpen}
         mode="burst"
+        maxPhotos={INSPECTION_BURST_MAX}
         onClose={() => setCameraOpen(false)}
         onBurstComplete={(photos) => {
           void onBurst(photos);

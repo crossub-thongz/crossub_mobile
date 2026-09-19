@@ -4,7 +4,7 @@ import type { RoutineExecutionDraft } from '@/src/lib/types';
 
 const DB_NAME = 'crossub-inspector.db';
 
-export const OFFLINE_QUEUE_MAX_ITEMS = 200;
+export const OFFLINE_QUEUE_MAX_ITEMS = 2000;
 
 export type OfflineAction =
   | 'execution_draft'

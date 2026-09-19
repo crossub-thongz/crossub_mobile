@@ -1,5 +1,5 @@
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Modal,
@@ -11,7 +11,12 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import type { LocalPhoto } from '@/src/jobs/compress-photo';
+import {
+  INSPECTION_BURST_MAX,
+  compressPhotoToFile,
+  deleteLocalPhoto,
+  type LocalPhoto,
+} from '@/src/jobs/compress-photo';
 
 type Lens = 0.5 | 1 | 2;
 
@@ -36,10 +41,12 @@ export function JobCamera({
   onCapture,
   onBurstComplete,
   mode = 'single',
-  maxPhotos = 20,
+  maxPhotos = INSPECTION_BURST_MAX,
 }: JobCameraProps) {
   const insets = useSafeAreaInsets();
   const cameraRef = useRef<CameraView>(null);
+  const shotsRef = useRef<LocalPhoto[]>([]);
+  const handedOffRef = useRef(false);
   const [permission, requestPermission] = useCameraPermissions();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -47,38 +54,71 @@ export function JobCamera({
   const [shots, setShots] = useState<LocalPhoto[]>([]);
   const burst = mode === 'burst';
 
+  useEffect(() => {
+    if (!visible) return;
+    handedOffRef.current = false;
+    setError(null);
+  }, [visible]);
+
+  const setShotList = (next: LocalPhoto[]) => {
+    shotsRef.current = next;
+    setShots(next);
+  };
+
+  const discardShots = (photos: LocalPhoto[]) => {
+    void Promise.all(photos.map((photo) => deleteLocalPhoto(photo.uri)));
+  };
+
+  const closeWithoutSaving = () => {
+    if (!handedOffRef.current) discardShots(shotsRef.current);
+    handedOffRef.current = false;
+    setShotList([]);
+    onClose();
+  };
+
   const finish = (photos: LocalPhoto[]) => {
     if (photos.length === 0) {
-      onClose();
+      closeWithoutSaving();
       return;
     }
+    handedOffRef.current = true;
     if (burst && onBurstComplete) onBurstComplete(photos);
     else if (onCapture) onCapture(photos[photos.length - 1]);
-    setShots([]);
+    setShotList([]);
     onClose();
   };
 
   const snap = async () => {
     if (!cameraRef.current || busy) return;
-    if (burst && shots.length >= maxPhotos) {
-      setError(`At most ${maxPhotos} photos.`);
+    if (burst && shotsRef.current.length >= maxPhotos) {
+      setError(`At most ${maxPhotos} photos in one burst. Use photos, then snap more.`);
       return;
     }
     setBusy(true);
     setError(null);
     try {
-      const picture = await cameraRef.current.takePictureAsync({ quality: 0.8 });
+      const picture = await cameraRef.current.takePictureAsync({
+        quality: 0.45,
+        exif: false,
+        imageType: 'jpg',
+      });
       if (!picture?.uri) throw new Error('Camera did not return a photo.');
-      const photo: LocalPhoto = {
+      const captured: LocalPhoto = {
         uri: picture.uri,
         width: picture.width,
         height: picture.height,
       };
-      if (!burst) {
-        finish([photo]);
-        return;
+      try {
+        const photo = await compressPhotoToFile(captured);
+        if (!burst) {
+          finish([photo]);
+          return;
+        }
+        setShotList([...shotsRef.current, photo]);
+      } catch (err) {
+        await deleteLocalPhoto(captured.uri);
+        throw err;
       }
-      setShots((current) => [...current, photo]);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not take photo.');
     } finally {
@@ -90,10 +130,7 @@ export function JobCamera({
     <Modal
       visible={visible}
       animationType="slide"
-      onRequestClose={() => {
-        setShots([]);
-        onClose();
-      }}
+      onRequestClose={closeWithoutSaving}
     >
       <View style={styles.root}>
         {!permission ? (
@@ -114,7 +151,7 @@ export function JobCamera({
             >
               <Text style={styles.primaryText}>Allow camera</Text>
             </Pressable>
-            <Pressable onPress={onClose} style={styles.secondary}>
+            <Pressable onPress={closeWithoutSaving} style={styles.secondary}>
               <Text style={styles.secondaryText}>Cancel</Text>
             </Pressable>
           </View>
@@ -152,13 +189,7 @@ export function JobCamera({
               </ScrollView>
             ) : null}
             <View style={[styles.bar, { paddingBottom: Math.max(insets.bottom, 16) }]}>
-              <Pressable
-                onPress={() => {
-                  setShots([]);
-                  onClose();
-                }}
-                style={styles.secondary}
-              >
+              <Pressable onPress={closeWithoutSaving} style={styles.secondary}>
                 <Text style={styles.secondaryText}>Cancel</Text>
               </Pressable>
               <Pressable
@@ -180,7 +211,7 @@ export function JobCamera({
               </Pressable>
               {burst ? (
                 <Pressable
-                  onPress={() => finish(shots)}
+                  onPress={() => finish(shotsRef.current)}
                   style={styles.secondary}
                   disabled={shots.length === 0}
                 >
@@ -194,7 +225,7 @@ export function JobCamera({
             </View>
             {burst ? (
               <Text style={styles.hint}>
-                Snap as many as you need. Use 0.5× / 1× / 2×, then Use photos.
+                Photos compress as you snap. Up to {maxPhotos} per burst, then Use photos.
               </Text>
             ) : null}
           </>

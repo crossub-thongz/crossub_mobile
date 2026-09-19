@@ -10,6 +10,12 @@ import {
   type UploadInspectorPhoto,
 } from '@/src/api/inspector';
 import {
+  deleteLocalPhoto,
+  preparePhotoUpload,
+  yieldToUi,
+  type LocalPhoto,
+} from '@/src/jobs/compress-photo';
+import {
   enqueueOfflineAction,
   isRetryableNetworkError,
   loadOfflineQueue,
@@ -49,9 +55,23 @@ async function replayItem(item: OfflineQueueItem): Promise<void> {
     case 'findings':
       await saveInspectionFindings(item.jobId, payload as SaveInspectorFindings);
       return;
-    case 'photo_upload':
-      await uploadInspectionPhoto(item.jobId, payload as UploadInspectorPhoto);
+    case 'photo_upload': {
+      const localUri = typeof payload.localUri === 'string' ? payload.localUri : '';
+      if (localUri) {
+        const prepared = await preparePhotoUpload({ uri: localUri, width: 0, height: 0 });
+        await uploadInspectionPhoto(item.jobId, {
+          ...prepared.body,
+          areaName: typeof payload.areaName === 'string' ? payload.areaName : undefined,
+        });
+        await deleteLocalPhoto(localUri);
+        if (prepared.localUri !== localUri) await deleteLocalPhoto(prepared.localUri);
+        return;
+      }
+      if (typeof payload.contentBase64 === 'string' && payload.contentBase64) {
+        await uploadInspectionPhoto(item.jobId, payload as UploadInspectorPhoto);
+      }
       return;
+    }
     case 'key_custody': {
       const phase = payload.phase === 'return' ? 'return' : 'collect';
       const notes = typeof payload.notes === 'string' ? payload.notes : undefined;
@@ -112,12 +132,37 @@ export async function queueInspectionPhoto(
   localUri: string,
 ): Promise<{ url: string }> {
   try {
-    return await uploadInspectionPhoto(inspectionId, body);
+    const uploaded = await uploadInspectionPhoto(inspectionId, body);
+    await deleteLocalPhoto(localUri);
+    return uploaded;
   } catch (err) {
     if (!isRetryableNetworkError(err)) throw err;
-    await enqueueOfflineAction(inspectionId, 'photo_upload', { ...body });
+    await enqueueOfflineAction(inspectionId, 'photo_upload', {
+      localUri,
+      areaName: body.areaName,
+      fileName: body.fileName,
+    });
     return { url: localUri };
   }
+}
+
+export async function queueInspectionPhotoBatch(
+  inspectionId: string,
+  photos: LocalPhoto[],
+  areaName: string,
+): Promise<string[]> {
+  const urls: string[] = [];
+  for (const photo of photos) {
+    const prepared = await preparePhotoUpload(photo);
+    const saved = await queueInspectionPhoto(
+      inspectionId,
+      { ...prepared.body, areaName },
+      prepared.localUri,
+    );
+    urls.push(saved.url);
+    await yieldToUi();
+  }
+  return urls;
 }
 
 export async function queueInspectionFindings(
