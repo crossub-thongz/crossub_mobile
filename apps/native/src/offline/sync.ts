@@ -78,15 +78,30 @@ async function replayItem(item: OfflineQueueItem): Promise<void> {
       await recordKeyCustody(item.jobId, phase, notes ? { notes } : {});
       return;
     }
-    case 'key_photo':
+    case 'key_photo': {
+      const localUri = typeof payload.localUri === 'string' ? payload.localUri : '';
+      const phase = payload.phase === 'return' ? 'return' : 'collect';
+      if (localUri) {
+        const prepared = await preparePhotoUpload({ uri: localUri, width: 0, height: 0 });
+        await uploadKeyCustodyPhoto(item.jobId, {
+          ...prepared.body,
+          phase,
+          fileName:
+            typeof payload.fileName === 'string' ? payload.fileName : prepared.body.fileName,
+        });
+        await deleteLocalPhoto(localUri);
+        if (prepared.localUri !== localUri) await deleteLocalPhoto(prepared.localUri);
+        return;
+      }
       await uploadKeyCustodyPhoto(item.jobId, {
-        phase: payload.phase === 'return' ? 'return' : 'collect',
+        phase,
         fileName: String(payload.fileName ?? 'key.jpg'),
         mimeType: String(payload.mimeType ?? 'image/jpeg'),
         sizeBytes: Number(payload.sizeBytes ?? 0),
         contentBase64: String(payload.contentBase64 ?? ''),
       });
       return;
+    }
     default:
       return;
   }
@@ -130,10 +145,11 @@ export async function queueInspectionPhoto(
   inspectionId: string,
   body: UploadInspectorPhoto,
   localUri: string,
+  options?: { keepLocal?: boolean },
 ): Promise<{ url: string }> {
   try {
     const uploaded = await uploadInspectionPhoto(inspectionId, body);
-    await deleteLocalPhoto(localUri);
+    if (!options?.keepLocal) await deleteLocalPhoto(localUri);
     return uploaded;
   } catch (err) {
     if (!isRetryableNetworkError(err)) throw err;
@@ -150,6 +166,7 @@ export async function queueInspectionPhotoBatch(
   inspectionId: string,
   photos: LocalPhoto[],
   areaName: string,
+  onEach?: (localUri: string, remoteUrl: string) => void,
 ): Promise<string[]> {
   const urls: string[] = [];
   for (const photo of photos) {
@@ -158,8 +175,14 @@ export async function queueInspectionPhotoBatch(
       inspectionId,
       { ...prepared.body, areaName },
       prepared.localUri,
+      { keepLocal: true },
     );
     urls.push(saved.url);
+    onEach?.(photo.uri, saved.url);
+    if (saved.url !== prepared.localUri) await deleteLocalPhoto(prepared.localUri);
+    if (photo.uri !== prepared.localUri && saved.url !== photo.uri) {
+      await deleteLocalPhoto(photo.uri);
+    }
     await yieldToUi();
   }
   return urls;
@@ -202,13 +225,23 @@ export async function queueKeyCustodyPhoto(
     sizeBytes: number;
     contentBase64: string;
   },
-): Promise<'synced' | 'queued'> {
+  localUri?: string,
+): Promise<{ url: string }> {
   try {
-    await uploadKeyCustodyPhoto(inspectionId, body);
-    return 'synced';
+    const custody = await uploadKeyCustodyPhoto(inspectionId, body);
+    const urls = body.phase === 'return' ? custody.returnPhotos : custody.collectPhotos;
+    return { url: urls[urls.length - 1] ?? localUri ?? '' };
   } catch (err) {
     if (!isRetryableNetworkError(err)) throw err;
+    if (localUri) {
+      await enqueueOfflineAction(inspectionId, 'key_photo', {
+        phase: body.phase,
+        localUri,
+        fileName: body.fileName,
+      });
+      return { url: localUri };
+    }
     await enqueueOfflineAction(inspectionId, 'key_photo', body);
-    return 'queued';
+    return { url: localUri ?? '' };
   }
 }

@@ -11,6 +11,7 @@ import {
 
 import { JobReminders } from '@/src/jobs/job-reminders';
 import { useInspections } from '@/src/inspections/inspections-context';
+import { PendingSyncBanner } from '@/src/offline/pending-sync-banner';
 import { INSPECTION_PAY_LABEL } from '@/src/constants/inspection';
 import {
   jobInspectionStarted,
@@ -97,6 +98,7 @@ export default function HomeScreen() {
         }
       >
         {error ? <Text style={styles.error}>{error}</Text> : null}
+        <PendingSyncBanner />
         <JobReminders />
 
         <View style={styles.glance}>

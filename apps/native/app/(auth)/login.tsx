@@ -20,6 +20,7 @@ export default function LoginScreen() {
   const { login, status } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const origin = getApiOrigin();
@@ -78,16 +79,25 @@ export default function LoginScreen() {
           />
 
           <Text style={styles.label}>Password</Text>
-          <TextInput
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            autoComplete="password"
-            placeholder="Password"
-            placeholderTextColor="#6f6f6f"
-            style={styles.input}
-            onSubmitEditing={onSubmit}
-          />
+          <View style={styles.passwordRow}>
+            <TextInput
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry={!showPassword}
+              autoComplete="password"
+              placeholder="Password"
+              placeholderTextColor="#6f6f6f"
+              style={[styles.input, styles.passwordInput]}
+              onSubmitEditing={onSubmit}
+            />
+            <Pressable
+              onPress={() => setShowPassword((value) => !value)}
+              style={styles.eye}
+              accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
+            >
+              <Text style={styles.eyeText}>{showPassword ? 'Hide' : 'Show'}</Text>
+            </Pressable>
+          </View>
 
           {error ? <Text style={styles.error}>{error}</Text> : null}
 
@@ -148,6 +158,10 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     fontSize: 16,
   },
+  passwordRow: { position: 'relative' },
+  passwordInput: { paddingRight: 64 },
+  eye: { position: 'absolute', right: 12, top: 12 },
+  eyeText: { color: '#00d4a4', fontSize: 13, fontWeight: '600' },
   error: { color: '#ef4444', marginTop: 12, fontSize: 14 },
   button: {
     marginTop: 24,

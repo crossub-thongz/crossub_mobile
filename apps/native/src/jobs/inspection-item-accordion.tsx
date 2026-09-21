@@ -3,6 +3,7 @@ import { type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { InspectionPhotosField } from '@/src/jobs/inspection-photos-field';
+import type { LocalPhoto } from '@/src/jobs/compress-photo';
 import { inspectionItemIcon } from '@/src/lib/inspection-item-icon';
 import {
   emptyItemMarks,
@@ -32,6 +33,7 @@ export function InspectionItemAccordion({
   onChangeMarks,
   onChangeComment,
   onTakePhotos,
+  onAddPhotos,
   onRemovePhoto,
   extra,
   showItemPhotos = true,
@@ -49,6 +51,7 @@ export function InspectionItemAccordion({
   onChangeMarks: (marks: ItemConditionMarks) => void;
   onChangeComment: (comment: string) => void;
   onTakePhotos?: () => void;
+  onAddPhotos?: (photos: LocalPhoto[]) => void;
   onRemovePhoto?: (index: number) => void;
   extra?: ReactNode;
   showItemPhotos?: boolean;
@@ -189,8 +192,9 @@ export function InspectionItemAccordion({
               uploading={photoUploading}
               disabled={busy}
               compact
-              emptyLabel="Take close-ups of this item."
+              emptyLabel="Take or upload close-ups of this item."
               onTakePhotos={onTakePhotos}
+              onAddPhotos={onAddPhotos}
               onRemove={onRemovePhoto}
             />
           ) : null}

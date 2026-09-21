@@ -129,6 +129,7 @@ export function ChecklistWalk({
   customAreas?: CustomAreaDefinition[];
 }) {
   const [cameraTarget, setCameraTarget] = useState<CameraTarget | null>(null);
+  const cameraTargetRef = useRef<CameraTarget | null>(null);
   const [itemsDragging, setItemsDragging] = useState(false);
   const [ingoingFromReference, setIngoingFromReference] = useState(false);
   const seededRef = useRef(false);
@@ -137,6 +138,8 @@ export function ChecklistWalk({
   const issue = currentName
     ? ensureIssue(currentName, draft.issues[currentName], customAreas)
     : ensureIssue('', undefined, customAreas);
+  const draftRef = useRef(draft);
+  draftRef.current = draft;
   const sections = issue.activeSections ?? [];
   const isLast = names.length > 0 && areaIndex >= names.length - 1;
 
@@ -176,25 +179,34 @@ export function ChecklistWalk({
 
   const updateIssue = (next: RoutineAreaIssueDraft) => {
     if (!currentName) return;
-    persist({ ...draft, issues: { ...draft.issues, [currentName]: next } });
+    persist({
+      ...draftRef.current,
+      issues: { ...draftRef.current.issues, [currentName]: next },
+    });
   };
 
-  const uploadPhotos = async (areaName: string, photos: LocalPhoto[]) => {
-    return queueInspectionPhotoBatch(inspectionId, photos, areaName);
-  };
+  const latestIssue = () =>
+    ensureIssue(currentName ?? '', currentName ? draftRef.current.issues[currentName] : undefined, customAreas);
 
-  const uploadForArea = async (photos: LocalPhoto[]) => {
-    if (!currentName) return;
+  const attachAreaPhotos = async (photos: LocalPhoto[]) => {
+    if (!currentName || photos.length === 0) return;
+    const locals = photos.map((photo) => photo.uri);
+    const rec = latestIssue();
+    updateIssue({
+      ...rec,
+      available: true,
+      areaPhotos: [...(rec.areaPhotos ?? []), ...locals],
+    });
     setBusy('photo');
     setError(null);
     try {
       await ensureAccepted();
-      const uploaded = await uploadPhotos(currentName, photos);
-      const latest = ensureIssue(currentName, draft.issues[currentName], customAreas);
-      updateIssue({
-        ...latest,
-        available: true,
-        areaPhotos: [...(latest.areaPhotos ?? []), ...uploaded],
+      await queueInspectionPhotoBatch(inspectionId, photos, currentName, (localUri, remoteUrl) => {
+        const rec = latestIssue();
+        updateIssue({
+          ...rec,
+          areaPhotos: (rec.areaPhotos ?? []).map((url) => (url === localUri ? remoteUrl : url)),
+        });
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Photo upload failed - please retry');
@@ -203,47 +215,80 @@ export function ChecklistWalk({
     }
   };
 
-  const uploadForSection = async (
+  const attachSectionPhotos = async (
     section: string,
     photos: LocalPhoto[],
     side?: 'ingoing' | 'outgoing',
   ) => {
-    if (!currentName) return;
+    if (!currentName || photos.length === 0) return;
+    const resolvedSide = side ?? (type === 'outgoing' ? 'outgoing' : undefined);
+    const slot: 'ingoing' | 'outgoing' =
+      resolvedSide === 'outgoing' || type === 'outgoing' ? 'outgoing' : 'ingoing';
+    const locals = photos.map((photo) => photo.uri);
+    const rec = latestIssue();
+    const existing = rec.photosBySection?.[section];
+    if (resolvedSide === 'ingoing') {
+      updateIssue({
+        ...rec,
+        available: true,
+        photosBySection: {
+          ...(rec.photosBySection ?? {}),
+          [section]: {
+            ...(existing ?? emptySectionPhotos()),
+            ingoingPhotoUrls: [...(existing?.ingoingPhotoUrls ?? []), ...locals],
+          },
+        },
+      });
+    } else {
+      updateIssue({
+        ...rec,
+        available: true,
+        photosBySection: {
+          ...(rec.photosBySection ?? {}),
+          [section]: withCurrentUrls(slot, existing, [...currentUrls(slot, existing), ...locals]),
+        },
+      });
+    }
+
     setBusy('photo');
     setError(null);
     try {
       await ensureAccepted();
-      const resolvedSide = side ?? (type === 'outgoing' ? 'outgoing' : undefined);
-      const uploaded = await uploadPhotos(
-        photoAreaName(currentName, section, resolvedSide),
+      await queueInspectionPhotoBatch(
+        inspectionId,
         photos,
-      );
-      const latest = ensureIssue(currentName, draft.issues[currentName], customAreas);
-      const existing = latest.photosBySection?.[section];
-      const slot: 'ingoing' | 'outgoing' =
-        resolvedSide === 'outgoing' || type === 'outgoing' ? 'outgoing' : 'ingoing';
-      if (resolvedSide === 'ingoing') {
-        updateIssue({
-          ...latest,
-          available: true,
-          photosBySection: {
-            ...(latest.photosBySection ?? {}),
-            [section]: {
-              ...(existing ?? emptySectionPhotos()),
-              ingoingPhotoUrls: [...(existing?.ingoingPhotoUrls ?? []), ...uploaded],
+        photoAreaName(currentName, section, resolvedSide),
+        (localUri, remoteUrl) => {
+          const next = latestIssue();
+          const photosForSection = next.photosBySection?.[section];
+          if (resolvedSide === 'ingoing') {
+            updateIssue({
+              ...next,
+              photosBySection: {
+                ...(next.photosBySection ?? {}),
+                [section]: {
+                  ...(photosForSection ?? emptySectionPhotos()),
+                  ingoingPhotoUrls: (photosForSection?.ingoingPhotoUrls ?? []).map((url) =>
+                    url === localUri ? remoteUrl : url,
+                  ),
+                },
+              },
+            });
+            return;
+          }
+          updateIssue({
+            ...next,
+            photosBySection: {
+              ...(next.photosBySection ?? {}),
+              [section]: withCurrentUrls(
+                slot,
+                photosForSection,
+                currentUrls(slot, photosForSection).map((url) => (url === localUri ? remoteUrl : url)),
+              ),
             },
-          },
-        });
-        return;
-      }
-      updateIssue({
-        ...latest,
-        available: true,
-        photosBySection: {
-          ...(latest.photosBySection ?? {}),
-          [section]: withCurrentUrls(slot, existing, [...currentUrls(slot, existing), ...uploaded]),
+          });
         },
-      });
+      );
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Photo upload failed - please retry');
     } finally {
@@ -420,8 +465,14 @@ export function ChecklistWalk({
               photoUrls={issue.areaPhotos ?? []}
               uploading={photoBusy}
               disabled={formBusy}
-              emptyLabel="Snap several photos of this room, then attach them here."
-              onTakePhotos={() => setCameraTarget({ kind: 'area' })}
+              emptyLabel="Snap or upload several photos of this room, then attach them here."
+              onTakePhotos={() => {
+                cameraTargetRef.current = { kind: 'area' };
+                setCameraTarget({ kind: 'area' });
+              }}
+              onAddPhotos={(photos) => {
+                void attachAreaPhotos(photos);
+              }}
               onRemove={(index) =>
                 updateIssue({
                   ...issue,
@@ -481,7 +532,14 @@ export function ChecklistWalk({
                   itemComments: { ...(issue.itemComments ?? {}), [section]: comment },
                 })
               }
-              onTakePhotos={(section, side) => setCameraTarget({ kind: 'section', section, side })}
+              onTakePhotos={(section, side) => {
+                const target = { kind: 'section' as const, section, side };
+                cameraTargetRef.current = target;
+                setCameraTarget(target);
+              }}
+              onAddPhotos={(section, photos, side) => {
+                void attachSectionPhotos(section, photos, side);
+              }}
               onRemovePhoto={(section, index, side) => {
                 const existing = issue.photosBySection?.[section] ?? emptySectionPhotos();
                 const resolved = side ?? (type === 'outgoing' ? 'outgoing' : 'ingoing');
@@ -566,14 +624,20 @@ export function ChecklistWalk({
         visible={cameraTarget != null}
         mode="burst"
         maxPhotos={INSPECTION_BURST_MAX}
-        onClose={() => setCameraTarget(null)}
+        onClose={() => {
+          cameraTargetRef.current = null;
+          setCameraTarget(null);
+        }}
         onBurstComplete={(photos) => {
-          if (!cameraTarget) return;
-          if (cameraTarget.kind === 'area') {
-            void uploadForArea(photos);
+          const target = cameraTargetRef.current;
+          cameraTargetRef.current = null;
+          setCameraTarget(null);
+          if (!target || photos.length === 0) return;
+          if (target.kind === 'area') {
+            void attachAreaPhotos(photos);
             return;
           }
-          void uploadForSection(cameraTarget.section, photos, cameraTarget.side);
+          void attachSectionPhotos(target.section, photos, target.side);
         }}
       />
     </View>

@@ -30,6 +30,45 @@ export type KeyAccess = {
   collectComplete: boolean;
   returnComplete: boolean;
   photoRequired: boolean;
+  code?: string;
+  location?: string;
+};
+
+export type LeasingKeyCustody = 'crossub' | 'agent';
+
+export type LeasingItemStatus =
+  | 'not_started'
+  | 'in_progress'
+  | 'waiting'
+  | 'blocked'
+  | 'done';
+
+export type LeasingKeyCollectionTenantReport = {
+  submittedAt: string | null;
+  tagNumber: string | null;
+  keysCount: number | null;
+  entryDoorCount: number | null;
+  windowSlidingCount: number | null;
+  fobsCount: number | null;
+  remoteControlCount: number | null;
+  mailboxCount: number | null;
+  othersCount: number | null;
+};
+
+export type LeasingKeyCollectionState = {
+  status: LeasingItemStatus;
+  time: string | null;
+  location: string | null;
+  photos: string[];
+  tenantReport: LeasingKeyCollectionTenantReport | null;
+};
+
+export type InspectorLeasingKeyContext = {
+  cycleId: string;
+  propertyId: string;
+  propertyAddress: string;
+  keyCustody: LeasingKeyCustody;
+  keyCollection: LeasingKeyCollectionState;
 };
 
 export type InspectionJob = {
@@ -55,6 +94,7 @@ export type InspectionJob = {
   agentPhone?: string;
   propertyImageUrl?: string;
   keyAccess?: KeyAccess;
+  leasingKeyCollection?: InspectorLeasingKeyContext;
   notes?: string;
   property: PropertyInspectionSpec;
   durationLabel: string;

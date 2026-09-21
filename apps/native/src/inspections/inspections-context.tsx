@@ -29,7 +29,7 @@ import {
   isUpcomingInspection,
 } from '@/src/lib/inspector-job-filters';
 import { mapAssignedJobs, mapPoolJobs, toInspectionJob } from '@/src/lib/job-map';
-import { keyAccessFromCollection } from '@/src/lib/key-access';
+import { applyKeyCollection } from '@/src/lib/key-access';
 import { loadAllDrafts, saveDraftLocal } from '@/src/offline/db';
 import type { GeoPoint } from '@/src/lib/travel';
 import type { InspectionJob, RoutineExecutionDraft } from '@/src/lib/types';
@@ -76,7 +76,7 @@ async function enrichKeys(jobs: InspectionJob[]): Promise<InspectionJob[]> {
       try {
         const collection = await fetchKeyCollection(job.id);
         if (!collection) return job;
-        return { ...job, keyAccess: keyAccessFromCollection(collection) };
+        return applyKeyCollection(job, collection);
       } catch {
         return job;
       }
@@ -84,6 +84,23 @@ async function enrichKeys(jobs: InspectionJob[]): Promise<InspectionJob[]> {
   );
   const byId = new Map(updates.map((job) => [job.id, job]));
   return jobs.map((job) => byId.get(job.id) ?? job);
+}
+
+function mergePreservedJobState(
+  fresh: InspectionJob[],
+  previous: InspectionJob[],
+): InspectionJob[] {
+  const prevById = new Map(previous.map((job) => [job.id, job]));
+  return fresh.map((job) => {
+    const prev = prevById.get(job.id);
+    if (!prev) return job;
+    return {
+      ...job,
+      keyAccess: job.keyAccess ?? prev.keyAccess,
+      leasingKeyCollection: job.leasingKeyCollection ?? prev.leasingKeyCollection,
+      workflowData: { ...prev.workflowData, ...job.workflowData },
+    };
+  });
 }
 
 export function InspectionsProvider({ children }: { children: ReactNode }) {
@@ -127,7 +144,7 @@ export function InspectionsProvider({ children }: { children: ReactNode }) {
         enrichKeys(mapAssignedJobs(assignedDtos)),
         Promise.resolve(mapPoolJobs(poolDtos)),
       ]);
-      setJobs(assignedJobs);
+      setJobs((previous) => mergePreservedJobState(assignedJobs, previous));
       setPool(receiving ? poolJobs : []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load jobs');
@@ -141,6 +158,27 @@ export function InspectionsProvider({ children }: { children: ReactNode }) {
     if (status !== 'authed') return;
     void load('initial');
   }, [status, load]);
+
+  useEffect(() => {
+    if (status !== 'authed' || !receivingJobs) return;
+    let busy = false;
+    const timer = setInterval(() => {
+      if (busy || !receivingRef.current) return;
+      busy = true;
+      void (async () => {
+        try {
+          const poolDtos = await fetchPoolInspections();
+          if (!receivingRef.current) return;
+          setPool(mapPoolJobs(poolDtos));
+        } catch {
+          // Keep the last pool snapshot.
+        } finally {
+          busy = false;
+        }
+      })();
+    }, 15_000);
+    return () => clearInterval(timer);
+  }, [status, receivingJobs]);
 
   const refresh = useCallback(async () => {
     await load('refresh');
@@ -204,10 +242,10 @@ export function InspectionsProvider({ children }: { children: ReactNode }) {
         } catch {
           // Keep the claimed DRAFT row if accept is blocked (e.g. unpaid Level 1).
         }
-        const job = toInspectionJob(dto);
+        let job = toInspectionJob(dto);
         try {
           const collection = await fetchKeyCollection(job.id);
-          if (collection) job.keyAccess = keyAccessFromCollection(collection);
+          if (collection) job = applyKeyCollection(job, collection);
         } catch {
           // Keys stay optional if the arrangement endpoint is unavailable.
         }

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -11,9 +11,12 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 
+import { fetchKeyCollection } from '@/src/api/inspector';
 import { INSPECTION_PAY_LABEL } from '@/src/constants/inspection';
 import { useInspections } from '@/src/inspections/inspections-context';
 import { formatDateTime } from '@/src/lib/datetime';
+import { historyProofLabel, historyProofPhotoCount } from '@/src/lib/job-history';
+import { applyKeyCollection } from '@/src/lib/key-access';
 import { jobHistory } from '@/src/lib/routes';
 import type { InspectionJob } from '@/src/lib/types';
 import { colors } from '@/src/theme';
@@ -30,8 +33,35 @@ function matchesHistoryQuery(job: InspectionJob, query: string): boolean {
 
 export default function HistoryScreen() {
   const router = useRouter();
-  const { completedJobs, loading, refreshing, error, refresh } = useInspections();
+  const { completedJobs, loading, refreshing, error, refresh, upsertJob } = useInspections();
   const [query, setQuery] = useState('');
+  const fetchedKeys = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    const targets = completedJobs.filter((job) => {
+      if (fetchedKeys.current.has(job.id)) return false;
+      return historyProofPhotoCount(job) === 0;
+    });
+    if (targets.length === 0) return;
+    for (const job of targets) fetchedKeys.current.add(job.id);
+    let cancelled = false;
+    void (async () => {
+      await Promise.all(
+        targets.map(async (job) => {
+          try {
+            const collection = await fetchKeyCollection(job.id);
+            if (!collection || cancelled) return;
+            upsertJob(applyKeyCollection(job, collection));
+          } catch {
+            // Keep the row. Jobs with no key photos stay at 0.
+          }
+        }),
+      );
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [completedJobs, upsertJob]);
 
   const filtered = useMemo(
     () => completedJobs.filter((job) => matchesHistoryQuery(job, query)),
@@ -82,32 +112,40 @@ export default function HistoryScreen() {
             }
           />
         ) : (
-          filtered.map((job) => (
-            <Pressable
-              key={job.id}
-              onPress={() => router.push(jobHistory(job.id))}
-              style={styles.card}
-            >
-              <View style={styles.badges}>
-                <View style={styles.typeChip}>
-                  <Text style={styles.typeChipText}>
-                    {(INSPECTION_PAY_LABEL[job.type] ?? job.type).toUpperCase()}
-                  </Text>
+          filtered.map((job) => {
+            const proofCount = historyProofPhotoCount(job);
+            return (
+              <Pressable
+                key={job.id}
+                onPress={() => router.push(jobHistory(job.id))}
+                style={styles.card}
+              >
+                <View style={styles.badges}>
+                  <View style={styles.typeChip}>
+                    <Text style={styles.typeChipText}>
+                      {(INSPECTION_PAY_LABEL[job.type] ?? job.type).toUpperCase()}
+                    </Text>
+                  </View>
+                  <View style={styles.statusChip}>
+                    <Text style={styles.statusChipText}>
+                      {job.status === 'awaiting_approval' ? 'PENDING APPROVAL' : 'COMPLETED'}
+                    </Text>
+                  </View>
                 </View>
-                <View style={styles.statusChip}>
-                  <Text style={styles.statusChipText}>
-                    {job.status === 'awaiting_approval' ? 'PENDING APPROVAL' : 'COMPLETED'}
-                  </Text>
-                </View>
-              </View>
-              <Text style={styles.address}>{job.propertyAddress}</Text>
-              <Text style={styles.meta}>
-                {formatDateTime(job.scheduledTime || job.scheduledDate)}
-                {job.approvedAt ? ` - Report ${formatDateTime(job.approvedAt)}` : ''}
-              </Text>
-              <Text style={styles.view}>View report</Text>
-            </Pressable>
-          ))
+                <Text style={styles.address}>{job.propertyAddress}</Text>
+                <Text style={styles.meta}>
+                  {formatDateTime(job.scheduledTime || job.scheduledDate)}
+                  {job.approvedAt ? ` - Report ${formatDateTime(job.approvedAt)}` : ''}
+                </Text>
+                <Text style={styles.view}>
+                  View report
+                  {proofCount > 0 ? (
+                    <Text style={styles.proof}>{historyProofLabel(proofCount)}</Text>
+                  ) : null}
+                </Text>
+              </Pressable>
+            );
+          })
         )}
       </ScrollView>
     </View>
@@ -158,4 +196,5 @@ const styles = StyleSheet.create({
   address: { color: colors.text, fontSize: 15, fontWeight: '700' },
   meta: { color: colors.muted, fontSize: 12 },
   view: { color: colors.primary, fontSize: 12, fontWeight: '700', marginTop: 4 },
+  proof: { color: colors.muted, fontWeight: '400' },
 });

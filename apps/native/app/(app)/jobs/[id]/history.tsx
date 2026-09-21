@@ -32,7 +32,7 @@ import {
 } from '@/src/lib/datetime';
 import { mapInspectionDetail, type FindingsRoom } from '@/src/lib/inspection-findings';
 import { toInspectionJob } from '@/src/lib/job-map';
-import { keyAccessFromCollection } from '@/src/lib/key-access';
+import { applyKeyCollection } from '@/src/lib/key-access';
 import { formatJobRefId, googleMapsUrl, propertyAddressLines } from '@/src/lib/property-address';
 import { shareInspectionReportPdf } from '@/src/lib/report-pdf';
 import type { InspectionJob } from '@/src/lib/types';
@@ -137,12 +137,12 @@ export default function JobHistoryScreen() {
       try {
         const dto = await fetchInspection(id);
         if (!active) return;
-        const nextJob = toInspectionJob(dto);
+        let nextJob = toInspectionJob(dto);
         try {
           const nextCollection = await fetchKeyCollection(id);
           if (!active) return;
           setCollection(nextCollection);
-          if (nextCollection) nextJob.keyAccess = keyAccessFromCollection(nextCollection);
+          if (nextCollection) nextJob = applyKeyCollection(nextJob, nextCollection);
         } catch {
           // History still renders without handover.
         }

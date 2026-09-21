@@ -1,5 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -12,16 +12,34 @@ import {
   View,
 } from 'react-native';
 
+import { useAccount } from '@/src/account/account-context';
+import { useAuth } from '@/src/auth/auth-context';
 import { useInspections } from '@/src/inspections/inspections-context';
-import { compressPhotoForUpload } from '@/src/jobs/compress-photo';
+import {
+  deleteLocalPhoto,
+  preparePhotoUpload,
+  type LocalPhoto,
+} from '@/src/jobs/compress-photo';
+import { InspectionPhotosField } from '@/src/jobs/inspection-photos-field';
 import { JobCamera } from '@/src/jobs/job-camera';
+import { JobPropertyHeader } from '@/src/jobs/job-property-header';
+import { LeasingKeyCollectionPanel } from '@/src/jobs/leasing-key-collection-panel';
+import { NoImageDialog } from '@/src/jobs/no-image-dialog';
 import type { WorkspaceTab } from '@/src/jobs/workspace-nav';
+import { displayName, formatDateTime } from '@/src/lib/datetime';
 import {
   formatHandoverNotes,
   type HandoverParty,
   type KeyCondition,
+  type KeyPhaseRecord,
 } from '@/src/lib/handover-notes';
-import { isInspectionWorkflowFinished, isKeyCollectComplete } from '@/src/lib/key-access';
+import {
+  canAccessKeyReturnTab,
+  getKeyWorkflow,
+  isKeyCollectComplete,
+  isKeyReturnComplete,
+  withKeyPhase,
+} from '@/src/lib/key-access';
 import type { InspectionJob } from '@/src/lib/types';
 import { queueKeyCustody, queueKeyCustodyPhoto } from '@/src/offline/sync';
 import { useOffline } from '@/src/offline/offline-context';
@@ -55,6 +73,50 @@ const COPY = {
 
 function dash(value: string): string {
   return value.trim() || '-';
+}
+
+function CompletedHandoverCard({
+  phaseLabel,
+  record,
+  continueLabel,
+  onContinue,
+  onEmptyPhotos,
+}: {
+  phaseLabel: string;
+  record: KeyPhaseRecord | undefined;
+  continueLabel: string;
+  onContinue: () => void;
+  onEmptyPhotos: () => void;
+}) {
+  const when = record?.completedAt ? formatDateTime(record.completedAt) : null;
+  const partyLine = record?.handoverParty
+    ? `With ${record.handoverParty}${record.contactName ? ` - ${record.contactName}` : ''}`
+    : null;
+  return (
+    <View style={styles.doneCard}>
+      <View style={styles.doneStatusRow}>
+        <Ionicons name="checkmark-circle" size={16} color={TENANT} />
+        <Text style={styles.doneStatus}>
+          Handover completed - {phaseLabel}
+          {when ? ` - ${when}` : ''}
+        </Text>
+      </View>
+      {partyLine ? <Text style={styles.doneParty}>{partyLine}</Text> : null}
+      <InspectionPhotosField
+        label="Submitted photos"
+        photoUrls={record?.photoUrls ?? []}
+        disabled
+        emptyLabel="Add at least one photo before completing this step."
+        onTakePhotos={() => undefined}
+        onEmptyPress={onEmptyPhotos}
+      />
+      {record?.notes ? <Text style={styles.doneNotes}>{record.notes}</Text> : null}
+      <Text style={styles.doneHint}>This step cannot be edited after submission.</Text>
+      <Pressable onPress={onContinue} style={styles.doneCta}>
+        <Text style={styles.doneCtaText}>{continueLabel}</Text>
+      </Pressable>
+    </View>
+  );
 }
 
 function PartyCard({
@@ -119,10 +181,12 @@ export function JobHandoverPanel({
 }: {
   id: string;
   phase: 'collect' | 'return';
-  onChangeTab: (tab: WorkspaceTab) => void;
+  onChangeTab: (tab: WorkspaceTab, extras?: { keys?: 'collect' | 'return' }) => void;
   onFinished?: () => void;
 }) {
-  const { getJob, patchJob } = useInspections();
+  const { getJob, patchJob, deviceLocation } = useInspections();
+  const { user } = useAuth();
+  const { profile } = useAccount();
   const { refreshPending } = useOffline();
   const job = getJob(id);
   const copy = COPY[phase];
@@ -131,7 +195,9 @@ export function JobHandoverPanel({
   const [cameraOpen, setCameraOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [photoCount, setPhotoCount] = useState(0);
+  const [photoUrls, setPhotoUrls] = useState<string[]>([]);
+  const [photoBusy, setPhotoBusy] = useState(false);
+  const [noImageOpen, setNoImageOpen] = useState(false);
   const [party, setParty] = useState<HandoverParty>(defaultParty);
   const [condition, setCondition] = useState<KeyCondition>('good');
   const [keySets, setKeySets] = useState(1);
@@ -141,6 +207,40 @@ export function JobHandoverPanel({
   const [agencyName, setAgencyName] = useState(start?.agencyName ?? '');
   const [notes, setNotes] = useState('');
 
+  const collectDone = job ? isKeyCollectComplete(job) : false;
+  const returnDone = job ? isKeyReturnComplete(job) : false;
+  const returnUnlocked = job ? canAccessKeyReturnTab(job) : false;
+  const returnLocked = phase === 'return' && !returnUnlocked;
+  const jobReady = Boolean(job);
+  const jobRef = useRef(job);
+  jobRef.current = job;
+
+  useEffect(() => {
+    if (phase !== 'return' || returnUnlocked) return;
+    onChangeTab('handover', { keys: 'collect' });
+  }, [phase, returnUnlocked, onChangeTab]);
+
+  useEffect(() => {
+    const current = jobRef.current;
+    if (!current) return;
+    const nextParty: HandoverParty = current.type === 'open' ? 'agent' : 'tenant';
+    const nextContacts = contactsFor(current, nextParty);
+    setCameraOpen(false);
+    setBusy(false);
+    setError(null);
+    setPhotoUrls([]);
+    setPhotoBusy(false);
+    setNoImageOpen(false);
+    setParty(nextParty);
+    setCondition('good');
+    setKeySets(1);
+    setContactName(nextContacts.contactName);
+    setContactPhone(nextContacts.contactPhone);
+    setContactEmail(nextContacts.contactEmail);
+    setAgencyName(nextContacts.agencyName);
+    setNotes('');
+  }, [phase, id, jobReady]);
+
   if (!job) {
     return <Text style={styles.body}>This job could not be found.</Text>;
   }
@@ -149,12 +249,20 @@ export function JobHandoverPanel({
     return <Text style={styles.body}>No key collection required for this job.</Text>;
   }
 
-  const collectDone = isKeyCollectComplete(job);
-  const finished = isInspectionWorkflowFinished(job);
-  const returnLocked = phase === 'return' && (!collectDone || !finished);
+  const keyAccess = job.keyAccess;
   const accent = party === 'agent' ? AGENT : TENANT;
   const accentBtn = party === 'agent' ? AGENT_BTN : TENANT_BTN;
   const actionBg = party === 'agent' ? 'rgba(14,165,233,0.15)' : 'rgba(16,185,129,0.15)';
+
+  const switchPhase = (next: 'collect' | 'return') => {
+    if (next === phase) return;
+    if (next === 'return' && !returnUnlocked) {
+      setError('Finish the inspection before returning keys.');
+      return;
+    }
+    setError(null);
+    onChangeTab('handover', { keys: next });
+  };
 
   const applyParty = (next: HandoverParty) => {
     setParty(next);
@@ -165,48 +273,110 @@ export function JobHandoverPanel({
     setAgencyName(nextContacts.agencyName);
   };
 
+  const phaseDone = phase === 'collect' ? collectDone : returnDone;
+  const phaseRecord = getKeyWorkflow(job)?.[phase];
+  const phaseLabel = phase === 'collect' ? 'Collecting keys' : 'Returning keys';
+
+  const attachPhotos = async (photos: LocalPhoto[]) => {
+    const room = MAX_PHOTOS - photoUrls.length;
+    if (room <= 0) return;
+    setPhotoBusy(true);
+    setError(null);
+    try {
+      const added: string[] = [];
+      for (const photo of photos.slice(0, room)) {
+        const prepared = await preparePhotoUpload(photo);
+        added.push(prepared.localUri);
+        if (photo.uri !== prepared.localUri) await deleteLocalPhoto(photo.uri);
+      }
+      setPhotoUrls((current) => [...current, ...added]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not add proof photo.');
+    } finally {
+      setPhotoBusy(false);
+    }
+  };
+
+  const removePhoto = (index: number) => {
+    setPhotoUrls((current) => {
+      const uri = current[index];
+      if (uri && !uri.startsWith('http')) void deleteLocalPhoto(uri);
+      return current.filter((_, i) => i !== index);
+    });
+  };
+
   const submit = async () => {
+    if (phaseDone) return;
     if (phase === 'return' && returnLocked) {
       setError('Finish the inspection before returning keys.');
       return;
     }
-    if (photoCount < 1) {
-      setError('Add at least one handover photo before completing this step.');
+    if (photoUrls.length < 1) {
+      setNoImageOpen(true);
       return;
     }
     setBusy(true);
     setError(null);
     try {
-      const packed = formatHandoverNotes(
-        {
-          handoverParty: party,
-          keyCondition: condition,
-          keySets,
-          contactName,
-          contactPhone,
-          contactEmail,
-          agencyName: party === 'agent' ? agencyName : undefined,
-          notes,
-        },
-        phase,
-      );
+      const extras = {
+        handoverParty: party,
+        keyCondition: condition,
+        keySets,
+        contactName,
+        contactPhone,
+        contactEmail,
+        agencyName: party === 'agent' ? agencyName : undefined,
+        notes,
+      };
+      const packed = formatHandoverNotes(extras, phase);
+      const uploaded: string[] = [];
+      for (const [index, uri] of photoUrls.entries()) {
+        if (uri.startsWith('http://') || uri.startsWith('https://')) {
+          uploaded.push(uri);
+          continue;
+        }
+        const prepared = await preparePhotoUpload({ uri, width: 0, height: 0 });
+        const saved = await queueKeyCustodyPhoto(
+          id,
+          {
+            ...prepared.body,
+            phase,
+            fileName: `key-${phase}-${index + 1}.jpg`,
+          },
+          prepared.localUri,
+        );
+        uploaded.push(saved.url || prepared.localUri);
+        if (saved.url !== uri && saved.url.startsWith('http')) {
+          await deleteLocalPhoto(uri);
+          await deleteLocalPhoto(prepared.localUri);
+        }
+      }
       const custody = await queueKeyCustody(id, phase, packed ? { notes: packed } : {});
       void refreshPending();
-      if (job.keyAccess) {
-        patchJob(id, {
-          keyAccess: {
-            ...job.keyAccess,
-            collectComplete:
-              custody === 'queued'
-                ? phase === 'collect' || job.keyAccess.collectComplete
-                : custody.collectComplete,
-            returnComplete:
-              custody === 'queued'
-                ? phase === 'return' || job.keyAccess.returnComplete
-                : custody.returnComplete,
-          },
-        });
-      }
+      const record: KeyPhaseRecord = {
+        ...extras,
+        completedAt:
+          custody === 'queued'
+            ? new Date().toISOString()
+            : (phase === 'collect' ? custody.collectedAt : custody.returnedAt) ??
+              new Date().toISOString(),
+        photoUrls:
+          custody === 'queued'
+            ? uploaded
+            : phase === 'collect'
+              ? custody.collectPhotos
+              : custody.returnPhotos,
+        notes: extras.notes?.trim() || undefined,
+      };
+      const collectComplete =
+        custody === 'queued'
+          ? phase === 'collect' || keyAccess.collectComplete
+          : custody.collectComplete;
+      const returnComplete =
+        custody === 'queued'
+          ? phase === 'return' || keyAccess.returnComplete
+          : custody.returnComplete;
+      patchJob(id, withKeyPhase(job, phase, record, { collectComplete, returnComplete }));
       if (custody === 'queued') {
         Alert.alert('Saved on this phone', 'Handover will upload when you are back online.');
       }
@@ -225,6 +395,92 @@ export function JobHandoverPanel({
   return (
     <View style={styles.wrap}>
       <ScrollView contentContainerStyle={styles.inner} keyboardShouldPersistTaps="handled">
+        <View style={styles.phaseSwitch}>
+          <Pressable
+            onPress={() => switchPhase('collect')}
+            style={[styles.phaseBtn, phase === 'collect' && styles.phaseBtnOn]}
+          >
+            <View style={styles.phaseTitleRow}>
+              <Text style={[styles.phaseTitle, phase === 'collect' && styles.phaseTitleOn]}>
+                Handover
+              </Text>
+              {collectDone ? (
+                <Ionicons
+                  name="checkmark-circle"
+                  size={14}
+                  color={phase === 'collect' ? colors.primaryFg : colors.primary}
+                />
+              ) : null}
+            </View>
+            <Text style={[styles.phaseSub, phase === 'collect' && styles.phaseSubOn]}>
+              Collecting keys
+            </Text>
+          </Pressable>
+          <Pressable
+            onPress={() => switchPhase('return')}
+            style={[
+              styles.phaseBtn,
+              phase === 'return' && styles.phaseBtnOn,
+              !returnUnlocked && styles.phaseBtnLocked,
+            ]}
+          >
+            <View style={styles.phaseTitleRow}>
+              <Text style={[styles.phaseTitle, phase === 'return' && styles.phaseTitleOn]}>
+                Handover
+              </Text>
+              {returnDone ? (
+                <Ionicons
+                  name="checkmark-circle"
+                  size={14}
+                  color={phase === 'return' ? colors.primaryFg : colors.primary}
+                />
+              ) : null}
+            </View>
+            <Text style={[styles.phaseSub, phase === 'return' && styles.phaseSubOn]}>
+              Returning keys
+            </Text>
+          </Pressable>
+        </View>
+
+        {job.leasingKeyCollection ? (
+          <LeasingKeyCollectionPanel context={job.leasingKeyCollection} />
+        ) : null}
+
+        <JobPropertyHeader
+          job={job}
+          inspectorName={user ? displayName(user) : displayName(profile ?? {})}
+          showDirections
+          origin={deviceLocation}
+        />
+
+        {phaseDone ? (
+          <CompletedHandoverCard
+            phaseLabel={phaseLabel}
+            record={phaseRecord}
+            continueLabel={
+              phase === 'collect' && job.type === 'open'
+                ? 'Continue Inspection'
+                : phase === 'collect'
+                  ? 'Continue to Areas'
+                  : 'Back to job details'
+            }
+            onContinue={() => {
+              if (phase === 'collect') {
+                onChangeTab(job.type === 'open' ? 'start' : 'areas');
+                return;
+              }
+              onChangeTab('details');
+            }}
+            onEmptyPhotos={() => setNoImageOpen(true)}
+          />
+        ) : (
+          <>
+        {job.keyAccess.code ? (
+          <Text style={styles.accessCode}>{job.keyAccess.code}</Text>
+        ) : null}
+        {job.keyAccess.location ? (
+          <Text style={styles.accessLocation}>{job.keyAccess.location}</Text>
+        ) : null}
         <Text style={styles.kicker}>{copy.selectWho}</Text>
         {error ? <Text style={styles.error}>{error}</Text> : null}
         {returnLocked ? (
@@ -357,25 +613,22 @@ export function JobHandoverPanel({
         </View>
 
         <View style={styles.card}>
-          <View style={styles.cardHead}>
-            <Ionicons name="camera-outline" size={14} color={colors.text} />
-            <Text style={[styles.cardTitle, { flex: 1 }]}>Handover photos</Text>
-            <Text style={styles.muted}>
-              {photoCount}/{MAX_PHOTOS}
-            </Text>
-          </View>
           <Text style={styles.hint}>At least one photo is required to record the handover.</Text>
-          <Pressable
-            onPress={() => setCameraOpen(true)}
-            disabled={photoCount >= MAX_PHOTOS}
-            style={styles.secondary}
-          >
-            <Text style={styles.secondaryText}>
-              {photoCount > 0
-                ? `${photoCount} photo${photoCount === 1 ? '' : 's'} attached`
-                : 'Take proof photos'}
-            </Text>
-          </Pressable>
+          <InspectionPhotosField
+            label="Handover photos"
+            photoUrls={photoUrls}
+            uploading={photoBusy}
+            maxPhotos={MAX_PHOTOS}
+            emptyLabel="Add at least one photo before completing this step."
+            onTakePhotos={() => {
+              if (photoUrls.length >= MAX_PHOTOS) return;
+              setCameraOpen(true);
+            }}
+            onAddPhotos={(photos) => {
+              void attachPhotos(photos);
+            }}
+            onRemove={removePhoto}
+          />
         </View>
 
         <Pressable
@@ -394,26 +647,22 @@ export function JobHandoverPanel({
             </>
           )}
         </Pressable>
+          </>
+        )}
       </ScrollView>
       <JobCamera
         visible={cameraOpen}
         mode="burst"
-        maxPhotos={MAX_PHOTOS - photoCount}
+        maxPhotos={Math.max(0, MAX_PHOTOS - photoUrls.length)}
         onClose={() => setCameraOpen(false)}
         onBurstComplete={(photos) => {
-          void (async () => {
-            try {
-              for (const photo of photos.slice(0, MAX_PHOTOS - photoCount)) {
-                const body = await compressPhotoForUpload(photo);
-                await queueKeyCustodyPhoto(id, { ...body, phase });
-                setPhotoCount((count) => count + 1);
-              }
-              void refreshPending();
-            } catch (err) {
-              setError(err instanceof Error ? err.message : 'Could not upload proof photo.');
-            }
-          })();
+          void attachPhotos(photos);
         }}
+      />
+      <NoImageDialog
+        open={noImageOpen}
+        onClose={() => setNoImageOpen(false)}
+        message="Add at least one photo before completing this step."
       />
     </View>
   );
@@ -422,7 +671,46 @@ export function JobHandoverPanel({
 const styles = StyleSheet.create({
   wrap: { flex: 1 },
   inner: { padding: 16, paddingBottom: 40, gap: 12 },
+  phaseSwitch: {
+    flexDirection: 'row',
+    gap: 6,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.secondary,
+    borderRadius: 12,
+    padding: 6,
+  },
+  phaseBtn: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 2,
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 10,
+  },
+  phaseBtnOn: { backgroundColor: colors.primary },
+  phaseBtnLocked: { opacity: 0.4 },
+  phaseTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  phaseTitle: { color: colors.muted, fontSize: 12, fontWeight: '700' },
+  phaseTitleOn: { color: colors.primaryFg },
+  phaseSub: { color: colors.muted, fontSize: 10, fontWeight: '600' },
+  phaseSubOn: { color: colors.primaryFg },
   kicker: { color: colors.muted, fontSize: 12 },
+  accessCode: {
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: 'rgba(0,212,164,0.4)',
+    backgroundColor: 'rgba(0,212,164,0.08)',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    color: colors.primary,
+    fontSize: 18,
+    fontWeight: '800',
+    letterSpacing: 3,
+    textAlign: 'center',
+  },
+  accessLocation: { color: colors.muted, fontSize: 12, lineHeight: 16 },
   body: { color: colors.muted, fontSize: 14, lineHeight: 20 },
   hint: { color: colors.muted, fontSize: 11 },
   error: { color: colors.destructive, fontSize: 13 },
@@ -509,6 +797,26 @@ const styles = StyleSheet.create({
   },
   notes: { minHeight: 80, textAlignVertical: 'top' },
   counter: { color: colors.muted, fontSize: 10, textAlign: 'right' },
+  doneCard: {
+    borderWidth: 1,
+    borderColor: 'rgba(52,211,153,0.3)',
+    backgroundColor: 'rgba(16,185,129,0.1)',
+    borderRadius: 12,
+    padding: 16,
+    gap: 12,
+  },
+  doneStatusRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  doneStatus: { color: TENANT, fontSize: 12, flex: 1 },
+  doneParty: { color: colors.text, fontSize: 12 },
+  doneNotes: { color: colors.muted, fontSize: 12, lineHeight: 18 },
+  doneHint: { color: colors.muted, fontSize: 10 },
+  doneCta: {
+    backgroundColor: colors.primary,
+    borderRadius: 8,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  doneCtaText: { color: colors.primaryFg, fontWeight: '700' },
   primary: {
     borderRadius: 8,
     paddingVertical: 14,

@@ -1,7 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -25,15 +25,17 @@ import { useInspections } from '@/src/inspections/inspections-context';
 import { CancelTaskSheet } from '@/src/jobs/cancel-task-sheet';
 import { FieldWorkflowScreen } from '@/src/jobs/field-workflow';
 import { JobHandoverPanel } from '@/src/jobs/job-handover';
+import { JobSummaryCard } from '@/src/jobs/job-summary-card';
 import { JobPayBreakdown, JobTravelCard } from '@/src/jobs/job-travel-pay';
 import { OpenViewingScreen } from '@/src/jobs/open-viewing-screen';
+import { PendingSyncBanner } from '@/src/offline/pending-sync-banner';
 import {
   JobWorkspaceNav,
   parseKeysPhase,
   parseWorkspaceTab,
   type WorkspaceTab,
 } from '@/src/jobs/workspace-nav';
-import { formatCurrency, formatDate, formatScheduleWhen } from '@/src/lib/datetime';
+import { formatDate, formatScheduleWhen } from '@/src/lib/datetime';
 import {
   jobInspectionStarted,
   jobPrimaryAction,
@@ -47,7 +49,7 @@ import {
   isKeyReturnComplete,
   jobAccessMethodLabel,
   jobKeysCountLabel,
-  keyAccessFromCollection,
+  applyKeyCollection,
 } from '@/src/lib/key-access';
 import { formatJobRefId, propertyAddressLines } from '@/src/lib/property-address';
 import { jobHistory } from '@/src/lib/routes';
@@ -79,10 +81,10 @@ export default function JobDetailsScreen() {
     void (async () => {
       try {
         const dto = await fetchInspection(id);
-        const job = toInspectionJob(dto);
+        let job = toInspectionJob(dto);
         try {
           const collection = await fetchKeyCollection(id);
-          if (collection) job.keyAccess = keyAccessFromCollection(collection);
+          if (collection) job = applyKeyCollection(job, collection);
         } catch {
           // ignore
         }
@@ -101,15 +103,18 @@ export default function JobDetailsScreen() {
     setKeysPhase(parseKeysPhase(keysParam));
   }, [keysParam]);
 
-  const selectTab = (next: WorkspaceTab, extras?: { keys?: 'collect' | 'return' }) => {
-    const nextKeys = extras?.keys ?? (next === 'handover' ? keysPhase : undefined);
-    if (extras?.keys) setKeysPhase(extras.keys);
-    setTab(next);
-    router.setParams({
-      tab: next,
-      keys: nextKeys ?? '',
-    });
-  };
+  const selectTab = useCallback(
+    (next: WorkspaceTab, extras?: { keys?: 'collect' | 'return' }) => {
+      const nextKeys = extras?.keys ?? (next === 'handover' ? keysPhase : undefined);
+      if (extras?.keys) setKeysPhase(extras.keys);
+      setTab(next);
+      router.setParams({
+        tab: next,
+        keys: nextKeys ?? '',
+      });
+    },
+    [keysPhase, router],
+  );
 
   const job = getJob(id) ?? cached;
   if (!job) {
@@ -205,12 +210,8 @@ export default function JobDetailsScreen() {
             </Banner>
           ) : null}
           {error ? <Text style={styles.danger}>{error}</Text> : null}
-          <View style={styles.card}>
-            <Text style={styles.street}>{street}</Text>
-            {locality ? <Text style={styles.muted}>{locality}</Text> : null}
-            <Text style={styles.meta}>{formatScheduleWhen(job.scheduledTime)}</Text>
-            <Text style={styles.fee}>{formatCurrency(job.laborAmount)} Est. Fee</Text>
-          </View>
+          <PendingSyncBanner />
+          <JobSummaryCard job={job} />
           <Pressable
             onPress={() => {
               void onAccept();
@@ -232,6 +233,7 @@ export default function JobDetailsScreen() {
     <SafeAreaView style={styles.safe} edges={['bottom']}>
       <Stack.Screen options={{ title }} />
       <JobWorkspaceNav job={job} active={tab} onSelect={selectTab} />
+      <PendingSyncBanner inset />
       {tab === 'handover' && id ? (
         <JobHandoverPanel
           id={id}
@@ -318,6 +320,10 @@ export default function JobDetailsScreen() {
           <Detail label="Lease End" value={job.leaseEnd ? formatDate(job.leaseEnd) : '-'} />
           <Detail label="Property Manager" value={job.agentName || job.agentCompany || '-'} />
           <Detail label="Access Method" value={jobAccessMethodLabel(job)} />
+          {job.keyAccess?.code ? <Detail label="Access code" value={job.keyAccess.code} /> : null}
+          {job.keyAccess?.location ? (
+            <Detail label="Pickup location" value={job.keyAccess.location} />
+          ) : null}
           <Detail label="Keys" value={jobKeysCountLabel(job)} />
           <Detail label="Special Instructions" value={job.notes?.trim() || '-'} />
         </View>
@@ -441,7 +447,6 @@ const styles = StyleSheet.create({
   street: { color: colors.text, fontSize: 16, fontWeight: '600' },
   muted: { color: colors.muted, fontSize: 12 },
   meta: { color: colors.muted, fontSize: 12 },
-  fee: { color: colors.primary, fontSize: 16, fontWeight: '700', marginTop: 4 },
   primary: {
     backgroundColor: colors.primary,
     borderRadius: 8,

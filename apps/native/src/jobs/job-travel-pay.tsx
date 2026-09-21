@@ -40,7 +40,7 @@ export function JobTravelCard({
         </View>
         <Pressable
           onPress={() => {
-            void Linking.openURL(googleMapsUrl(job));
+            void Linking.openURL(googleMapsUrl(job, deviceLocation));
           }}
           style={styles.dirBtn}
         >

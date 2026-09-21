@@ -23,6 +23,7 @@ import {
   tribunalPath,
   weeklyAvailabilityPath,
 } from '@/src/lib/routes';
+import { useOffline } from '@/src/offline/offline-context';
 import { colors } from '@/src/theme';
 import { AppHeader } from '@/src/ui/app-header';
 
@@ -40,6 +41,7 @@ export default function MoreScreen() {
   const { registration, profile, accessLevel, tribunalQualified } = useAccount();
   const { completedJobs } = useInspections();
   const { weeklyEarnings, unclaimedEarnings } = useLedger();
+  const { pendingSync } = useOffline();
   const name = user ? displayName(user) : 'Inspector';
   const initials = personInitials({
     firstName: user?.firstName,
@@ -97,7 +99,10 @@ export default function MoreScreen() {
       href: settingsPath,
       icon: 'settings-outline' as const,
       title: 'Settings',
-      subtitle: 'Account, notifications, security',
+      subtitle:
+        pendingSync > 0
+          ? `${pendingSync} change${pendingSync === 1 ? '' : 's'} waiting to sync`
+          : 'Account, notifications, security',
     },
     {
       href: helpPath,
@@ -186,7 +191,14 @@ export default function MoreScreen() {
               <Ionicons name={item.icon} size={20} color={colors.primary} />
               <View style={{ flex: 1 }}>
                 <Text style={styles.rowTitle}>{item.title}</Text>
-                <Text style={styles.rowSub}>{item.subtitle}</Text>
+                <Text
+                  style={[
+                    styles.rowSub,
+                    item.title === 'Settings' && pendingSync > 0 ? styles.rowSubWarn : null,
+                  ]}
+                >
+                  {item.subtitle}
+                </Text>
               </View>
               <Ionicons name="chevron-forward" size={16} color={colors.muted} />
             </Pressable>
@@ -286,5 +298,6 @@ const styles = StyleSheet.create({
   rowLast: { borderBottomWidth: 0 },
   rowTitle: { color: colors.text, fontSize: 14, fontWeight: '500' },
   rowSub: { color: colors.muted, fontSize: 12, marginTop: 2 },
+  rowSubWarn: { color: colors.amber },
   member: { color: colors.muted, fontSize: 11, textAlign: 'center' },
 });

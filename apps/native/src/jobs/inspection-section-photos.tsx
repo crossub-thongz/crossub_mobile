@@ -6,6 +6,7 @@ import { AddSectionControl } from '@/src/jobs/add-section-control';
 import { DraggableNamedList } from '@/src/jobs/draggable-named-list';
 import { InspectionItemAccordion } from '@/src/jobs/inspection-item-accordion';
 import { BeforeAfterPhotoColumn } from '@/src/jobs/inspection-photos-field';
+import type { LocalPhoto } from '@/src/jobs/compress-photo';
 import type { InspectionAreaDefinition } from '@/src/constants/inspection-areas';
 import { validateUniqueLabel } from '@/src/lib/inspection-layout-edit';
 import { buildSectionPickerOptions } from '@/src/lib/inspection-section-utils';
@@ -92,6 +93,7 @@ export function InspectionSectionPhotos({
   onUnmarkAll,
   onChangeComment,
   onTakePhotos,
+  onAddPhotos,
   onRemovePhoto,
   onDraggingChange,
 }: {
@@ -114,6 +116,7 @@ export function InspectionSectionPhotos({
   onUnmarkAll?: () => void;
   onChangeComment: (section: string, comment: string) => void;
   onTakePhotos: (section: string, side?: 'ingoing' | 'outgoing') => void;
+  onAddPhotos?: (section: string, photos: LocalPhoto[], side?: 'ingoing' | 'outgoing') => void;
   onRemovePhoto: (section: string, index: number, side?: 'ingoing' | 'outgoing') => void;
   onDraggingChange?: (dragging: boolean) => void;
 }) {
@@ -208,6 +211,9 @@ export function InspectionSectionPhotos({
                     onChangeMarks={(marks) => onChangeMarks(section, marks)}
                     onChangeComment={(comment) => onChangeComment(section, comment)}
                     onTakePhotos={() => onTakePhotos(section)}
+                    onAddPhotos={
+                      onAddPhotos ? (photos) => onAddPhotos(section, photos) : undefined
+                    }
                     onRemovePhoto={(index) => onRemovePhoto(section, index)}
                     extra={
                       variant === 'beforeAfter' ? (
@@ -218,6 +224,11 @@ export function InspectionSectionPhotos({
                             uploading={photoUploading}
                             disabled={busy || sectionIngoingLocked}
                             onTakePhotos={() => onTakePhotos(section, 'ingoing')}
+                            onAddPhotos={
+                              onAddPhotos && !sectionIngoingLocked
+                                ? (photos) => onAddPhotos(section, photos, 'ingoing')
+                                : undefined
+                            }
                             onRemove={
                               sectionIngoingLocked
                                 ? undefined
@@ -230,6 +241,11 @@ export function InspectionSectionPhotos({
                             uploading={photoUploading}
                             disabled={busy}
                             onTakePhotos={() => onTakePhotos(section, 'outgoing')}
+                            onAddPhotos={
+                              onAddPhotos
+                                ? (photos) => onAddPhotos(section, photos, 'outgoing')
+                                : undefined
+                            }
                             onRemove={(index) => onRemovePhoto(section, index, 'outgoing')}
                           />
                         </View>

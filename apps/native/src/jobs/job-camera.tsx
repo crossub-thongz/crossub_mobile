@@ -1,4 +1,5 @@
 import { CameraView, useCameraPermissions } from 'expo-camera';
+import { Image } from 'expo-image';
 import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -77,14 +78,12 @@ export function JobCamera({
   };
 
   const finish = (photos: LocalPhoto[]) => {
-    if (photos.length === 0) {
-      closeWithoutSaving();
-      return;
-    }
+    const copy = [...photos];
+    if (copy.length === 0) return;
     handedOffRef.current = true;
-    if (burst && onBurstComplete) onBurstComplete(photos);
-    else if (onCapture) onCapture(photos[photos.length - 1]);
     setShotList([]);
+    if (burst && onBurstComplete) onBurstComplete(copy);
+    else if (onCapture) onCapture(copy[copy.length - 1]);
     onClose();
   };
 
@@ -100,7 +99,6 @@ export function JobCamera({
       const picture = await cameraRef.current.takePictureAsync({
         quality: 0.45,
         exif: false,
-        imageType: 'jpg',
       });
       if (!picture?.uri) throw new Error('Camera did not return a photo.');
       const captured: LocalPhoto = {
@@ -163,7 +161,6 @@ export function JobCamera({
               facing="back"
               zoom={zoomForLens(lens)}
             />
-            {error ? <Text style={styles.error}>{error}</Text> : null}
             <View style={[styles.lenses, { top: insets.top + 12 }]}>
               {([0.5, 1, 2] as const).map((value) => (
                 <Pressable
@@ -184,7 +181,15 @@ export function JobCamera({
                 contentContainerStyle={styles.stripInner}
               >
                 {shots.map((shot) => (
-                  <View key={shot.uri} style={styles.thumb} />
+                  <Image
+                    key={shot.uri}
+                    source={{ uri: shot.uri }}
+                    style={styles.thumb}
+                    contentFit="cover"
+                    cachePolicy="memory"
+                    recyclingKey={shot.uri}
+                    transition={0}
+                  />
                 ))}
               </ScrollView>
             ) : null}
@@ -209,23 +214,23 @@ export function JobCamera({
                   <View style={styles.shutterInner} />
                 )}
               </Pressable>
-              {burst ? (
+              {burst && shots.length > 0 ? (
                 <Pressable
                   onPress={() => finish(shotsRef.current)}
-                  style={styles.secondary}
-                  disabled={shots.length === 0}
+                  style={({ pressed }) => [styles.secondary, pressed && styles.pressed]}
                 >
-                  <Text style={styles.secondaryText}>
-                    {shots.length === 0 ? 'Use photos' : `Use ${shots.length}`}
-                  </Text>
+                  <Text style={styles.useText}>{`Use ${shots.length}`}</Text>
                 </Pressable>
               ) : (
                 <View style={styles.spacer} />
               )}
             </View>
+            {error ? <Text style={styles.error}>{error}</Text> : null}
             {burst ? (
               <Text style={styles.hint}>
-                Photos compress as you snap. Up to {maxPhotos} per burst, then Use photos.
+                {shots.length > 0
+                  ? `Tap Use ${shots.length} to attach these photos.`
+                  : 'Snap photos with the shutter, then attach them.'}
               </Text>
             ) : null}
           </>
@@ -257,6 +262,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   secondaryText: { color: '#f4f4f4', fontWeight: '600' },
+  useText: { color: '#00d4a4', fontWeight: '700' },
   bar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -283,12 +289,11 @@ const styles = StyleSheet.create({
   },
   spacer: { minWidth: 72 },
   error: {
-    position: 'absolute',
-    left: 24,
-    right: 24,
-    bottom: 140,
     color: '#f07171',
     textAlign: 'center',
+    paddingHorizontal: 24,
+    paddingTop: 8,
+    backgroundColor: '#111111',
   },
   pressed: { opacity: 0.85 },
   disabled: { opacity: 0.55 },
@@ -305,9 +310,9 @@ const styles = StyleSheet.create({
   lensOn: { backgroundColor: '#00d4a4' },
   lensText: { color: '#f4f4f4', fontWeight: '700', fontSize: 13 },
   lensTextOn: { color: '#111111' },
-  strip: { maxHeight: 56, backgroundColor: '#111111' },
+  strip: { maxHeight: 72, backgroundColor: '#111111' },
   stripInner: { paddingHorizontal: 16, paddingVertical: 8, gap: 8 },
-  thumb: { width: 40, height: 40, borderRadius: 6, backgroundColor: '#333333' },
+  thumb: { width: 56, height: 56, borderRadius: 6, backgroundColor: '#333333' },
   hint: {
     color: '#b8b8b8',
     fontSize: 11,

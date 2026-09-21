@@ -1,19 +1,34 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Modal,
   Pressable,
   StyleSheet,
   Text,
   View,
+  type ListRenderItem,
 } from 'react-native';
 
+import type { LocalPhoto } from '@/src/jobs/compress-photo';
+import { pickInspectionPhotos } from '@/src/jobs/pick-inspection-photos';
 import { colors } from '@/src/theme';
 
-const INLINE_THUMB_LIMIT = 9;
+const CELL_GAP = 8;
+const VISIBLE_ROWS = 4;
+const ADD_ITEM = { type: 'add' as const };
+
+type GridItem = { type: 'photo'; url: string; index: number } | { type: 'add' };
+
+function photoSource(uri: string) {
+  return {
+    uri,
+    cachePolicy: uri.startsWith('http') ? ('disk' as const) : ('memory' as const),
+  };
+}
 
 function PhotoThumb({
   uri,
@@ -22,13 +37,14 @@ function PhotoThumb({
   uri: string;
   onPress: () => void;
 }) {
+  const source = photoSource(uri);
   return (
     <Pressable onPress={onPress} style={styles.thumbBtn}>
       <Image
-        source={{ uri }}
+        source={{ uri: source.uri }}
         style={StyleSheet.absoluteFill}
         contentFit="cover"
-        cachePolicy="disk"
+        cachePolicy={source.cachePolicy}
         recyclingKey={uri}
         allowDownscaling
         transition={0}
@@ -44,8 +60,11 @@ export function InspectionPhotosField({
   disabled = false,
   emptyLabel = 'Add at least one photo for this area.',
   compact = false,
+  maxPhotos,
   onTakePhotos,
+  onAddPhotos,
   onRemove,
+  onEmptyPress,
 }: {
   label?: string;
   photoUrls: string[];
@@ -53,51 +72,140 @@ export function InspectionPhotosField({
   disabled?: boolean;
   emptyLabel?: string;
   compact?: boolean;
+  maxPhotos?: number;
   onTakePhotos: () => void;
+  onAddPhotos?: (photos: LocalPhoto[]) => void;
   onRemove?: (index: number) => void;
+  onEmptyPress?: () => void;
 }) {
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   const [showAll, setShowAll] = useState(false);
+  const [picking, setPicking] = useState(false);
+  const [gridWidth, setGridWidth] = useState(0);
+  const listRef = useRef<FlatList<GridItem>>(null);
   const previewUrl = previewIndex != null ? photoUrls[previewIndex] : null;
-  const overflow = photoUrls.length > INLINE_THUMB_LIMIT;
-  const visible = useMemo(
-    () => (overflow ? photoUrls.slice(photoUrls.length - INLINE_THUMB_LIMIT) : photoUrls),
-    [overflow, photoUrls],
-  );
-  const visibleOffset = overflow ? photoUrls.length - INLINE_THUMB_LIMIT : 0;
+  const prevCountRef = useRef(photoUrls.length);
+  const busy = uploading || picking;
+  const atLimit = maxPhotos != null && photoUrls.length >= maxPhotos;
+  const canAdd = !disabled && !atLimit;
+  const gridItems = useMemo<GridItem[]>(() => {
+    const items: GridItem[] = photoUrls.map((url, index) => ({ type: 'photo', url, index }));
+    if (canAdd) items.push(ADD_ITEM);
+    return items;
+  }, [photoUrls, canAdd]);
+  const cellSize = gridWidth > 0 ? Math.floor((gridWidth - CELL_GAP * 2) / 3) : 0;
+  const rows = Math.ceil(Math.max(gridItems.length, 1) / 3);
+  const visibleRows = Math.min(rows, VISIBLE_ROWS);
+  const gridHeight =
+    cellSize > 0 ? visibleRows * cellSize + Math.max(0, visibleRows - 1) * CELL_GAP : 0;
+  const scrollable = rows > VISIBLE_ROWS;
+
+  useEffect(() => {
+    const prev = prevCountRef.current;
+    prevCountRef.current = photoUrls.length;
+    if (photoUrls.length > prev && scrollable) {
+      requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: true }));
+    }
+  }, [photoUrls.length, scrollable]);
+
+  const uploadFromLibrary = async () => {
+    if (disabled || !onAddPhotos || picking) return;
+    setPicking(true);
+    try {
+      const photos = await pickInspectionPhotos();
+      if (photos.length > 0) onAddPhotos(photos);
+    } catch (err) {
+      Alert.alert('Upload photos', err instanceof Error ? err.message : 'Could not open the photo library.');
+    } finally {
+      setPicking(false);
+    }
+  };
+
+  const renderGridItem: ListRenderItem<GridItem> = ({ item }) => {
+    if (item.type === 'add') {
+      return (
+        <Pressable
+          onPress={onTakePhotos}
+          style={[styles.addCell, { width: cellSize, height: cellSize }]}
+          accessibilityLabel="Add photo"
+        >
+          <View style={styles.addCellInner} pointerEvents="none">
+            <Ionicons name="camera-outline" size={22} color={colors.muted} />
+          </View>
+        </Pressable>
+      );
+    }
+    return (
+      <View style={[styles.cell, { width: cellSize, height: cellSize }]}>
+        <PhotoThumb uri={item.url} onPress={() => setPreviewIndex(item.index)} />
+        {!disabled && onRemove ? (
+          <Pressable
+            onPress={() => onRemove(item.index)}
+            style={styles.remove}
+            hitSlop={8}
+            accessibilityLabel="Remove photo"
+          >
+            <Ionicons name="close" size={12} color="#fff" />
+          </Pressable>
+        ) : null}
+      </View>
+    );
+  };
 
   return (
     <View style={styles.wrap}>
       <View style={styles.head}>
         <Text style={styles.label}>{label}</Text>
-        {photoUrls.length > 0 ? (
+        {maxPhotos != null || photoUrls.length > 0 ? (
           <View style={styles.count}>
-            <Text style={styles.countText}>{photoUrls.length}</Text>
+            <Text style={styles.countText}>
+              {maxPhotos != null ? `${photoUrls.length}/${maxPhotos}` : photoUrls.length}
+            </Text>
           </View>
         ) : null}
       </View>
 
-      {!disabled ? (
-        <Pressable
-          onPress={onTakePhotos}
-          disabled={disabled}
-          style={[styles.takeBtn, compact && styles.takeBtnCompact]}
-        >
-          {uploading ? (
-            <ActivityIndicator color={colors.primaryFg} />
-          ) : (
-            <>
-              <Ionicons name="camera-outline" size={16} color={colors.primaryFg} />
-              <Text style={styles.takeText}>Take photos</Text>
-            </>
-          )}
-        </Pressable>
+      {!disabled && !atLimit ? (
+        <View style={styles.actions}>
+          <Pressable
+            onPress={onTakePhotos}
+            disabled={busy}
+            style={[styles.takeBtn, compact && styles.takeBtnCompact, busy && styles.actionDisabled]}
+          >
+            {busy && !picking ? (
+              <ActivityIndicator color={colors.primaryFg} />
+            ) : (
+              <>
+                <Ionicons name="camera-outline" size={16} color={colors.primaryFg} />
+                <Text style={styles.takeText}>Take photos</Text>
+              </>
+            )}
+          </Pressable>
+          {onAddPhotos ? (
+            <Pressable
+              onPress={() => {
+                void uploadFromLibrary();
+              }}
+              disabled={busy}
+              style={[styles.uploadBtn, compact && styles.takeBtnCompact, busy && styles.actionDisabled]}
+            >
+              {picking ? (
+                <ActivityIndicator color={colors.text} />
+              ) : (
+                <>
+                  <Ionicons name="images-outline" size={16} color={colors.text} />
+                  <Text style={styles.uploadText}>Upload</Text>
+                </>
+              )}
+            </Pressable>
+          ) : null}
+        </View>
       ) : null}
 
       {photoUrls.length === 0 ? (
         <Pressable
-          onPress={disabled ? undefined : onTakePhotos}
-          disabled={disabled}
+          onPress={disabled ? onEmptyPress : onTakePhotos}
+          disabled={disabled ? !onEmptyPress : false}
           style={styles.empty}
         >
           <Ionicons name="add" size={16} color={colors.muted} />
@@ -105,34 +213,38 @@ export function InspectionPhotosField({
         </Pressable>
       ) : (
         <>
-          <View style={styles.grid}>
-            {visible.map((url, index) => {
-              const actualIndex = visibleOffset + index;
-              return (
-                <View key={`${url.slice(-48)}-${actualIndex}`} style={styles.cell}>
-                  <PhotoThumb uri={url} onPress={() => setPreviewIndex(actualIndex)} />
-                  {!disabled && onRemove ? (
-                    <Pressable
-                      onPress={() => onRemove(actualIndex)}
-                      style={styles.remove}
-                      hitSlop={8}
-                      accessibilityLabel="Remove photo"
-                    >
-                      <Ionicons name="close" size={12} color="#fff" />
-                    </Pressable>
-                  ) : null}
-                </View>
-              );
-            })}
-            {!disabled ? (
-              <Pressable onPress={onTakePhotos} style={styles.addCell} accessibilityLabel="Add photo">
-                <Ionicons name="camera-outline" size={20} color={colors.muted} />
-              </Pressable>
-            ) : null}
+          <View
+            onLayout={(event) => {
+              const next = event.nativeEvent.layout.width;
+              if (next > 0 && next !== gridWidth) setGridWidth(next);
+            }}
+          >
+            {cellSize > 0 ? (
+              <FlatList
+                ref={listRef}
+                data={gridItems}
+                numColumns={3}
+                extraData={`${cellSize}:${disabled}:${photoUrls.length}`}
+                keyExtractor={(item) =>
+                  item.type === 'add' ? 'add' : `${item.index}:${item.url.slice(-32)}`
+                }
+                renderItem={renderGridItem}
+                scrollEnabled={scrollable}
+                nestedScrollEnabled={scrollable}
+                style={{ height: gridHeight }}
+                columnWrapperStyle={styles.inlineRow}
+                initialNumToRender={12}
+                maxToRenderPerBatch={9}
+                windowSize={5}
+                removeClippedSubviews
+              />
+            ) : (
+              <View style={{ height: 96 }} />
+            )}
           </View>
-          {overflow ? (
+          {scrollable ? (
             <Pressable onPress={() => setShowAll(true)} style={styles.viewAll}>
-              <Text style={styles.viewAllText}>View all {photoUrls.length} photos</Text>
+              <Text style={styles.viewAllText}>Expand {photoUrls.length} photos</Text>
             </Pressable>
           ) : null}
         </>
@@ -195,7 +307,7 @@ export function InspectionPhotosField({
               source={{ uri: previewUrl }}
               style={styles.previewImage}
               contentFit="contain"
-              cachePolicy="disk"
+              cachePolicy={previewUrl.startsWith('http') ? 'disk' : 'memory'}
               recyclingKey={previewUrl}
               transition={0}
             />
@@ -212,6 +324,7 @@ export function BeforeAfterPhotoColumn({
   uploading = false,
   disabled = false,
   onTakePhotos,
+  onAddPhotos,
   onRemove,
 }: {
   title: string;
@@ -219,9 +332,26 @@ export function BeforeAfterPhotoColumn({
   uploading?: boolean;
   disabled?: boolean;
   onTakePhotos: () => void;
+  onAddPhotos?: (photos: LocalPhoto[]) => void;
   onRemove?: (index: number) => void;
 }) {
   const primaryUrl = photoUrls[0];
+  const [picking, setPicking] = useState(false);
+  const busy = uploading || picking;
+
+  const uploadFromLibrary = async () => {
+    if (disabled || !onAddPhotos || picking) return;
+    setPicking(true);
+    try {
+      const photos = await pickInspectionPhotos();
+      if (photos.length > 0) onAddPhotos(photos);
+    } catch (err) {
+      Alert.alert('Upload photos', err instanceof Error ? err.message : 'Could not open the photo library.');
+    } finally {
+      setPicking(false);
+    }
+  };
+
   return (
     <View style={styles.column}>
       <Pressable
@@ -234,7 +364,7 @@ export function BeforeAfterPhotoColumn({
             source={{ uri: primaryUrl }}
             style={styles.squareImage}
             contentFit="cover"
-            cachePolicy="disk"
+            cachePolicy={primaryUrl.startsWith('http') ? 'disk' : 'memory'}
             recyclingKey={primaryUrl}
             allowDownscaling
             transition={0}
@@ -254,13 +384,30 @@ export function BeforeAfterPhotoColumn({
       </Pressable>
       <Text style={styles.columnTitle}>{title}</Text>
       {!disabled ? (
-        <Pressable onPress={onTakePhotos} style={styles.columnSnap}>
-          {uploading ? (
-            <ActivityIndicator color={colors.primaryFg} size="small" />
-          ) : (
-            <Text style={styles.columnSnapText}>Snap</Text>
-          )}
-        </Pressable>
+        <View style={styles.columnActions}>
+          <Pressable onPress={onTakePhotos} style={styles.columnSnap} disabled={busy}>
+            {busy && !picking ? (
+              <ActivityIndicator color={colors.primaryFg} size="small" />
+            ) : (
+              <Text style={styles.columnSnapText}>Snap</Text>
+            )}
+          </Pressable>
+          {onAddPhotos ? (
+            <Pressable
+              onPress={() => {
+                void uploadFromLibrary();
+              }}
+              style={styles.columnUpload}
+              disabled={busy}
+            >
+              {picking ? (
+                <ActivityIndicator color={colors.text} size="small" />
+              ) : (
+                <Text style={styles.columnUploadText}>Upload</Text>
+              )}
+            </Pressable>
+          ) : null}
+        </View>
       ) : null}
       {photoUrls.length > 1 ? (
         <Text style={styles.columnMore}>+{photoUrls.length - 1} more</Text>
@@ -284,6 +431,7 @@ const styles = StyleSheet.create({
   },
   countText: { color: colors.primary, fontSize: 10, fontWeight: '700' },
   takeBtn: {
+    flex: 1,
     backgroundColor: colors.primary,
     borderRadius: 8,
     height: 40,
@@ -292,6 +440,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 6,
   },
+  uploadBtn: {
+    flex: 1,
+    backgroundColor: colors.secondary,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 6,
+  },
+  uploadText: { color: colors.text, fontWeight: '700', fontSize: 13 },
+  actions: { flexDirection: 'row', gap: 8 },
+  actionDisabled: { opacity: 0.55 },
   takeBtnCompact: { height: 36 },
   takeText: { color: colors.primaryFg, fontWeight: '700', fontSize: 13 },
   empty: {
@@ -307,8 +470,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   emptyText: { color: colors.muted, fontSize: 12, flexShrink: 1 },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  cell: { width: '31%', aspectRatio: 1, borderRadius: 8, overflow: 'hidden', position: 'relative' },
+  inlineRow: { gap: CELL_GAP, marginBottom: CELL_GAP, justifyContent: 'flex-start' },
+  cell: { borderRadius: 8, overflow: 'hidden', position: 'relative' },
   thumbBtn: { flex: 1, width: '100%', height: '100%', backgroundColor: colors.secondary },
   remove: {
     position: 'absolute',
@@ -322,12 +485,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   addCell: {
-    width: '31%',
-    aspectRatio: 1,
     borderRadius: 8,
     borderWidth: 1,
     borderStyle: 'dashed',
     borderColor: colors.border,
+    overflow: 'hidden',
+  },
+  addCellInner: {
+    ...StyleSheet.absoluteFill,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -393,11 +558,23 @@ const styles = StyleSheet.create({
   },
   columnTitle: { color: colors.muted, fontSize: 11, fontWeight: '600', textAlign: 'center' },
   columnSnap: {
+    flex: 1,
     backgroundColor: colors.primary,
     borderRadius: 8,
     paddingVertical: 8,
     alignItems: 'center',
   },
   columnSnapText: { color: colors.primaryFg, fontWeight: '700', fontSize: 12 },
+  columnActions: { flexDirection: 'row', gap: 6 },
+  columnUpload: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.secondary,
+    borderRadius: 8,
+    paddingVertical: 8,
+    alignItems: 'center',
+  },
+  columnUploadText: { color: colors.text, fontWeight: '700', fontSize: 12 },
   columnMore: { color: colors.muted, fontSize: 11, textAlign: 'center' },
 });

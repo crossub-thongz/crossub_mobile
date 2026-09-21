@@ -1,5 +1,5 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Linking,
@@ -158,6 +158,8 @@ export function FieldWorkflowScreen({
   const areaIndex = Math.min(draft.areaIndex, Math.max(names.length - 1, 0));
   const currentName = names[areaIndex];
   const current = currentName ? draft.issues[currentName] ?? emptyRoutineIssue() : emptyRoutineIssue();
+  const draftRef = useRef(draft);
+  draftRef.current = draft;
   const copy = isCoreInspectionType(type) ? inspectionStartCopy(type) : inspectionStartCopy('routine');
   const sms = job ? preInspectionSmsHref(job) : null;
 
@@ -320,21 +322,36 @@ export function FieldWorkflowScreen({
 
   const onBurst = async (photos: LocalPhoto[]) => {
     if (!id || !currentName || photos.length === 0) return;
+    const locals = photos.map((photo) => photo.uri);
+    const rec = draftRef.current.issues[currentName] ?? current;
+    persist({
+      ...draftRef.current,
+      issues: {
+        ...draftRef.current.issues,
+        [currentName]: {
+          ...rec,
+          available: true as const,
+          areaPhotos: [...rec.areaPhotos, ...locals],
+        },
+      },
+    });
     setBusy('photo');
     setError(null);
     try {
       await ensureAccepted();
-      const urls = await queueInspectionPhotoBatch(id, photos, currentName);
-      persist({
-        ...draft,
-        issues: {
-          ...draft.issues,
-          [currentName]: {
-            ...current,
-            available: true as const,
-            areaPhotos: [...current.areaPhotos, ...urls],
+      await queueInspectionPhotoBatch(id, photos, currentName, (localUri, remoteUrl) => {
+        const latest = draftRef.current.issues[currentName];
+        if (!latest) return;
+        persist({
+          ...draftRef.current,
+          issues: {
+            ...draftRef.current.issues,
+            [currentName]: {
+              ...latest,
+              areaPhotos: latest.areaPhotos.map((url) => (url === localUri ? remoteUrl : url)),
+            },
           },
-        },
+        });
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Photo upload failed — please retry');
@@ -522,8 +539,11 @@ export function FieldWorkflowScreen({
                   photoUrls={current.areaPhotos ?? []}
                   uploading={busy === 'photo'}
                   disabled={busy === 'complete'}
-                  emptyLabel="Snap several photos of this room, then attach them here."
+                  emptyLabel="Snap or upload several photos of this room, then attach them here."
                   onTakePhotos={() => setCameraOpen(true)}
+                  onAddPhotos={(photos) => {
+                    void onBurst(photos);
+                  }}
                   onRemove={(index) => {
                     if (!currentName) return;
                     persist({
