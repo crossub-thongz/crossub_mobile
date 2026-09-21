@@ -71,7 +71,7 @@ export function greetingForNow(from = new Date()): string {
 
 export function formatLongDate(from = new Date()): string {
   return new Intl.DateTimeFormat('en-AU', {
-    weekday: 'long',
+    weekday: 'short',
     day: 'numeric',
     month: 'short',
     year: 'numeric',

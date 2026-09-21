@@ -12,20 +12,10 @@ import {
 } from '@/src/constants/inspector-registration';
 import { useInspections } from '@/src/inspections/inspections-context';
 import { displayName, formatCurrency, formatDate, isThisWeek, personInitials } from '@/src/lib/datetime';
-import { inspectorLevelAllows } from '@/src/lib/inspector-access-level';
-import {
-  earningsPath,
-  helpPath,
-  historyPath,
-  keyManagementPath,
-  profilePath,
-  settingsPath,
-  tribunalPath,
-  weeklyAvailabilityPath,
-} from '@/src/lib/routes';
 import { useOffline } from '@/src/offline/offline-context';
 import { colors } from '@/src/theme';
 import { AppHeader } from '@/src/ui/app-header';
+import { MORE_NAV_SECTIONS, moreNavForLevel } from '@/src/ui/more-nav';
 
 function statusLabel(status?: string | null): string | undefined {
   if (!status) return undefined;
@@ -37,7 +27,7 @@ function statusLabel(status?: string | null): string | undefined {
 
 export default function MoreScreen() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const { registration, profile, accessLevel, tribunalQualified } = useAccount();
   const { completedJobs } = useInspections();
   const { weeklyEarnings, unclaimedEarnings } = useLedger();
@@ -50,67 +40,10 @@ export default function MoreScreen() {
     email: user?.email,
   });
   const approved = registration?.registrationStatus === 'approved';
-  const showTribunal = inspectorLevelAllows(accessLevel, 'tribunal');
   const weekJobs = completedJobs.filter((job) =>
     isThisWeek(job.scheduledTime || job.scheduledDate),
   );
-  const menu = [
-    {
-      href: profilePath,
-      icon: 'person-outline' as const,
-      title: 'Professional profile',
-      subtitle: 'Personal details, licence, service regions',
-    },
-    ...(showTribunal
-      ? [
-          {
-            href: tribunalPath,
-            icon: 'scale-outline' as const,
-            title: 'Tribunal',
-            subtitle: 'Apply for tribunal certification',
-          },
-        ]
-      : []),
-    {
-      href: weeklyAvailabilityPath,
-      icon: 'time-outline' as const,
-      title: 'Time Availability',
-      subtitle: 'Select the times you can take jobs',
-    },
-    {
-      href: historyPath,
-      icon: 'document-text-outline' as const,
-      title: 'Job history',
-      subtitle: 'Search completed inspections by address or suburb',
-    },
-    {
-      href: earningsPath,
-      icon: 'card-outline' as const,
-      title: 'Payments',
-      subtitle: 'History, payouts, unclaimed payments',
-    },
-    {
-      href: keyManagementPath,
-      icon: 'key-outline' as const,
-      title: 'Key management',
-      subtitle: 'Collect and return across assigned jobs',
-    },
-    {
-      href: settingsPath,
-      icon: 'settings-outline' as const,
-      title: 'Settings',
-      subtitle:
-        pendingSync > 0
-          ? `${pendingSync} change${pendingSync === 1 ? '' : 's'} waiting to sync`
-          : 'Account, notifications, security',
-    },
-    {
-      href: helpPath,
-      icon: 'help-circle-outline' as const,
-      title: 'Help & support',
-      subtitle: 'FAQs, contact support',
-    },
-  ];
+  const menu = moreNavForLevel(accessLevel);
 
   return (
     <View style={styles.safe}>
@@ -181,29 +114,52 @@ export default function MoreScreen() {
           </View>
         </View>
 
-        <View style={styles.nav}>
-          {menu.map((item, index) => (
-            <Pressable
-              key={item.title}
-              onPress={() => router.push(item.href as never)}
-              style={[styles.row, index === menu.length - 1 && styles.rowLast]}
-            >
-              <Ionicons name={item.icon} size={20} color={colors.primary} />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.rowTitle}>{item.title}</Text>
-                <Text
-                  style={[
-                    styles.rowSub,
-                    item.title === 'Settings' && pendingSync > 0 ? styles.rowSubWarn : null,
-                  ]}
-                >
-                  {item.subtitle}
-                </Text>
+        {MORE_NAV_SECTIONS.map((section) => {
+          const items = menu.filter((item) => item.section === section.id);
+          if (items.length === 0) return null;
+          return (
+            <View key={section.id} style={styles.group}>
+              <Text style={styles.groupTitle}>{section.title}</Text>
+              <View style={styles.nav}>
+                {items.map((item, index) => (
+                  <Pressable
+                    key={`${item.href}-${item.label}`}
+                    onPress={() => router.push(item.href as never)}
+                    style={[styles.row, index === items.length - 1 && styles.rowLast]}
+                  >
+                    <View style={styles.rowIcon}>
+                      <Ionicons name={item.icon} size={18} color={colors.primary} />
+                    </View>
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <Text style={styles.rowTitle}>{item.label}</Text>
+                      <Text
+                        style={[
+                          styles.rowSub,
+                          item.label === 'Settings' && pendingSync > 0 ? styles.rowSubWarn : null,
+                        ]}
+                      >
+                        {item.label === 'Settings' && pendingSync > 0
+                          ? `${pendingSync} change${pendingSync === 1 ? '' : 's'} waiting to sync`
+                          : item.subtitle}
+                      </Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={16} color={colors.muted} />
+                  </Pressable>
+                ))}
               </View>
-              <Ionicons name="chevron-forward" size={16} color={colors.muted} />
-            </Pressable>
-          ))}
-        </View>
+            </View>
+          );
+        })}
+
+        <Pressable
+          onPress={() => {
+            void logout();
+          }}
+          style={styles.signOut}
+        >
+          <Ionicons name="log-out-outline" size={18} color={colors.destructive} />
+          <Text style={styles.signOutText}>Sign out</Text>
+        </Pressable>
 
         {registration?.submittedAt ? (
           <Text style={styles.member}>
@@ -220,7 +176,7 @@ export default function MoreScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
-  inner: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 32, gap: 20 },
+  inner: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 40, gap: 16 },
   profile: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   avatar: {
     width: 64,
@@ -279,6 +235,15 @@ const styles = StyleSheet.create({
   statValue: { color: colors.text, fontSize: 18, fontWeight: '700', marginTop: 8 },
   statLabel: { color: colors.muted, fontSize: 10, marginTop: 2, lineHeight: 13 },
   statHint: { color: colors.muted, fontSize: 10 },
+  group: { gap: 8 },
+  groupTitle: {
+    color: colors.muted,
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    paddingHorizontal: 4,
+  },
   nav: {
     borderWidth: 1,
     borderColor: colors.border,
@@ -290,14 +255,34 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.border,
   },
   rowLast: { borderBottomWidth: 0 },
-  rowTitle: { color: colors.text, fontSize: 14, fontWeight: '500' },
+  rowIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: 'rgba(0,212,164,0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rowTitle: { color: colors.text, fontSize: 14, fontWeight: '600' },
   rowSub: { color: colors.muted, fontSize: 12, marginTop: 2 },
   rowSubWarn: { color: colors.amber },
+  signOut: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(239,68,68,0.35)',
+    backgroundColor: 'rgba(239,68,68,0.08)',
+    borderRadius: 14,
+    paddingVertical: 14,
+  },
+  signOutText: { color: colors.destructive, fontWeight: '700' },
   member: { color: colors.muted, fontSize: 11, textAlign: 'center' },
 });

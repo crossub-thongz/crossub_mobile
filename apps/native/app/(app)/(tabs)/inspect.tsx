@@ -1,12 +1,15 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import {
   ActivityIndicator,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
   Pressable,
   ScrollView,
   RefreshControl,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
 } from 'react-native';
 
@@ -14,11 +17,14 @@ import { InspectJobRow } from '@/src/inspections/inspect-job-row';
 import { InspectNextCard } from '@/src/inspections/inspect-next-card';
 import { useInspections } from '@/src/inspections/inspections-context';
 import { jobDetail, historyPath } from '@/src/lib/routes';
+import type { GeoPoint } from '@/src/lib/travel';
+import type { InspectionJob } from '@/src/lib/types';
 import { colors } from '@/src/theme';
 import { AppHeader } from '@/src/ui/app-header';
 import { EmptyState } from '@/src/ui/empty-state';
 
-type ScheduleTab = 'today' | 'upcoming' | 'overdue' | 'completed';
+const SCHEDULE_TABS = ['today', 'upcoming', 'overdue'] as const;
+type ScheduleTab = (typeof SCHEDULE_TABS)[number] | 'completed';
 
 function parseTab(value: string | string[] | undefined): ScheduleTab {
   const raw = Array.isArray(value) ? value[0] : value;
@@ -28,10 +34,77 @@ function parseTab(value: string | string[] | undefined): ScheduleTab {
   return 'today';
 }
 
+function InspectPage({
+  jobs,
+  nextJob,
+  origin,
+  loading,
+  emptyTitle,
+  emptyDescription,
+  heading,
+  completed,
+  onOpen,
+  onAction,
+}: {
+  jobs: InspectionJob[];
+  nextJob?: InspectionJob | null;
+  origin?: GeoPoint | null;
+  loading: boolean;
+  emptyTitle: string;
+  emptyDescription: string;
+  heading: string;
+  completed?: boolean;
+  onOpen: (id: string) => void;
+  onAction: (href: string) => void;
+}) {
+  const listWithoutHero = nextJob ? jobs.filter((job) => job.id !== nextJob.id) : jobs;
+
+  return (
+    <View style={styles.page}>
+      {nextJob ? (
+        <InspectNextCard
+          job={nextJob}
+          origin={origin}
+          onOpen={() => onOpen(nextJob.id)}
+          onAction={onAction}
+        />
+      ) : null}
+      {jobs.length === 0 ? (
+        loading ? (
+          <ActivityIndicator color={colors.primary} style={{ marginTop: 32 }} />
+        ) : (
+          <EmptyState
+            icon="clipboard-outline"
+            title={emptyTitle}
+            description={emptyDescription}
+          />
+        )
+      ) : (
+        <>
+          {!completed ? <Text style={styles.section}>{heading}</Text> : null}
+          {(nextJob ? listWithoutHero : jobs).map((job) => (
+            <InspectJobRow
+              key={job.id}
+              job={job}
+              origin={origin}
+              completed={completed}
+              onOpen={() => onOpen(job.id)}
+              onAction={onAction}
+            />
+          ))}
+        </>
+      )}
+    </View>
+  );
+}
+
 export default function InspectScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ tab?: string }>();
   const tab = parseTab(params.tab);
+  const pagerRef = useRef<ScrollView>(null);
+  const skipPagerSync = useRef(false);
+  const { width } = useWindowDimensions();
   const {
     todaysJobs,
     upcomingJobs,
@@ -49,9 +122,30 @@ export default function InspectScreen() {
     if (tab === 'completed') router.replace(historyPath as never);
   }, [tab, router]);
 
+  const scheduleIndex = Math.max(
+    0,
+    SCHEDULE_TABS.indexOf(tab === 'completed' ? 'today' : tab),
+  );
+
+  useEffect(() => {
+    if (skipPagerSync.current) {
+      skipPagerSync.current = false;
+      return;
+    }
+    pagerRef.current?.scrollTo({ x: scheduleIndex * width, animated: true });
+  }, [scheduleIndex, width]);
+
   const setTab = (next: ScheduleTab) => {
     if (next === 'today') router.setParams({ tab: undefined });
     else router.setParams({ tab: next });
+  };
+
+  const onPagerScrollEnd = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const nextIndex = Math.round(event.nativeEvent.contentOffset.x / Math.max(1, width));
+    const next = SCHEDULE_TABS[nextIndex];
+    if (!next || next === tab) return;
+    skipPagerSync.current = true;
+    setTab(next);
   };
 
   const nextJob = useMemo(() => {
@@ -61,43 +155,6 @@ export default function InspectScreen() {
     );
     return remaining[0] ?? todaysJobs[0] ?? null;
   }, [todaysJobs]);
-
-  const listJobs =
-    tab === 'today'
-      ? todaysJobs
-      : tab === 'upcoming'
-        ? upcomingJobs
-        : tab === 'overdue'
-          ? overdueJobs
-          : completedJobs;
-  const listWithoutHero =
-    tab === 'today' && nextJob
-      ? listJobs.filter((job) => job.id !== nextJob.id)
-      : listJobs;
-
-  const emptyTitle =
-    tab === 'today'
-      ? 'No inspections today'
-      : tab === 'upcoming'
-        ? 'No upcoming inspections'
-        : tab === 'overdue'
-          ? 'No overdue inspections'
-          : 'No completed inspections';
-  const emptyDescription =
-    tab === 'today'
-      ? 'Accepted jobs scheduled for today will show here.'
-      : tab === 'upcoming'
-        ? 'Jobs scheduled after today will show here.'
-        : tab === 'overdue'
-          ? 'Jobs that were not finished after their scheduled date will show here.'
-          : 'Finished inspections will show here.';
-
-  const heading =
-    tab === 'today'
-      ? `Today • ${todaysJobs.length} inspection${todaysJobs.length === 1 ? '' : 's'}`
-      : tab === 'upcoming'
-        ? `Upcoming • ${upcomingJobs.length} inspection${upcomingJobs.length === 1 ? '' : 's'}`
-        : `Overdue • ${overdueJobs.length} inspection${overdueJobs.length === 1 ? '' : 's'}`;
 
   const goJob = (id: string) => router.push(jobDetail(id) as never);
   const goHref = (href: string) => router.push(href as never);
@@ -130,52 +187,94 @@ export default function InspectScreen() {
         ))}
       </View>
 
+      {error ? <Text style={styles.error}>{error}</Text> : null}
+
       <ScrollView
-        contentContainerStyle={styles.list}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={() => {
-              void refresh();
-            }}
-            tintColor={colors.primary}
-          />
-        }
+        ref={pagerRef}
+        horizontal
+        pagingEnabled
+        nestedScrollEnabled
+        keyboardShouldPersistTaps="handled"
+        showsHorizontalScrollIndicator={false}
+        onMomentumScrollEnd={onPagerScrollEnd}
+        onScrollEndDrag={onPagerScrollEnd}
+        decelerationRate="fast"
+        style={styles.pager}
+        contentOffset={{ x: scheduleIndex * width, y: 0 }}
       >
-        {error ? <Text style={styles.error}>{error}</Text> : null}
-        {tab === 'today' && nextJob ? (
-          <InspectNextCard
-            job={nextJob}
+        <ScrollView
+          style={{ width }}
+          contentContainerStyle={styles.list}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => {
+                void refresh();
+              }}
+              tintColor={colors.primary}
+            />
+          }
+        >
+          <InspectPage
+            jobs={todaysJobs}
+            nextJob={nextJob}
             origin={deviceLocation}
-            onOpen={() => goJob(nextJob.id)}
+            loading={loading}
+            emptyTitle="No inspections today"
+            emptyDescription="Accepted jobs scheduled for today will show here."
+            heading={`Today - ${todaysJobs.length} inspection${todaysJobs.length === 1 ? '' : 's'}`}
+            onOpen={goJob}
             onAction={goHref}
           />
-        ) : null}
-        {listJobs.length === 0 ? (
-          loading ? (
-            <ActivityIndicator color={colors.primary} style={{ marginTop: 32 }} />
-          ) : (
-            <EmptyState
-              icon="clipboard-outline"
-              title={emptyTitle}
-              description={emptyDescription}
+        </ScrollView>
+        <ScrollView
+          style={{ width }}
+          contentContainerStyle={styles.list}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => {
+                void refresh();
+              }}
+              tintColor={colors.primary}
             />
-          )
-        ) : (
-          <>
-            {tab !== 'completed' ? <Text style={styles.section}>{heading}</Text> : null}
-            {(tab === 'today' ? listWithoutHero : listJobs).map((job) => (
-              <InspectJobRow
-                key={job.id}
-                job={job}
-                origin={deviceLocation}
-                completed={tab === 'completed'}
-                onOpen={() => goJob(job.id)}
-                onAction={goHref}
-              />
-            ))}
-          </>
-        )}
+          }
+        >
+          <InspectPage
+            jobs={upcomingJobs}
+            origin={deviceLocation}
+            loading={loading}
+            emptyTitle="No upcoming inspections"
+            emptyDescription="Jobs scheduled after today will show here."
+            heading={`Upcoming - ${upcomingJobs.length} inspection${upcomingJobs.length === 1 ? '' : 's'}`}
+            onOpen={goJob}
+            onAction={goHref}
+          />
+        </ScrollView>
+        <ScrollView
+          style={{ width }}
+          contentContainerStyle={styles.list}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => {
+                void refresh();
+              }}
+              tintColor={colors.primary}
+            />
+          }
+        >
+          <InspectPage
+            jobs={overdueJobs}
+            origin={deviceLocation}
+            loading={loading}
+            emptyTitle="No overdue inspections"
+            emptyDescription="Jobs that were not finished after their scheduled date will show here."
+            heading={`Overdue - ${overdueJobs.length} inspection${overdueJobs.length === 1 ? '' : 's'}`}
+            onOpen={goJob}
+            onAction={goHref}
+          />
+        </ScrollView>
       </ScrollView>
 
       <View style={styles.float}>
@@ -227,8 +326,10 @@ const styles = StyleSheet.create({
   countOn: { backgroundColor: colors.primary },
   countText: { color: colors.muted, fontSize: 10, fontWeight: '700' },
   countTextOn: { color: colors.primaryFg },
-  list: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 96 },
-  error: { color: colors.destructive, marginBottom: 8 },
+  pager: { flex: 1 },
+  page: { paddingHorizontal: 16 },
+  list: { paddingTop: 12, paddingBottom: 96, flexGrow: 1 },
+  error: { color: colors.destructive, paddingHorizontal: 16, paddingTop: 8 },
   section: {
     color: colors.muted,
     fontSize: 11,
