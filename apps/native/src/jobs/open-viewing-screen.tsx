@@ -3,7 +3,6 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Linking,
   Modal,
   Pressable,
@@ -24,6 +23,7 @@ import {
 } from '@/src/api/inspector';
 import { useInspections } from '@/src/inspections/inspections-context';
 import { CancelTaskSheet } from '@/src/jobs/cancel-task-sheet';
+import { useFinishInspection } from '@/src/jobs/use-finish-inspection';
 import { type WorkspaceTab } from '@/src/jobs/workspace-nav';
 import { formatDateTime, formatInspectTime } from '@/src/lib/datetime';
 import { isKeyCollectComplete, isKeyReturnComplete } from '@/src/lib/key-access';
@@ -279,6 +279,13 @@ export function OpenViewingScreen({
   const [busy, setBusy] = useState<string | null>(null);
   const [now, setNow] = useState(Date.now());
   const [cancelOpen, setCancelOpen] = useState(false);
+  const { celebrate, celebrating, Celebration } = useFinishInspection({
+    onHome: () => router.replace('/'),
+    onKeys: () => {
+      if (onChangeTab) onChangeTab('handover', { keys: 'return' });
+      else if (id) router.replace(`/jobs/${id}?tab=handover&keys=return` as never);
+    },
+  });
 
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 1000);
@@ -351,7 +358,7 @@ export function OpenViewingScreen({
   };
 
   const finish = async (early: boolean) => {
-    if (!viewing) return;
+    if (!viewing || celebrating) return;
     setBusy('complete');
     setError(null);
     try {
@@ -360,17 +367,21 @@ export function OpenViewingScreen({
       if (job.keyAccess && !isKeyReturnComplete(job)) {
         await completeInspection(id, { startTime, endTime }).catch(() => undefined);
         patchJob(id, { workflowData: { ...job.workflowData, inspectionFinished: true } });
-        Alert.alert('The viewing has ended', 'Hand the keys back - the job is only complete after that handover is recorded.');
-        if (onChangeTab) onChangeTab('handover', { keys: 'return' });
-        else router.replace(`/jobs/${id}?tab=handover&keys=return` as never);
+        celebrate(
+          'Return the keys to complete this task.',
+          'keys',
+          'Viewing ended',
+        );
         return;
       }
       const completed = await completeInspection(id, { startTime, endTime });
       upsertJob({ ...job, status: completed.status === 'COMPLETED' ? 'completed' : job.status });
       await refresh();
-      Alert.alert('Open inspection complete', 'Job finished.', [
-        { text: 'Home', onPress: () => router.replace('/') },
-      ]);
+      celebrate(
+        early
+          ? 'Open inspection finished early.'
+          : 'Viewing window ended - job completed automatically.',
+      );
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not complete this open inspection.');
     } finally {
@@ -507,6 +518,7 @@ export function OpenViewingScreen({
           router.replace('/pool');
         }}
       />
+      {Celebration}
     </View>
   );
 }

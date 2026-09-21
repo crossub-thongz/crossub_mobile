@@ -28,6 +28,7 @@ import { InspectionAreaActionBar } from '@/src/jobs/inspection-area-action-bar';
 import { InspectionAreaNav } from '@/src/jobs/inspection-area-nav';
 import { InspectionPhotosField } from '@/src/jobs/inspection-photos-field';
 import { JobCamera } from '@/src/jobs/job-camera';
+import { useFinishInspection } from '@/src/jobs/use-finish-inspection';
 import { type WorkspaceTab } from '@/src/jobs/workspace-nav';
 import {
   appendSelectedAreaName,
@@ -80,6 +81,13 @@ export function FieldWorkflowScreen({
   const [cameraOpen, setCameraOpen] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [areasDragging, setAreasDragging] = useState(false);
+  const { celebrate, Celebration } = useFinishInspection({
+    onHome: () => router.replace('/'),
+    onKeys: () => {
+      if (onChangeTab) onChangeTab('handover', { keys: 'return' });
+      else if (id) router.replace(jobKeys(id, 'return') as never);
+    },
+  });
 
   const kind = type === 'ingoing' || type === 'outgoing' ? type : 'routine';
   const stored = (id ? getDraft(id) : undefined) ?? null;
@@ -408,17 +416,17 @@ export function FieldWorkflowScreen({
         patchJob(id, {
           workflowData: { ...job.workflowData, inspectionFinished: true },
         });
-        Alert.alert('Report generated', 'Return the keys to complete this task.');
-        if (onChangeTab) onChangeTab('handover', { keys: 'return' });
-        else router.replace(jobKeys(id, 'return') as never);
+        celebrate(
+          'Return the keys to complete this task.',
+          'keys',
+          'Report generated',
+        );
         return;
       }
       const completed = await completeInspection(id, attendanceWindowFromHours(job.estimatedHours));
       upsertJob({ ...job, status: completed.status === 'COMPLETED' ? 'completed' : job.status });
       await refresh();
-      Alert.alert('Inspection complete', 'Routine report sent to agent and landlord.', [
-        { text: 'Home', onPress: () => router.replace('/') },
-      ]);
+      celebrate('Routine report sent to agent and landlord');
     } catch (err) {
       setError(
         err instanceof Error
@@ -469,9 +477,11 @@ export function FieldWorkflowScreen({
                 patchJob(id, {
                   workflowData: { ...job.workflowData, inspectionFinished: true },
                 });
-                Alert.alert('Report generated', 'Return the keys to complete this task.');
-                if (onChangeTab) onChangeTab('handover', { keys: 'return' });
-                else router.replace(jobKeys(id, 'return') as never);
+                celebrate(
+                  'Return the keys to complete this task.',
+                  'keys',
+                  'Report generated',
+                );
                 return;
               }
               const completed = await completeInspection(
@@ -483,10 +493,10 @@ export function FieldWorkflowScreen({
                 status: completed.status === 'COMPLETED' ? 'completed' : job.status,
               });
               await refresh();
-              Alert.alert(
-                'Inspection complete',
-                `${INSPECTION_PAY_LABEL[job.type] ?? job.type} report sent to agent and landlord.`,
-                [{ text: 'Home', onPress: () => router.replace('/') }],
+              celebrate(
+                `${INSPECTION_PAY_LABEL[job.type] ?? job.type} report sent for account manager review`,
+                'home',
+                'Awaiting approval',
               );
             }}
           />
@@ -675,6 +685,7 @@ export function FieldWorkflowScreen({
           router.replace('/');
         }}
       />
+      {Celebration}
     </View>
   );
 }

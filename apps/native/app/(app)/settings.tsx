@@ -30,8 +30,8 @@ export default function SettingsScreen() {
         <View style={styles.card}>
           <Text style={styles.title}>Offline Mode</Text>
           <Text style={styles.body}>
-            Drafts, findings, and photo blobs are stored on this phone in SQLite. They
-            upload automatically when the connection returns.
+            Drafts and findings queue in SQLite. Photos stay as JPEG files on this
+            phone, not in the database, and upload when the connection returns.
           </Text>
           {pendingSync > 0 ? (
             <Text style={styles.pending}>

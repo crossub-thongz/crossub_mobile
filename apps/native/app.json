@@ -19,6 +19,7 @@
         "CFBundleDisplayName": "CROSSUB APP",
         "CFBundleName": "CROSSUB APP",
         "ITSAppUsesNonExemptEncryption": false,
+        "NSCameraUsageDescription": "CROSSUB Inspector needs the camera to photograph inspection evidence.",
         "NSPhotoLibraryUsageDescription": "CROSSUB Inspector needs the photo library to attach inspection evidence."
       }
     },
@@ -33,9 +34,6 @@
       },
       "predictiveBackGestureEnabled": false,
       "permissions": [
-        "android.permission.CAMERA",
-        "android.permission.ACCESS_COARSE_LOCATION",
-        "android.permission.ACCESS_FINE_LOCATION",
         "android.permission.CAMERA",
         "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.ACCESS_FINE_LOCATION"

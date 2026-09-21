@@ -8,8 +8,9 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import { AppState } from 'react-native';
 
-import { pendingSyncCount } from '@/src/offline/db';
+import { pendingSyncCount, subscribeQueueChanged } from '@/src/offline/db';
 import { syncOfflineQueue } from '@/src/offline/sync';
 
 type OfflineContextValue = {
@@ -50,11 +51,24 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     void refreshPending();
-  }, [refreshPending]);
+    void syncNow().catch(() => undefined);
+    return subscribeQueueChanged(() => {
+      void refreshPending();
+    });
+  }, [refreshPending, syncNow]);
 
   useEffect(() => {
     const sub = Network.addNetworkStateListener((state) => {
       if (state.isConnected && state.isInternetReachable !== false) {
+        void syncNow().catch(() => undefined);
+      }
+    });
+    return () => sub.remove();
+  }, [syncNow]);
+
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
         void syncNow().catch(() => undefined);
       }
     });
