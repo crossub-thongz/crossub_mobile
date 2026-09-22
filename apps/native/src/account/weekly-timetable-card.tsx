@@ -5,7 +5,6 @@ import {
   Pressable,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 
@@ -34,6 +33,7 @@ import {
   type InspectorDateAvailabilityEntry,
 } from '@/src/lib/inspector-timetable';
 import { colors } from '@/src/theme';
+import { AppTextInput } from '@/src/ui/app-text-input';
 
 export function WeeklyTimetableCard() {
   const today = sydneyTodayParts();
@@ -255,11 +255,11 @@ export function WeeklyTimetableCard() {
 
       <View style={styles.monthRow}>
         <Pressable onPress={() => shiftMonth(-1)} style={styles.monthBtn}>
-          <Text style={styles.monthBtnText}>‹</Text>
+          <Text style={styles.monthBtnText}>?</Text>
         </Pressable>
         <Text style={styles.monthLabel}>{monthLabel}</Text>
         <Pressable onPress={() => shiftMonth(1)} style={styles.monthBtn}>
-          <Text style={styles.monthBtnText}>›</Text>
+          <Text style={styles.monthBtnText}>?</Text>
         </Pressable>
       </View>
 
@@ -320,7 +320,7 @@ export function WeeklyTimetableCard() {
           <Text style={styles.editorTitle}>
             {selectedList.length} date{selectedList.length === 1 ? '' : 's'} selected
           </Text>
-          <Text style={styles.hint}>{selectedList.map(formatSelectedDateLabel).join(' · ')}</Text>
+          <Text style={styles.hint}>{selectedList.map(formatSelectedDateLabel).join(' ? ')}</Text>
           <View style={styles.row}>
             <Pressable
               onPress={markSelectedAvailable}
@@ -344,7 +344,7 @@ export function WeeklyTimetableCard() {
               <View style={styles.row}>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.fieldLabel}>From</Text>
-                  <TextInput
+                  <AppTextInput
                     value={minuteToTimeInput(startMinute)}
                     onChangeText={(value) => {
                       const next = parseTimeInput(value);
@@ -360,7 +360,7 @@ export function WeeklyTimetableCard() {
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.fieldLabel}>To</Text>
-                  <TextInput
+                  <AppTextInput
                     value={minuteToTimeInput(endMinute)}
                     onChangeText={(value) => {
                       const next = parseTimeInput(value);
@@ -379,12 +379,12 @@ export function WeeklyTimetableCard() {
                 {timeError ??
                   (anySelectedAvailable
                     ? 'These hours apply to every selected date. Save to publish them.'
-                    : 'Set your hours — the selected dates are marked available. Then save.')}
+                    : 'Set your hours ? the selected dates are marked available. Then save.')}
               </Text>
             </>
           ) : (
             <Text style={styles.hint}>
-              Selected dates are marked unavailable — no time window is required.
+              Selected dates are marked unavailable ? no time window is required.
             </Text>
           )}
         </View>
@@ -402,7 +402,7 @@ export function WeeklyTimetableCard() {
           (loading || saving || !dirty || timeError !== null) && styles.saveOff,
         ]}
       >
-        <Text style={styles.saveText}>{saving ? 'Saving…' : `Save ${monthLabel}`}</Text>
+        <Text style={styles.saveText}>{saving ? 'Saving?' : `Save ${monthLabel}`}</Text>
       </Pressable>
       {dirty ? (
         <Pressable disabled={saving} onPress={() => void load()}>

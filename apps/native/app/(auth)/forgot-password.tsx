@@ -1,15 +1,8 @@
 import { Link } from 'expo-router';
 import { useState } from 'react';
-import {
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+
+import { AppTextInput } from '@/src/ui/app-text-input';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { requestPasswordReset } from '@/src/api/client';
@@ -61,7 +54,7 @@ export default function ForgotPasswordScreen() {
           ) : (
             <>
               <Text style={styles.label}>Email</Text>
-              <TextInput
+              <AppTextInput
                 value={email}
                 onChangeText={setEmail}
                 autoCapitalize="none"

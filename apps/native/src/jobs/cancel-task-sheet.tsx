@@ -5,12 +5,12 @@ import {
   Pressable,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 
 import { releaseInspection } from '@/src/api/inspector';
 import { colors } from '@/src/theme';
+import { AppTextInput } from '@/src/ui/app-text-input';
 
 const MIN_REASON = 10;
 
@@ -60,11 +60,11 @@ export function CancelTaskSheet({
           </Text>
           {urgent ? (
             <Text style={styles.banner}>
-              Emergency task ó an additional $10 AUD will be added to this job's payout record.
+              Emergency task ù an additional $10 AUD will be added to this job's payout record.
             </Text>
           ) : null}
           <Text style={styles.label}>Reason for cancellation</Text>
-          <TextInput
+          <AppTextInput
             value={reason}
             onChangeText={setReason}
             placeholder="Describe why this task cannot be completed (min. 10 characters)"

@@ -44,6 +44,7 @@ type InspectionsContextValue = {
   completedJobs: InspectionJob[];
   pendingJobs: InspectionJob[];
   loading: boolean;
+  jobsHydrated: boolean;
   refreshing: boolean;
   error: string | null;
   claimingId: string | null;
@@ -109,6 +110,7 @@ export function InspectionsProvider({ children }: { children: ReactNode }) {
   const [pool, setPool] = useState<InspectionJob[]>([]);
   const [drafts, setDrafts] = useState<Record<string, RoutineExecutionDraft>>({});
   const [loading, setLoading] = useState(true);
+  const [jobsHydrated, setJobsHydrated] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [claimingId, setClaimingId] = useState<string | null>(null);
@@ -151,11 +153,15 @@ export function InspectionsProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false);
       setRefreshing(false);
+      setJobsHydrated(true);
     }
   }, []);
 
   useEffect(() => {
-    if (status !== 'authed') return;
+    if (status !== 'authed') {
+      setJobsHydrated(false);
+      return;
+    }
     void load('initial');
   }, [status, load]);
 
@@ -308,6 +314,7 @@ export function InspectionsProvider({ children }: { children: ReactNode }) {
       completedJobs,
       pendingJobs,
       loading,
+      jobsHydrated,
       refreshing,
       error,
       claimingId,
@@ -331,6 +338,7 @@ export function InspectionsProvider({ children }: { children: ReactNode }) {
       completedJobs,
       pendingJobs,
       loading,
+      jobsHydrated,
       refreshing,
       error,
       claimingId,

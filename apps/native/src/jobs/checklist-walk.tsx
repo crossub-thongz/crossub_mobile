@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+
+import { AppTextInput } from '@/src/ui/app-text-input';
 
 import {
   fetchInspectionDetail,
@@ -570,7 +572,7 @@ export function ChecklistWalk({
 
             <View>
               <Text style={styles.label}>{type === 'outgoing' ? 'Issue notes' : 'Comments'}</Text>
-              <TextInput
+              <AppTextInput
                 value={issue.notes}
                 onChangeText={(notes) => updateIssue({ ...issue, notes, available: true })}
                 placeholder={

@@ -1,16 +1,8 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useEffect, useRef, useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  Linking,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+
+import { AppTextInput } from '@/src/ui/app-text-input';
 
 import { useAccount } from '@/src/account/account-context';
 import { useAuth } from '@/src/auth/auth-context';
@@ -22,6 +14,7 @@ import {
 } from '@/src/jobs/compress-photo';
 import { InspectionPhotosField } from '@/src/jobs/inspection-photos-field';
 import { JobCamera } from '@/src/jobs/job-camera';
+import { JobLookupFallback } from '@/src/jobs/job-lookup-fallback';
 import { JobPropertyHeader } from '@/src/jobs/job-property-header';
 import { LeasingKeyCollectionPanel } from '@/src/jobs/leasing-key-collection-panel';
 import { NoImageDialog } from '@/src/jobs/no-image-dialog';
@@ -40,6 +33,7 @@ import {
   isKeyReturnComplete,
   withKeyPhase,
 } from '@/src/lib/key-access';
+import { jobLookupMiss } from '@/src/lib/job-lookup';
 import type { InspectionJob } from '@/src/lib/types';
 import { queueKeyCustody, queueKeyCustodyPhoto } from '@/src/offline/sync';
 import { useOffline } from '@/src/offline/offline-context';
@@ -184,7 +178,7 @@ export function JobHandoverPanel({
   onChangeTab: (tab: WorkspaceTab, extras?: { keys?: 'collect' | 'return' }) => void;
   onFinished?: () => void;
 }) {
-  const { getJob, patchJob, deviceLocation } = useInspections();
+  const { getJob, patchJob, deviceLocation, jobsHydrated } = useInspections();
   const { user } = useAuth();
   const { profile } = useAccount();
   const { refreshPending } = useOffline();
@@ -242,7 +236,7 @@ export function JobHandoverPanel({
   }, [phase, id, jobReady]);
 
   if (!job) {
-    return <Text style={styles.body}>This job could not be found.</Text>;
+    return <JobLookupFallback state={jobLookupMiss(jobsHydrated)} />;
   }
 
   if (!job.keyAccess) {
@@ -599,7 +593,7 @@ export function JobHandoverPanel({
 
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Notes (optional)</Text>
-          <TextInput
+          <AppTextInput
             value={notes}
             onChangeText={(value) => setNotes(value.slice(0, NOTES_MAX))}
             placeholder="Add any notes about the handover..."

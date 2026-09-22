@@ -1,5 +1,7 @@
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+
+import { AppTextInput } from '@/src/ui/app-text-input';
 
 import {
   normalizeSectionName,
@@ -38,7 +40,7 @@ export function AddSectionControl({
       <Text style={styles.label}>Add item</Text>
       <Text style={styles.hint}>Name the item, then mark Clean / Undamaged / Working on the card above.</Text>
       <View style={styles.row}>
-        <TextInput
+        <AppTextInput
           value={sectionName}
           onChangeText={(value) => {
             setSectionName(value);

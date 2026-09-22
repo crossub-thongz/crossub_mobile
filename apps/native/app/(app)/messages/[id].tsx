@@ -1,17 +1,8 @@
 import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import {
-  Alert,
-  KeyboardAvoidingView,
-  Linking,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { Alert, KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+
+import { AppTextInput } from '@/src/ui/app-text-input';
 
 import { useAuth } from '@/src/auth/auth-context';
 import { useInbox } from '@/src/inbox/inbox-context';
@@ -130,7 +121,7 @@ export default function MessageThreadScreen() {
             >
               <Text style={styles.attachText}>+</Text>
             </Pressable>
-            <TextInput
+            <AppTextInput
               placeholder="Type a message..."
               placeholderTextColor={colors.muted}
               value={draft}

@@ -1,15 +1,8 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  Alert,
-  Linking,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+
+import { AppTextInput } from '@/src/ui/app-text-input';
 
 import {
   acceptInspection,
@@ -28,6 +21,7 @@ import { InspectionAreaActionBar } from '@/src/jobs/inspection-area-action-bar';
 import { InspectionAreaNav } from '@/src/jobs/inspection-area-nav';
 import { InspectionPhotosField } from '@/src/jobs/inspection-photos-field';
 import { JobCamera } from '@/src/jobs/job-camera';
+import { JobLookupFallback } from '@/src/jobs/job-lookup-fallback';
 import { useFinishInspection } from '@/src/jobs/use-finish-inspection';
 import { type WorkspaceTab } from '@/src/jobs/workspace-nav';
 import {
@@ -48,6 +42,7 @@ import {
 } from '@/src/lib/inspection-layout';
 import { moveIndex, rekeyRecord, renameCustomArea } from '@/src/lib/inspection-layout-edit';
 import { isKeyCollectComplete } from '@/src/lib/key-access';
+import { jobLookupMiss } from '@/src/lib/job-lookup';
 import { queueExecutionDraft, queueInspectionFindings, queueInspectionPhotoBatch } from '@/src/offline/sync';
 import { useOffline } from '@/src/offline/offline-context';
 import { jobDetail, jobInspect, jobKeys } from '@/src/lib/routes';
@@ -70,7 +65,7 @@ export function FieldWorkflowScreen({
 }) {
   const { id, view: viewParam } = useLocalSearchParams<{ id: string; view?: string }>();
   const router = useRouter();
-  const { getJob, getDraft, setDraft, patchJob, upsertJob, refresh } = useInspections();
+  const { getJob, getDraft, setDraft, patchJob, upsertJob, refresh, jobsHydrated } = useInspections();
   const { refreshPending } = useOffline();
   const job = getJob(id);
   const view = viewProp ?? (type === 'open' ? 'inspect' : parseView(viewParam));
@@ -446,7 +441,7 @@ export function FieldWorkflowScreen({
   if (!job || !id) {
     return (
       <View style={styles.safe}>
-        <Text style={styles.error}>This job could not be found.</Text>
+        <JobLookupFallback state={jobLookupMiss(jobsHydrated)} />
       </View>
     );
   }
@@ -570,7 +565,7 @@ export function FieldWorkflowScreen({
                 />
                 <View>
                   <Text style={styles.notesLabel}>Area notes</Text>
-                  <TextInput
+                  <AppTextInput
                     value={current.notes}
                     onChangeText={(notes) => {
                       if (!currentName) return;

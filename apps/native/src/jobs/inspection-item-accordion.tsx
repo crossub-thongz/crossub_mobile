@@ -1,6 +1,8 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { type ReactNode } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+
+import { AppTextInput } from '@/src/ui/app-text-input';
 
 import { InspectionPhotosField } from '@/src/jobs/inspection-photos-field';
 import type { LocalPhoto } from '@/src/jobs/compress-photo';
@@ -169,7 +171,7 @@ export function InspectionItemAccordion({
 
           <View>
             <Text style={styles.commentsLabel}>COMMENTS</Text>
-            <TextInput
+            <AppTextInput
               value={comment}
               onChangeText={(value) => onChangeComment(value.slice(0, COMMENT_MAX))}
               editable={!busy}

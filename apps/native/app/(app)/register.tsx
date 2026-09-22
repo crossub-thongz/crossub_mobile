@@ -1,13 +1,7 @@
 import { useEffect, useState } from 'react';
-import {
-  Alert,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+
+import { AppTextInput } from '@/src/ui/app-text-input';
 import { useRouter } from 'expo-router';
 
 import { useAccount } from '@/src/account/account-context';
@@ -165,7 +159,7 @@ export default function RegisterScreen() {
 
         <Text style={styles.section}>Contact details</Text>
         <Text style={styles.label}>Mobile</Text>
-        <TextInput
+        <AppTextInput
           value={mobile}
           onChangeText={setMobile}
           keyboardType="phone-pad"
@@ -181,7 +175,7 @@ export default function RegisterScreen() {
           maximumDate={new Date()}
         />
         <Text style={styles.label}>Residential address</Text>
-        <TextInput
+        <AppTextInput
           value={residentialAddress}
           onChangeText={setResidentialAddress}
           style={styles.input}
@@ -189,7 +183,7 @@ export default function RegisterScreen() {
           placeholderTextColor={colors.muted}
         />
         <Text style={styles.label}>ABN (optional)</Text>
-        <TextInput
+        <AppTextInput
           value={abn}
           onChangeText={setAbn}
           style={styles.input}
@@ -210,7 +204,7 @@ export default function RegisterScreen() {
           </Pressable>
         ))}
         <Text style={styles.label}>Licence number (optional)</Text>
-        <TextInput
+        <AppTextInput
           value={licenceNumber}
           onChangeText={setLicenceNumber}
           style={styles.input}
@@ -255,14 +249,14 @@ export default function RegisterScreen() {
 
         <Text style={styles.section}>Bank details (payroll)</Text>
         <Text style={styles.label}>Account name</Text>
-        <TextInput
+        <AppTextInput
           value={bankAccountName}
           onChangeText={setBankAccountName}
           style={styles.input}
           placeholderTextColor={colors.muted}
         />
         <Text style={styles.label}>BSB</Text>
-        <TextInput
+        <AppTextInput
           value={bankBsb}
           onChangeText={setBankBsb}
           style={styles.input}
@@ -271,7 +265,7 @@ export default function RegisterScreen() {
           autoCapitalize="none"
         />
         <Text style={styles.label}>Account number</Text>
-        <TextInput
+        <AppTextInput
           value={bankAccountNumber}
           onChangeText={setBankAccountNumber}
           style={styles.input}

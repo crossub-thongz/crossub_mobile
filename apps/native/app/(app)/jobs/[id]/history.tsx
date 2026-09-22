@@ -24,7 +24,9 @@ import {
 } from '@/src/api/inspector';
 import { INSPECTION_PAY_LABEL } from '@/src/constants/inspection';
 import { useInspections } from '@/src/inspections/inspections-context';
+import { JobLookupFallback } from '@/src/jobs/job-lookup-fallback';
 import { OpenViewingPanels } from '@/src/jobs/open-viewing-screen';
+import { jobLookupMiss } from '@/src/lib/job-lookup';
 import {
   formatCurrency,
   formatDateTime,
@@ -120,19 +122,23 @@ function KeyPhase({
 export default function JobHistoryScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { getJob, upsertJob } = useInspections();
+  const { getJob, upsertJob, jobsHydrated } = useInspections();
   const cached = getJob(id);
   const [collection, setCollection] = useState<InspectorKeyCollection | null>(null);
   const [findings, setFindings] = useState<FindingsRoom[]>([]);
   const [findingsError, setFindingsError] = useState<string | null>(null);
   const [findingsLoading, setFindingsLoading] = useState(false);
-  const [missing, setMissing] = useState(false);
+  const [idLookupDone, setIdLookupDone] = useState(!id);
   const [viewing, setViewing] = useState<InspectorOpenViewing | null>(null);
   const [pdfBusy, setPdfBusy] = useState(false);
 
   useEffect(() => {
-    if (!id) return;
+    if (!id) {
+      setIdLookupDone(true);
+      return;
+    }
     let active = true;
+    setIdLookupDone(false);
     void (async () => {
       try {
         const dto = await fetchInspection(id);
@@ -148,7 +154,9 @@ export default function JobHistoryScreen() {
         }
         upsertJob(nextJob);
       } catch {
-        if (active) setMissing(true);
+        // Missing until jobsHydrated + this GET both finish.
+      } finally {
+        if (active) setIdLookupDone(true);
       }
     })();
     return () => {
@@ -218,12 +226,17 @@ export default function JobHistoryScreen() {
   }, [id, showOpenExtras]);
 
   if (!job) {
+    const lookup = jobLookupMiss(jobsHydrated, idLookupDone);
     return (
       <SafeAreaView style={styles.safe} edges={['bottom']}>
-        <Stack.Screen options={{ title: 'Inspection report' }} />
-        <Text style={styles.pageMuted}>
-          {missing ? 'Report not found' : 'Loading report?'}
-        </Text>
+        <Stack.Screen
+          options={{ title: lookup === 'loading' ? 'Loading report' : 'Report not found' }}
+        />
+        <JobLookupFallback
+          state={lookup}
+          missingTitle="Report not found"
+          missingMessage="This inspection report could not be found."
+        />
       </SafeAreaView>
     );
   }

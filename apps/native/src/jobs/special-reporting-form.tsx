@@ -1,13 +1,7 @@
 import { useState } from 'react';
-import {
-  ActivityIndicator,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+
+import { AppTextInput } from '@/src/ui/app-text-input';
 
 import {
   specialReportingMissing,
@@ -216,7 +210,7 @@ export function SpecialReportingForm({
                 }
               />
               <Text style={styles.label}>Water meter reading at START of tenancy *</Text>
-              <TextInput
+              <AppTextInput
                 value={value.waterMeterStart}
                 onChangeText={(waterMeterStart) => patch({ waterMeterStart })}
                 placeholder="Reading"
@@ -229,7 +223,7 @@ export function SpecialReportingForm({
                 onChange={(waterMeterStartDate) => patch({ waterMeterStartDate })}
               />
               <Text style={styles.label}>Water meter reading at END of tenancy</Text>
-              <TextInput
+              <AppTextInput
                 value={value.waterMeterEnd}
                 onChangeText={(waterMeterEnd) => patch({ waterMeterEnd })}
                 placeholder="Reading"
@@ -249,7 +243,7 @@ export function SpecialReportingForm({
 
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Additional comments</Text>
-        <TextInput
+        <AppTextInput
           value={value.additionalComments}
           onChangeText={(additionalComments) => patch({ additionalComments })}
           placeholder="Optional notes"
@@ -284,7 +278,7 @@ export function SpecialReportingForm({
           optional
         />
         <Text style={styles.label}>Landlord agrees to undertake work</Text>
-        <TextInput
+        <AppTextInput
           value={value.landlordWork}
           onChangeText={(landlordWork) => patch({ landlordWork })}
           multiline
@@ -298,7 +292,7 @@ export function SpecialReportingForm({
           optional
         />
         <Text style={styles.label}>Landlord/agent signature</Text>
-        <TextInput
+        <AppTextInput
           value={value.landlordSignature}
           onChangeText={(landlordSignature) => patch({ landlordSignature })}
           placeholderTextColor={colors.muted}

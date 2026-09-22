@@ -1,15 +1,8 @@
 import { Link } from 'expo-router';
 import { useState } from 'react';
-import {
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+
+import { AppTextInput } from '@/src/ui/app-text-input';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/src/auth/auth-context';
@@ -66,7 +59,7 @@ export default function LoginScreen() {
           <Text style={styles.sub}>Sign in with your inspector account</Text>
 
           <Text style={styles.label}>Email</Text>
-          <TextInput
+          <AppTextInput
             value={email}
             onChangeText={setEmail}
             autoCapitalize="none"
@@ -80,7 +73,7 @@ export default function LoginScreen() {
 
           <Text style={styles.label}>Password</Text>
           <View style={styles.passwordRow}>
-            <TextInput
+            <AppTextInput
               value={password}
               onChangeText={setPassword}
               secureTextEntry={!showPassword}

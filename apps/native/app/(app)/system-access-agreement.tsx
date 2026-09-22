@@ -1,15 +1,8 @@
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+
+import { AppTextInput } from '@/src/ui/app-text-input';
 
 import {
   acceptSystemAccessAgreement,
@@ -138,7 +131,7 @@ export default function SystemAccessAgreementScreen() {
         ) : null}
 
         <Text style={styles.label}>Full legal name</Text>
-        <TextInput
+        <AppTextInput
           value={signerName}
           onChangeText={setSignerName}
           placeholder="As it appears on your inspector licence"

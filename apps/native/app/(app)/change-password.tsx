@@ -1,14 +1,7 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
-import {
-  Alert,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { AppTextInput } from '@/src/ui/app-text-input';
 
 import { changePassword } from '@/src/api/client';
 import { useAuth } from '@/src/auth/auth-context';
@@ -85,7 +78,7 @@ export default function ChangePasswordScreen() {
         {!skipCurrent ? (
           <>
             <Text style={styles.label}>Existing password</Text>
-            <TextInput
+            <AppTextInput
               value={currentPassword}
               onChangeText={setCurrentPassword}
               secureTextEntry={!show.current}
@@ -100,7 +93,7 @@ export default function ChangePasswordScreen() {
           </>
         ) : null}
         <Text style={styles.label}>New password</Text>
-        <TextInput
+        <AppTextInput
           value={newPassword}
           onChangeText={setNewPassword}
           secureTextEntry={!show.next}
@@ -113,7 +106,7 @@ export default function ChangePasswordScreen() {
           <Text style={styles.toggle}>{show.next ? 'Hide' : 'Show'}</Text>
         </Pressable>
         <Text style={styles.label}>Confirm new password</Text>
-        <TextInput
+        <AppTextInput
           value={confirmPassword}
           onChangeText={setConfirmPassword}
           secureTextEntry={!show.confirm}

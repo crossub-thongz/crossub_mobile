@@ -25,6 +25,7 @@ import { useInspections } from '@/src/inspections/inspections-context';
 import { CancelTaskSheet } from '@/src/jobs/cancel-task-sheet';
 import { FieldWorkflowScreen } from '@/src/jobs/field-workflow';
 import { JobHandoverPanel } from '@/src/jobs/job-handover';
+import { JobLookupFallback } from '@/src/jobs/job-lookup-fallback';
 import { JobSummaryCard } from '@/src/jobs/job-summary-card';
 import { JobPayBreakdown, JobTravelCard } from '@/src/jobs/job-travel-pay';
 import { OpenViewingScreen } from '@/src/jobs/open-viewing-screen';
@@ -36,6 +37,7 @@ import {
   type WorkspaceTab,
 } from '@/src/jobs/workspace-nav';
 import { formatDate, formatScheduleWhen } from '@/src/lib/datetime';
+import { jobLookupMiss } from '@/src/lib/job-lookup';
 import {
   jobInspectionStarted,
   jobPrimaryAction,
@@ -68,31 +70,43 @@ export default function JobDetailsScreen() {
     keys?: string;
   }>();
   const router = useRouter();
-  const { getJob, getDraft, upsertJob, claim, claimingId, refresh, deviceLocation } = useInspections();
+  const { getJob, getDraft, upsertJob, claim, claimingId, refresh, deviceLocation, jobsHydrated } =
+    useInspections();
   const cached = getJob(id);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [cancelOpen, setCancelOpen] = useState(false);
+  const [idLookupDone, setIdLookupDone] = useState(!id);
   const [tab, setTab] = useState<WorkspaceTab>(() => parseWorkspaceTab(tabParam));
   const [keysPhase, setKeysPhase] = useState<'collect' | 'return'>(() => parseKeysPhase(keysParam));
 
   useEffect(() => {
-    if (!id) return;
+    if (!id) {
+      setIdLookupDone(true);
+      return;
+    }
+    let cancelled = false;
+    setIdLookupDone(false);
     void (async () => {
       try {
         const dto = await fetchInspection(id);
-        let job = toInspectionJob(dto);
+        let next = toInspectionJob(dto);
         try {
           const collection = await fetchKeyCollection(id);
-          if (collection) job = applyKeyCollection(job, collection);
+          if (collection) next = applyKeyCollection(next, collection);
         } catch {
           // ignore
         }
-        upsertJob(job);
+        if (!cancelled) upsertJob(next);
       } catch {
         // Keep the cached card if the job is a pool preview.
+      } finally {
+        if (!cancelled) setIdLookupDone(true);
       }
     })();
+    return () => {
+      cancelled = true;
+    };
   }, [id, upsertJob]);
 
   useEffect(() => {
@@ -118,10 +132,11 @@ export default function JobDetailsScreen() {
 
   const job = getJob(id) ?? cached;
   if (!job) {
+    const lookup = jobLookupMiss(jobsHydrated, idLookupDone);
     return (
       <SafeAreaView style={styles.safe} edges={['bottom']}>
-        <Stack.Screen options={{ title: 'Job' }} />
-        <Text style={styles.muted}>This job could not be found.</Text>
+        <Stack.Screen options={{ title: lookup === 'loading' ? 'Loading job' : 'Job not found' }} />
+        <JobLookupFallback state={lookup} />
       </SafeAreaView>
     );
   }

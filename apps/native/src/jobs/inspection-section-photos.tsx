@@ -1,6 +1,8 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+
+import { AppTextInput } from '@/src/ui/app-text-input';
 
 import { AddSectionControl } from '@/src/jobs/add-section-control';
 import { DraggableNamedList } from '@/src/jobs/draggable-named-list';
@@ -307,7 +309,7 @@ function RenameItemModal({
       <Pressable style={styles.overlay} onPress={onClose}>
         <Pressable style={styles.sheet} onPress={() => undefined}>
           <Text style={styles.sheetTitle}>Rename item</Text>
-          <TextInput
+          <AppTextInput
             value={value}
             onChangeText={setValue}
             placeholder="Item name"

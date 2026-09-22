@@ -6,10 +6,12 @@ import {
   Pressable,
   StyleSheet,
   Text,
-  TextInput,
+  TextInput as RNTextInput,
   View,
   type DimensionValue,
 } from 'react-native';
+
+import { AppTextInput } from '@/src/ui/app-text-input';
 
 import {
   mapTile,
@@ -50,7 +52,7 @@ export function PoolLocationBar({
   onRadiusChange: (radiusKm: PoolRadiusKm) => void;
   onSortChange: (sort: PoolSort) => void;
 }) {
-  const searchRef = useRef<TextInput>(null);
+  const searchRef = useRef<RNTextInput>(null);
   const [query, setQuery] = useState('');
   const [hits, setHits] = useState<GeocodeHit[]>([]);
   const [searching, setSearching] = useState(false);
@@ -194,7 +196,7 @@ export function PoolLocationBar({
 
         <View style={styles.searchWrap}>
           <Ionicons name="search" size={16} color={colors.muted} style={styles.searchIcon} />
-          <TextInput
+          <AppTextInput
             ref={searchRef}
             value={query}
             onChangeText={setQuery}
@@ -205,7 +207,7 @@ export function PoolLocationBar({
             autoCapitalize="none"
           />
         </View>
-        {searching ? <Text style={styles.meta}>Searchingù</Text> : null}
+        {searching ? <Text style={styles.meta}>Searching?</Text> : null}
         {hits.length > 0 ? (
           <View style={styles.hits}>
             {hits.map((hit) => (

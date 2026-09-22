@@ -1,14 +1,8 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useEffect, useState, type ReactNode } from 'react';
-import {
-  Alert,
-  Modal,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { Alert, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+
+import { AppTextInput } from '@/src/ui/app-text-input';
 
 import { DraggableNamedList } from '@/src/jobs/draggable-named-list';
 
@@ -217,7 +211,7 @@ function AddAreaModal({
           <Text style={styles.hint}>
             Name the area, then choose standard wall-to-floor sections or add sections manually.
           </Text>
-          <TextInput
+          <AppTextInput
             value={name}
             onChangeText={(value) => {
               setName(value);
@@ -293,7 +287,7 @@ function RenameAreaModal({
       <Pressable style={styles.overlay} onPress={onClose}>
         <Pressable style={styles.sheet} onPress={() => undefined}>
           <Text style={styles.sheetTitle}>Rename area</Text>
-          <TextInput
+          <AppTextInput
             value={value}
             onChangeText={setValue}
             placeholder="Area name"

@@ -8,7 +8,6 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -17,6 +16,7 @@ import { useAuth } from '@/src/auth/auth-context';
 import { normalizeAuthEmail } from '@/src/auth/types';
 import { PASSWORD_MAX, PASSWORD_MIN } from '@/src/constants/auth';
 import { getApiOrigin } from '@/src/config/api-url';
+import { AppTextInput } from '@/src/ui/app-text-input';
 
 export default function SignupScreen() {
   const { register, status } = useAuth();
@@ -95,7 +95,7 @@ export default function SignupScreen() {
           <View style={styles.row}>
             <View style={styles.col}>
               <Text style={styles.label}>First name</Text>
-              <TextInput
+              <AppTextInput
                 value={firstName}
                 onChangeText={setFirstName}
                 autoComplete="given-name"
@@ -105,7 +105,7 @@ export default function SignupScreen() {
             </View>
             <View style={styles.col}>
               <Text style={styles.label}>Last name</Text>
-              <TextInput
+              <AppTextInput
                 value={lastName}
                 onChangeText={setLastName}
                 autoComplete="family-name"
@@ -116,7 +116,7 @@ export default function SignupScreen() {
           </View>
 
           <Text style={styles.label}>Email</Text>
-          <TextInput
+          <AppTextInput
             value={email}
             onChangeText={setEmail}
             autoCapitalize="none"
@@ -129,7 +129,7 @@ export default function SignupScreen() {
 
           <Text style={styles.label}>Password</Text>
           <View style={styles.passwordRow}>
-            <TextInput
+            <AppTextInput
               value={password}
               onChangeText={setPassword}
               secureTextEntry={!showPassword}
@@ -143,7 +143,7 @@ export default function SignupScreen() {
           </View>
 
           <Text style={styles.label}>Confirm password</Text>
-          <TextInput
+          <AppTextInput
             value={confirmPassword}
             onChangeText={setConfirmPassword}
             secureTextEntry={!showPassword}
@@ -178,7 +178,7 @@ export default function SignupScreen() {
               Sign in
             </Link>
           </Text>
-          <Text style={styles.hint}>Nest {getApiOrigin()} ∑ POST /api/auth/register-inspector</Text>
+          <Text style={styles.hint}>Nest {getApiOrigin()} ù POST /api/auth/register-inspector</Text>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>

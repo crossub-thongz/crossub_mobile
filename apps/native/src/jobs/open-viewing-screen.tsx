@@ -23,10 +23,12 @@ import {
 } from '@/src/api/inspector';
 import { useInspections } from '@/src/inspections/inspections-context';
 import { CancelTaskSheet } from '@/src/jobs/cancel-task-sheet';
+import { JobLookupFallback } from '@/src/jobs/job-lookup-fallback';
 import { useFinishInspection } from '@/src/jobs/use-finish-inspection';
 import { type WorkspaceTab } from '@/src/jobs/workspace-nav';
 import { formatDateTime, formatInspectTime } from '@/src/lib/datetime';
 import { isKeyCollectComplete, isKeyReturnComplete } from '@/src/lib/key-access';
+import { jobLookupMiss } from '@/src/lib/job-lookup';
 import {
   formatOpenInspectionClock,
   openInspectionQrImageUrl,
@@ -271,7 +273,7 @@ export function OpenViewingScreen({
 }) {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { getJob, upsertJob, patchJob, refresh } = useInspections();
+  const { getJob, upsertJob, patchJob, refresh, jobsHydrated } = useInspections();
   const job = getJob(id);
   const [viewing, setViewing] = useState<InspectorOpenViewing | null>(null);
   const [tab, setTab] = useState<'checkins' | 'qr'>('checkins');
@@ -316,7 +318,7 @@ export function OpenViewingScreen({
   if (!job || !id) {
     return (
       <View style={styles.safe}>
-        <Text style={styles.muted}>This job could not be found.</Text>
+        <JobLookupFallback state={jobLookupMiss(jobsHydrated)} />
       </View>
     );
   }

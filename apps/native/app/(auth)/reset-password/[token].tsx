@@ -1,15 +1,8 @@
 import { Link, useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
-import {
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+
+import { AppTextInput } from '@/src/ui/app-text-input';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { resetPasswordWithToken } from '@/src/api/client';
@@ -86,7 +79,7 @@ export default function ResetPasswordScreen() {
 
           <Text style={styles.label}>New password</Text>
           <View style={styles.passwordRow}>
-            <TextInput
+            <AppTextInput
               value={newPassword}
               onChangeText={setNewPassword}
               secureTextEntry={!showNew}
@@ -103,7 +96,7 @@ export default function ResetPasswordScreen() {
 
           <Text style={styles.label}>Confirm password</Text>
           <View style={styles.passwordRow}>
-            <TextInput
+            <AppTextInput
               value={confirmPassword}
               onChangeText={setConfirmPassword}
               secureTextEntry={!showConfirm}

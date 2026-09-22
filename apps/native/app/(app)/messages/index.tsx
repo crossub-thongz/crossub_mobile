@@ -7,7 +7,6 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 
@@ -22,6 +21,7 @@ import {
 import { messageDetail } from '@/src/lib/routes';
 import { colors } from '@/src/theme';
 import { AppHeader } from '@/src/ui/app-header';
+import { AppTextInput } from '@/src/ui/app-text-input';
 import { EmptyState } from '@/src/ui/empty-state';
 
 export default function MessagesScreen() {
@@ -39,7 +39,7 @@ export default function MessagesScreen() {
     () =>
       jobs
         .filter((job) => job.status !== 'available' && job.status !== 'declined')
-        .map((job) => ({ id: job.id, label: `${job.type} ù ${job.propertyAddress}` })),
+        .map((job) => ({ id: job.id, label: `${job.type} ? ${job.propertyAddress}` })),
     [jobs],
   );
 
@@ -91,7 +91,7 @@ export default function MessagesScreen() {
         }
       >
         <View style={styles.toolbar}>
-          <Text style={styles.hint}>Message the office ù pick a case when it relates to a job.</Text>
+          <Text style={styles.hint}>Message the office ? pick a case when it relates to a job.</Text>
           <Pressable
             onPress={() => setComposing((open) => !open)}
             style={[styles.newBtn, composing && styles.newBtnOutline]}
@@ -129,15 +129,15 @@ export default function MessagesScreen() {
                 </Pressable>
               ))}
             </ScrollView>
-            <TextInput
+            <AppTextInput
               placeholder="Subject"
               placeholderTextColor={colors.muted}
               value={subject}
               onChangeText={setSubject}
               style={styles.input}
             />
-            <TextInput
-              placeholder="Write your messageù"
+            <AppTextInput
+              placeholder="Write your message?"
               placeholderTextColor={colors.muted}
               value={body}
               onChangeText={setBody}
@@ -146,7 +146,7 @@ export default function MessagesScreen() {
             />
             {pendingFiles.length > 0 ? (
               <Text style={styles.hint}>
-                {pendingFiles.map((file) => file.fileName).join(' ∑ ')}
+                {pendingFiles.map((file) => file.fileName).join(' ? ')}
               </Text>
             ) : null}
             <View style={styles.composeActions}>
@@ -209,8 +209,8 @@ export default function MessagesScreen() {
                 {item.lastMessage}
               </Text>
               <Text style={styles.meta}>
-                {formatRelative(item.lastAt)} ù {item.category}
-                {item.inspectionTrackingNumber ? ` ù #${item.inspectionTrackingNumber}` : ''}
+                {formatRelative(item.lastAt)} ? {item.category}
+                {item.inspectionTrackingNumber ? ` ? #${item.inspectionTrackingNumber}` : ''}
               </Text>
             </Pressable>
           ))

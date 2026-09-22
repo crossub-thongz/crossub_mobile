@@ -1,14 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import {
-  ActivityIndicator,
-  Pressable,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+
+import { AppTextInput } from '@/src/ui/app-text-input';
 import { useRouter } from 'expo-router';
 
 import { fetchKeyCollection } from '@/src/api/inspector';
@@ -88,7 +81,7 @@ export default function HistoryScreen() {
           Completed inspections with key collection proof and uploaded section photos.
         </Text>
         <View style={styles.search}>
-          <TextInput
+          <AppTextInput
             value={query}
             onChangeText={setQuery}
             placeholder="Search address or suburb"
