@@ -36,6 +36,8 @@
     "production": {
       "ios": {
         "ascAppId": "6812279119",
+        "appleTeamId": "KQ997HDJ7H",
+        "companyName": "CROSSUB PROPERTY MANAGEMENT PTY LTD",
         "groups": ["Dev Test"]
       },
       "android": {

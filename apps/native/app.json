@@ -2,7 +2,7 @@
   "expo": {
     "name": "CROSSUB APP",
     "slug": "crossub-inspector",
-    "owner": "justinlth18",
+    "owner": "crossub-property-management",
     "version": "0.1.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -16,7 +16,7 @@
         "usesNonExemptEncryption": false
       },
       "infoPlist": {
-        "CFBundleDisplayName": "CROSSUB APP",
+        "CFBundleDisplayName": "CROSSUB\u00a0APP",
         "CFBundleName": "CROSSUB APP",
         "ITSAppUsesNonExemptEncryption": false,
         "NSCameraUsageDescription": "CROSSUB Inspector needs the camera to photograph inspection evidence.",
@@ -24,10 +24,11 @@
       }
     },
     "android": {
+      "label": "CROSSUB APP",
       "package": "com.crossub.inspector",
       "versionCode": 1,
       "adaptiveIcon": {
-        "backgroundColor": "#111111",
+        "backgroundColor": "#2BB5A8",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
@@ -49,11 +50,11 @@
         "expo-splash-screen",
         {
           "image": "./assets/images/splash-icon.png",
-          "imageWidth": 200,
+          "imageWidth": 220,
           "resizeMode": "contain",
-          "backgroundColor": "#111111",
+          "backgroundColor": "#2BB5A8",
           "dark": {
-            "backgroundColor": "#111111"
+            "backgroundColor": "#2BB5A8"
           }
         }
       ],
