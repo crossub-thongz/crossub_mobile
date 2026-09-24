@@ -1,5 +1,6 @@
 import * as SQLite from 'expo-sqlite';
 
+import type { HandoverParty, KeyCondition } from '@/src/lib/handover-notes';
 import type { RoutineExecutionDraft } from '@/src/lib/types';
 import { deleteQueuedPhoto, stripBase64Payload } from '@/src/offline/queued-photo';
 
@@ -23,7 +24,22 @@ export type OfflineQueueItem = {
   attempts: number;
 };
 
+export type HandoverFormDraft = {
+  photoUrls: string[];
+  party: HandoverParty;
+  condition: KeyCondition;
+  keySets: number;
+  contactName: string;
+  contactPhone: string;
+  contactEmail: string;
+  agencyName: string;
+  notes: string;
+};
+
+export type DraftUriRewrite = { from: string; to: string };
+
 const queueListeners = new Set<() => void>();
+const draftListeners = new Set<(rewrite?: DraftUriRewrite) => void>();
 
 export function subscribeQueueChanged(listener: () => void): () => void {
   queueListeners.add(listener);
@@ -32,8 +48,21 @@ export function subscribeQueueChanged(listener: () => void): () => void {
   };
 }
 
+export function subscribeDraftsChanged(
+  listener: (rewrite?: DraftUriRewrite) => void,
+): () => void {
+  draftListeners.add(listener);
+  return () => {
+    draftListeners.delete(listener);
+  };
+}
+
 function notifyQueueChanged(): void {
   for (const listener of queueListeners) listener();
+}
+
+function notifyDraftsChanged(rewrite?: DraftUriRewrite): void {
+  for (const listener of draftListeners) listener(rewrite);
 }
 
 let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
@@ -43,6 +72,18 @@ async function migrateQueue(db: SQLite.SQLiteDatabase): Promise<void> {
   if (!cols.some((col) => col.name === 'attempts')) {
     await db.execAsync(`ALTER TABLE queue ADD COLUMN attempts INTEGER NOT NULL DEFAULT 0`);
   }
+}
+
+async function migrateHandoverDrafts(db: SQLite.SQLiteDatabase): Promise<void> {
+  await db.execAsync(`
+    CREATE TABLE IF NOT EXISTS handover_drafts (
+      job_id TEXT NOT NULL,
+      phase TEXT NOT NULL,
+      json TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      PRIMARY KEY (job_id, phase)
+    );
+  `);
 }
 
 async function getDb(): Promise<SQLite.SQLiteDatabase> {
@@ -63,8 +104,16 @@ async function getDb(): Promise<SQLite.SQLiteDatabase> {
           payload TEXT NOT NULL,
           created_at TEXT NOT NULL
         );
+        CREATE TABLE IF NOT EXISTS handover_drafts (
+          job_id TEXT NOT NULL,
+          phase TEXT NOT NULL,
+          json TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          PRIMARY KEY (job_id, phase)
+        );
       `);
       await migrateQueue(db);
+      await migrateHandoverDrafts(db);
       return db;
     })().catch((err) => {
       dbPromise = null;
@@ -136,6 +185,49 @@ export async function loadAllDrafts(): Promise<Record<string, RoutineExecutionDr
 export async function deleteDraftLocal(inspectionId: string): Promise<void> {
   const db = await getDb();
   await db.runAsync(`DELETE FROM drafts WHERE inspection_id = ?`, inspectionId);
+}
+
+export async function saveHandoverDraft(
+  jobId: string,
+  phase: 'collect' | 'return',
+  draft: HandoverFormDraft,
+): Promise<void> {
+  const db = await getDb();
+  await db.runAsync(
+    `INSERT OR REPLACE INTO handover_drafts (job_id, phase, json, updated_at) VALUES (?, ?, ?, ?)`,
+    jobId,
+    phase,
+    JSON.stringify(draft),
+    new Date().toISOString(),
+  );
+}
+
+export async function loadHandoverDraft(
+  jobId: string,
+  phase: 'collect' | 'return',
+): Promise<HandoverFormDraft | null> {
+  const db = await getDb();
+  const row = await db.getFirstAsync<{ json: string }>(
+    `SELECT json FROM handover_drafts WHERE job_id = ? AND phase = ?`,
+    jobId,
+    phase,
+  );
+  if (!row?.json) return null;
+  try {
+    const parsed = JSON.parse(row.json) as HandoverFormDraft;
+    if (!parsed || !Array.isArray(parsed.photoUrls)) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+export async function deleteHandoverDraft(
+  jobId: string,
+  phase: 'collect' | 'return',
+): Promise<void> {
+  const db = await getDb();
+  await db.runAsync(`DELETE FROM handover_drafts WHERE job_id = ? AND phase = ?`, jobId, phase);
 }
 
 async function parsePayload(raw: string): Promise<Record<string, unknown> | null> {
@@ -313,4 +405,31 @@ export async function rewriteQueuedUris(from: string, to: string): Promise<void>
       await updateQueuePayload(item.id, next);
     }
   }
+  const drafts = await loadAllDrafts();
+  let draftsChanged = false;
+  for (const [inspectionId, draft] of Object.entries(drafts)) {
+    const next = rewriteStrings(draft, from, to) as RoutineExecutionDraft;
+    if (JSON.stringify(next) !== JSON.stringify(draft)) {
+      await saveDraftLocal(inspectionId, next);
+      draftsChanged = true;
+    }
+  }
+  const handoverRows = await (await getDb()).getAllAsync<{
+    job_id: string;
+    phase: string;
+    json: string;
+  }>(`SELECT job_id, phase, json FROM handover_drafts`);
+  for (const row of handoverRows) {
+    try {
+      const parsed = JSON.parse(row.json) as HandoverFormDraft;
+      const next = rewriteStrings(parsed, from, to) as HandoverFormDraft;
+      if (JSON.stringify(next) !== JSON.stringify(parsed)) {
+        await saveHandoverDraft(row.job_id, row.phase === 'return' ? 'return' : 'collect', next);
+        draftsChanged = true;
+      }
+    } catch {
+      // Skip a corrupt handover row.
+    }
+  }
+  if (draftsChanged) notifyDraftsChanged({ from, to });
 }

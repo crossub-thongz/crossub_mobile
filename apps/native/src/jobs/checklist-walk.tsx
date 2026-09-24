@@ -3,6 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { AppTextInput } from '@/src/ui/app-text-input';
 
+import { apiErrorMessage } from '@/src/api/client';
 import {
   fetchInspectionDetail,
   linkInspectionAreaPhotos,
@@ -31,8 +32,10 @@ import {
   mergeSpecialReporting,
   specialReportingAsFindings,
 } from '@/src/lib/special-reporting';
+import { useInspections } from '@/src/inspections/inspections-context';
 import type { RoutineAreaIssueDraft, RoutineExecutionDraft } from '@/src/lib/types';
 import { queueInspectionFindings, queueInspectionPhotoBatch } from '@/src/offline/sync';
+import { upsertPhotoUrl } from '@/src/offline/queued-photo';
 import { useOffline } from '@/src/offline/offline-context';
 import { colors } from '@/src/theme';
 
@@ -136,6 +139,7 @@ export function ChecklistWalk({
   const [ingoingFromReference, setIngoingFromReference] = useState(false);
   const seededRef = useRef(false);
   const { refreshPending } = useOffline();
+  const { draftsHydrated } = useInspections();
   const currentName = names[areaIndex];
   const issue = currentName
     ? ensureIssue(currentName, draft.issues[currentName], customAreas)
@@ -146,12 +150,13 @@ export function ChecklistWalk({
   const isLast = names.length > 0 && areaIndex >= names.length - 1;
 
   useEffect(() => {
-    if (type !== 'outgoing' || seededRef.current || names.length === 0) return;
+    if (!draftsHydrated || type !== 'outgoing' || seededRef.current || names.length === 0) return;
     seededRef.current = true;
     void (async () => {
       try {
         const detail = await fetchInspectionDetail(inspectionId);
-        const withSections: Record<string, RoutineAreaIssueDraft> = { ...draft.issues };
+        const latest = draftRef.current;
+        const withSections: Record<string, RoutineAreaIssueDraft> = { ...latest.issues };
         for (const name of names) {
           withSections[name] = ensureIssue(name, withSections[name], customAreas);
         }
@@ -168,7 +173,7 @@ export function ChecklistWalk({
           ),
         );
         persist({
-          ...draft,
+          ...latest,
           issues: nextIssues,
         });
       } catch {
@@ -177,7 +182,7 @@ export function ChecklistWalk({
     })();
     // Seed reference photos once when the walk opens.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [inspectionId, type]);
+  }, [inspectionId, type, draftsHydrated]);
 
   const updateIssue = (next: RoutineAreaIssueDraft) => {
     if (!currentName) return;
@@ -192,26 +197,20 @@ export function ChecklistWalk({
 
   const attachAreaPhotos = async (photos: LocalPhoto[]) => {
     if (!currentName || photos.length === 0) return;
-    const locals = photos.map((photo) => photo.uri);
-    const rec = latestIssue();
-    updateIssue({
-      ...rec,
-      available: true,
-      areaPhotos: [...(rec.areaPhotos ?? []), ...locals],
-    });
     setBusy('photo');
     setError(null);
     try {
       await ensureAccepted();
-      await queueInspectionPhotoBatch(inspectionId, photos, currentName, (localUri, remoteUrl) => {
+      await queueInspectionPhotoBatch(inspectionId, photos, currentName, (fromUri, toUri) => {
         const rec = latestIssue();
         updateIssue({
           ...rec,
-          areaPhotos: (rec.areaPhotos ?? []).map((url) => (url === localUri ? remoteUrl : url)),
+          available: true,
+          areaPhotos: upsertPhotoUrl(rec.areaPhotos ?? [], fromUri, toUri),
         });
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Photo upload failed - please retry');
+      setError(apiErrorMessage(err, 'Photo upload failed - please retry'));
     } finally {
       setBusy(null);
     }
@@ -226,31 +225,6 @@ export function ChecklistWalk({
     const resolvedSide = side ?? (type === 'outgoing' ? 'outgoing' : undefined);
     const slot: 'ingoing' | 'outgoing' =
       resolvedSide === 'outgoing' || type === 'outgoing' ? 'outgoing' : 'ingoing';
-    const locals = photos.map((photo) => photo.uri);
-    const rec = latestIssue();
-    const existing = rec.photosBySection?.[section];
-    if (resolvedSide === 'ingoing') {
-      updateIssue({
-        ...rec,
-        available: true,
-        photosBySection: {
-          ...(rec.photosBySection ?? {}),
-          [section]: {
-            ...(existing ?? emptySectionPhotos()),
-            ingoingPhotoUrls: [...(existing?.ingoingPhotoUrls ?? []), ...locals],
-          },
-        },
-      });
-    } else {
-      updateIssue({
-        ...rec,
-        available: true,
-        photosBySection: {
-          ...(rec.photosBySection ?? {}),
-          [section]: withCurrentUrls(slot, existing, [...currentUrls(slot, existing), ...locals]),
-        },
-      });
-    }
 
     setBusy('photo');
     setError(null);
@@ -260,18 +234,21 @@ export function ChecklistWalk({
         inspectionId,
         photos,
         photoAreaName(currentName, section, resolvedSide),
-        (localUri, remoteUrl) => {
+        (fromUri, toUri) => {
           const next = latestIssue();
           const photosForSection = next.photosBySection?.[section];
           if (resolvedSide === 'ingoing') {
             updateIssue({
               ...next,
+              available: true,
               photosBySection: {
                 ...(next.photosBySection ?? {}),
                 [section]: {
                   ...(photosForSection ?? emptySectionPhotos()),
-                  ingoingPhotoUrls: (photosForSection?.ingoingPhotoUrls ?? []).map((url) =>
-                    url === localUri ? remoteUrl : url,
+                  ingoingPhotoUrls: upsertPhotoUrl(
+                    photosForSection?.ingoingPhotoUrls ?? [],
+                    fromUri,
+                    toUri,
                   ),
                 },
               },
@@ -280,19 +257,20 @@ export function ChecklistWalk({
           }
           updateIssue({
             ...next,
+            available: true,
             photosBySection: {
               ...(next.photosBySection ?? {}),
               [section]: withCurrentUrls(
                 slot,
                 photosForSection,
-                currentUrls(slot, photosForSection).map((url) => (url === localUri ? remoteUrl : url)),
+                upsertPhotoUrl(currentUrls(slot, photosForSection), fromUri, toUri),
               ),
             },
           });
         },
       );
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Photo upload failed - please retry');
+      setError(apiErrorMessage(err, 'Photo upload failed - please retry'));
     } finally {
       setBusy(null);
     }
@@ -387,13 +365,19 @@ export function ChecklistWalk({
         );
         return;
       }
-      persist({ ...draft, workflowStep: 'areas', specialReportingComplete: true });
+      persist({
+        ...draft,
+        workflowStep: 'areas',
+        specialReportingComplete: true,
+        inspectionFinished: true,
+      });
       await onAfterFindings();
     } catch (err) {
       setError(
-        err instanceof Error
-          ? err.message
-          : 'The findings could not be saved. Check your connection and complete the report again.',
+        apiErrorMessage(
+          err,
+          'The findings could not be saved. Check your connection and complete the report again.',
+        ),
       );
     } finally {
       setBusy(null);

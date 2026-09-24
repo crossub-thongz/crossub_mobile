@@ -74,13 +74,22 @@ export async function fetchWithBearer(
   input: RequestInfo | URL,
   init?: RequestInit,
 ): Promise<Response> {
-  const original = input instanceof Request ? input : new Request(input, init);
-  const first = await attachAccessToken(original.clone());
-  let res = await fetch(first);
-  if (res.status !== 401 || isAuthUrl(first.url)) return res;
-  if (!(await refreshSession())) return res;
-  const retry = await attachAccessToken(original.clone());
-  return fetch(retry);
+  try {
+    const original = input instanceof Request ? input : new Request(input, init);
+    const first = await attachAccessToken(original.clone());
+    let res = await fetch(first);
+    if (res.status !== 401 || isAuthUrl(first.url)) return res;
+    if (!(await refreshSession())) return res;
+    const retry = await attachAccessToken(original.clone());
+    return await fetch(retry);
+  } catch (err) {
+    throw new Error(
+      apiErrorMessage(
+        err,
+        'Could not reach the server. Check your connection and try again.',
+      ),
+    );
+  }
 }
 
 export const crossub = createCrossubClient({
@@ -88,15 +97,98 @@ export const crossub = createCrossubClient({
   fetch: fetchWithBearer,
 });
 
-export function apiErrorMessage(error: unknown, fallback: string): string {
-  if (!error || typeof error !== 'object') return fallback;
-  const record = error as { message?: unknown };
+const MAX_DISPLAY_MESSAGE = 280;
+
+function extractRawMessage(error: unknown): string {
+  if (typeof error === 'string') return error.trim();
+  if (!error || typeof error !== 'object') return '';
+  const record = error as { message?: unknown; error?: unknown };
   const msg = record.message;
-  if (typeof msg === 'string' && msg.trim()) return msg;
-  if (Array.isArray(msg) && msg.length > 0) {
-    return msg.filter((part) => typeof part === 'string').join(', ') || fallback;
+  if (typeof msg === 'string' && msg.trim()) return msg.trim();
+  if (Array.isArray(msg)) {
+    return msg.filter((part) => typeof part === 'string').join(', ').trim();
   }
-  return fallback;
+  if (typeof record.error === 'string' && record.error.trim()) {
+    return record.error.trim();
+  }
+  return '';
+}
+
+function isMissingPhotoError(text: string): boolean {
+  const lower = text.toLowerCase();
+  return (
+    lower.includes('imageloadingfailedexception') ||
+    lower.includes('no such file') ||
+    lower.includes('could not load the image') ||
+    lower.includes('could not encode the photo') ||
+    lower.includes('missing from this device') ||
+    lower.includes('no longer on this phone') ||
+    lower.includes('nscocoaerrordomain code=260')
+  );
+}
+
+function looksLikeNativeOrStackDump(text: string): boolean {
+  return (
+    /\(at\s+\S+\)/.test(text) ||
+    /ExpoModulesCore/i.test(text) ||
+    /\.swift:\d+/i.test(text) ||
+    /UnexpectedException/i.test(text) ||
+    /TypeError:/i.test(text) ||
+    /\n\s+at\s+/.test(text)
+  );
+}
+
+function isOfflineTransport(text: string): boolean {
+  const lower = text.toLowerCase();
+  return (
+    lower.includes('internet connection appears to be offline') ||
+    lower.includes('the internet connection') ||
+    lower.includes('not connected to the internet') ||
+    lower.includes('network connection was lost') ||
+    lower.includes('seems to be offline') ||
+    (lower.includes('offline') &&
+      (lower.includes('internet') || lower.includes('connection')))
+  );
+}
+
+function isTransportFailure(text: string): boolean {
+  const lower = text.toLowerCase();
+  return (
+    isOfflineTransport(text) ||
+    looksLikeNativeOrStackDump(text) ||
+    lower.includes('fetch failed') ||
+    lower.includes('failed to fetch') ||
+    lower.includes('network request failed') ||
+    lower.includes('could not reach nest') ||
+    lower.includes('could not reach the server') ||
+    lower.includes('expo_public') ||
+    lower.includes('unable to resolve host') ||
+    lower.includes('failed to connect') ||
+    lower.includes('hostname could not be found') ||
+    lower.includes('nsurlerror') ||
+    lower.includes('econnrefused') ||
+    lower.includes('econnreset') ||
+    lower.includes('enotfound') ||
+    lower.includes('the request timed out') ||
+    lower.includes('socket hang up')
+  );
+}
+
+export function apiErrorMessage(error: unknown, fallback: string): string {
+  const raw = extractRawMessage(error);
+  if (!raw) return fallback;
+  if (isMissingPhotoError(raw)) {
+    return 'That photo is no longer on this phone. Take it again.';
+  }
+  if (isOfflineTransport(raw)) {
+    return 'No internet connection. Connect and try again.';
+  }
+  if (isTransportFailure(raw)) {
+    return 'Could not reach the server. Check your connection and try again.';
+  }
+  if (raw.length > MAX_DISPLAY_MESSAGE) return fallback;
+  if (/<\/?[a-z][a-z0-9]*(\s[^>]*)?>/i.test(raw)) return fallback;
+  return raw;
 }
 
 export async function loginWithPassword(

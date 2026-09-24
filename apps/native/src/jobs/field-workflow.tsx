@@ -4,6 +4,7 @@ import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'r
 
 import { AppTextInput } from '@/src/ui/app-text-input';
 
+import { apiErrorMessage } from '@/src/api/client';
 import {
   acceptInspection,
   clearInspectionAreaPhotos,
@@ -41,9 +42,11 @@ import {
   seedAreasForStart,
 } from '@/src/lib/inspection-layout';
 import { moveIndex, rekeyRecord, renameCustomArea } from '@/src/lib/inspection-layout-edit';
-import { isKeyCollectComplete } from '@/src/lib/key-access';
+import { buildInspectionFinishedPatch, isKeyCollectComplete } from '@/src/lib/key-access';
 import { jobLookupMiss } from '@/src/lib/job-lookup';
 import { queueExecutionDraft, queueInspectionFindings, queueInspectionPhotoBatch } from '@/src/offline/sync';
+import { upsertPhotoUrl } from '@/src/offline/queued-photo';
+import { inspectionHasNswSpecialReporting } from '@/src/lib/special-reporting';
 import { useOffline } from '@/src/offline/offline-context';
 import { jobDetail, jobInspect, jobKeys } from '@/src/lib/routes';
 import type { InspectionType, RoutineExecutionDraft } from '@/src/lib/types';
@@ -65,7 +68,7 @@ export function FieldWorkflowScreen({
 }) {
   const { id, view: viewParam } = useLocalSearchParams<{ id: string; view?: string }>();
   const router = useRouter();
-  const { getJob, getDraft, setDraft, patchJob, upsertJob, refresh, jobsHydrated } = useInspections();
+  const { getJob, getDraft, setDraft, patchJob, upsertJob, refresh, jobsHydrated, draftsHydrated } = useInspections();
   const { refreshPending } = useOffline();
   const job = getJob(id);
   const view = viewProp ?? (type === 'open' ? 'inspect' : parseView(viewParam));
@@ -98,7 +101,7 @@ export function FieldWorkflowScreen({
 
   const persist = useCallback(
     (next: RoutineExecutionDraft) => {
-      if (!id) return;
+      if (!id || !draftsHydrated) return;
       const stamped = { ...next, updatedAt: new Date().toISOString() };
       setDraft(id, stamped);
       void (async () => {
@@ -116,8 +119,17 @@ export function FieldWorkflowScreen({
         }
       })();
     },
-    [id, kind, setDraft, refreshPending],
+    [id, kind, setDraft, refreshPending, draftsHydrated],
   );
+
+  const names = draft.selectedAreaNames ?? [];
+  const areaIndex = Math.min(draft.areaIndex, Math.max(names.length - 1, 0));
+  const currentName = names[areaIndex];
+  const current = currentName ? draft.issues[currentName] ?? emptyRoutineIssue() : emptyRoutineIssue();
+  const draftRef = useRef(draft);
+  draftRef.current = draft;
+  const getDraftRef = useRef(getDraft);
+  getDraftRef.current = getDraft;
 
   useEffect(() => {
     if (!id || !job) return;
@@ -132,13 +144,13 @@ export function FieldWorkflowScreen({
   }, [id, job, onChangeTab, router]);
 
   useEffect(() => {
-    if (!id || !job || stored?.areaSetupComplete) return;
+    if (!draftsHydrated || !id || !job || stored?.areaSetupComplete) return;
     void (async () => {
       try {
         const detail = await fetchInspectionDetail(id);
         const copied = roomsFromIngoingDetail(detail);
         const template = layoutTemplateFromProperty(job.property);
-        const base = stored ?? draft;
+        const base = getDraftRef.current(id) ?? draftRef.current;
         if (!draftNeedsLayoutSeed(base)) return;
         if (copied.length > 0) {
           setExistingAreas(copied);
@@ -150,19 +162,14 @@ export function FieldWorkflowScreen({
         }
       } catch {
         const template = layoutTemplateFromProperty(job.property);
-        persist({ ...draft, selectedAreaNames: template });
+        const base = getDraftRef.current(id) ?? draftRef.current;
+        if (!draftNeedsLayoutSeed(base)) return;
+        persist({ ...base, selectedAreaNames: template });
       }
     })();
     // Seed once per job when the draft has never been laid out.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id, job?.id]);
-
-  const names = draft.selectedAreaNames ?? [];
-  const areaIndex = Math.min(draft.areaIndex, Math.max(names.length - 1, 0));
-  const currentName = names[areaIndex];
-  const current = currentName ? draft.issues[currentName] ?? emptyRoutineIssue() : emptyRoutineIssue();
-  const draftRef = useRef(draft);
-  draftRef.current = draft;
+  }, [id, job?.id, draftsHydrated]);
   const copy = isCoreInspectionType(type) ? inspectionStartCopy(type) : inspectionStartCopy('routine');
   const sms = job ? preInspectionSmsHref(job) : null;
 
@@ -325,39 +332,26 @@ export function FieldWorkflowScreen({
 
   const onBurst = async (photos: LocalPhoto[]) => {
     if (!id || !currentName || photos.length === 0) return;
-    const locals = photos.map((photo) => photo.uri);
-    const rec = draftRef.current.issues[currentName] ?? current;
-    persist({
-      ...draftRef.current,
-      issues: {
-        ...draftRef.current.issues,
-        [currentName]: {
-          ...rec,
-          available: true as const,
-          areaPhotos: [...rec.areaPhotos, ...locals],
-        },
-      },
-    });
     setBusy('photo');
     setError(null);
     try {
       await ensureAccepted();
-      await queueInspectionPhotoBatch(id, photos, currentName, (localUri, remoteUrl) => {
-        const latest = draftRef.current.issues[currentName];
-        if (!latest) return;
+      await queueInspectionPhotoBatch(id, photos, currentName, (fromUri, toUri) => {
+        const latest = draftRef.current.issues[currentName] ?? current;
         persist({
           ...draftRef.current,
           issues: {
             ...draftRef.current.issues,
             [currentName]: {
               ...latest,
-              areaPhotos: latest.areaPhotos.map((url) => (url === localUri ? remoteUrl : url)),
+              available: true as const,
+              areaPhotos: upsertPhotoUrl(latest.areaPhotos ?? [], fromUri, toUri),
             },
           },
         });
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Photo upload failed — please retry');
+      setError(apiErrorMessage(err, 'Photo upload failed - please retry'));
     } finally {
       setBusy(null);
     }
@@ -408,8 +402,9 @@ export function FieldWorkflowScreen({
         return;
       }
       if (job.keyAccess && !job.keyAccess.returnComplete && kind === 'routine') {
+        persist({ ...draft, inspectionFinished: true });
         patchJob(id, {
-          workflowData: { ...job.workflowData, inspectionFinished: true },
+          workflowData: buildInspectionFinishedPatch(job.workflowData),
         });
         celebrate(
           'Return the keys to complete this task.',
@@ -441,14 +436,22 @@ export function FieldWorkflowScreen({
   if (!job || !id) {
     return (
       <View style={styles.safe}>
-        <JobLookupFallback state={jobLookupMiss(jobsHydrated)} />
+        <JobLookupFallback state={jobLookupMiss(jobsHydrated && draftsHydrated)} />
+      </View>
+    );
+  }
+
+  if (!draftsHydrated) {
+    return (
+      <View style={styles.safe}>
+        <JobLookupFallback state="loading" />
       </View>
     );
   }
 
   return (
     <View style={styles.safe}>
-      {view === 'inspect' && (type === 'ingoing' || type === 'outgoing') ? (
+      {view === 'inspect' && inspectionHasNswSpecialReporting(type) ? (
         <View style={styles.flex}>
           <Pressable onPress={() => setCancelOpen(true)} style={styles.cancelLink}>
             <Text style={styles.cancelLinkText}>Cancel task</Text>
@@ -470,7 +473,7 @@ export function FieldWorkflowScreen({
             onAfterFindings={async () => {
               if (job.keyAccess && !job.keyAccess.returnComplete) {
                 patchJob(id, {
-                  workflowData: { ...job.workflowData, inspectionFinished: true },
+                  workflowData: buildInspectionFinishedPatch(job.workflowData),
                 });
                 celebrate(
                   'Return the keys to complete this task.',
@@ -614,7 +617,7 @@ export function FieldWorkflowScreen({
         scrollEnabled={!areasDragging}
       >
         {error ? <Text style={styles.error}>{error}</Text> : null}
-        <Text style={styles.title}>{copy.startLabel.replace(/^(Start|Continue) /, '')}</Text>
+        <Text style={styles.title}>{INSPECTION_PAY_LABEL[type] ?? type}</Text>
         <Text style={styles.body}>{copy.body}</Text>
         <Pressable onPress={resetInspection} style={styles.secondary}>
           <Text style={styles.cancelLinkText}>Reset inspection</Text>
@@ -642,7 +645,7 @@ export function FieldWorkflowScreen({
                   ))}
                 </View>
               ) : null}
-              {sms ? (
+              {type === 'routine' && sms ? (
                 <Pressable onPress={() => void Linking.openURL(sms)} style={styles.secondary}>
                   <Text style={styles.secondaryText}>SMS tenant reminder</Text>
                 </Pressable>

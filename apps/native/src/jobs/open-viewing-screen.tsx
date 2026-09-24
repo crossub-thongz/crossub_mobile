@@ -27,7 +27,7 @@ import { JobLookupFallback } from '@/src/jobs/job-lookup-fallback';
 import { useFinishInspection } from '@/src/jobs/use-finish-inspection';
 import { type WorkspaceTab } from '@/src/jobs/workspace-nav';
 import { formatDateTime, formatInspectTime } from '@/src/lib/datetime';
-import { isKeyCollectComplete, isKeyReturnComplete } from '@/src/lib/key-access';
+import { buildInspectionFinishedPatch, isKeyCollectComplete, isKeyReturnComplete } from '@/src/lib/key-access';
 import { jobLookupMiss } from '@/src/lib/job-lookup';
 import {
   formatOpenInspectionClock,
@@ -368,7 +368,7 @@ export function OpenViewingScreen({
       const endTime = early ? new Date().toISOString() : viewing.endTime;
       if (job.keyAccess && !isKeyReturnComplete(job)) {
         await completeInspection(id, { startTime, endTime }).catch(() => undefined);
-        patchJob(id, { workflowData: { ...job.workflowData, inspectionFinished: true } });
+        patchJob(id, { workflowData: buildInspectionFinishedPatch(job.workflowData) });
         celebrate(
           'Return the keys to complete this task.',
           'keys',

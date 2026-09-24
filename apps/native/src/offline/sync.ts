@@ -1,6 +1,7 @@
 import * as Network from 'expo-network';
 
 import {
+  completeInspection,
   recordKeyCustody,
   saveInspectionExecutionDraft,
   saveInspectionFindings,
@@ -11,6 +12,7 @@ import {
   type SaveInspectorFindings,
   type UploadInspectorPhoto,
 } from '@/src/api/inspector';
+import { attendanceWindowFromHours } from '@/src/lib/findings';
 import {
   compressPhotoToFile,
   deleteLocalPhoto,
@@ -68,6 +70,36 @@ export async function isDeviceOnline(): Promise<boolean> {
   }
 }
 
+function errorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}
+
+function isAlreadyCompletedConflict(err: unknown): boolean {
+  return /cannot move a completed inspection to completed/i.test(errorMessage(err));
+}
+
+function isReturnBeforeCompleteConflict(err: unknown): boolean {
+  return /return the keys only after the inspection is completed/i.test(
+    errorMessage(err),
+  );
+}
+
+/** Nest recordKeyReturn requires COMPLETED. Match the PWA: complete, then stamp return. */
+async function completeInspectionForKeyReturn(
+  inspectionId: string,
+  estimatedHours?: number,
+): Promise<void> {
+  try {
+    await completeInspection(
+      inspectionId,
+      attendanceWindowFromHours(estimatedHours ?? 1),
+    );
+  } catch (err) {
+    if (isAlreadyCompletedConflict(err)) return;
+    throw err;
+  }
+}
+
 async function persistPhotoPayload(localUri?: string, contentBase64?: string): Promise<string> {
   if (localUri) return persistQueuedPhoto(localUri);
   if (contentBase64) return writeQueuedPhotoFromBase64(contentBase64);
@@ -89,7 +121,6 @@ async function replayPhotoUpload(item: OfflineQueueItem): Promise<string | null>
     ...prepared.body,
     areaName: typeof payload.areaName === 'string' ? payload.areaName : undefined,
   });
-  await deleteQueuedPhoto(localUri);
   if (prepared.localUri !== localUri) await deleteLocalPhoto(prepared.localUri);
   return uploaded.url ?? null;
 }
@@ -111,7 +142,6 @@ async function replayKeyPhoto(item: OfflineQueueItem): Promise<string | null> {
     phase,
     fileName: typeof payload.fileName === 'string' ? payload.fileName : prepared.body.fileName,
   });
-  await deleteQueuedPhoto(localUri);
   if (prepared.localUri !== localUri) await deleteLocalPhoto(prepared.localUri);
   const urls = phase === 'return' ? custody.returnPhotos : custody.collectPhotos;
   return urls[urls.length - 1] ?? null;
@@ -136,7 +166,19 @@ async function replayItem(item: OfflineQueueItem): Promise<string | null> {
     case 'key_custody': {
       const phase = payload.phase === 'return' ? 'return' : 'collect';
       const notes = typeof payload.notes === 'string' ? payload.notes : undefined;
-      await recordKeyCustody(item.jobId, phase, notes ? { notes } : {});
+      const estimatedHours =
+        typeof payload.estimatedHours === 'number' ? payload.estimatedHours : undefined;
+      const needsComplete = phase === 'return' && payload.needsComplete !== false;
+      if (needsComplete) {
+        await completeInspectionForKeyReturn(item.jobId, estimatedHours);
+      }
+      try {
+        await recordKeyCustody(item.jobId, phase, notes ? { notes } : {});
+      } catch (err) {
+        if (!isReturnBeforeCompleteConflict(err)) throw err;
+        await completeInspectionForKeyReturn(item.jobId, estimatedHours);
+        await recordKeyCustody(item.jobId, phase, notes ? { notes } : {});
+      }
       return null;
     }
     case 'key_photo':
@@ -164,6 +206,7 @@ async function drainQueue(): Promise<{ synced: number; remaining: number }> {
         typeof item.payload.localUri === 'string' ? item.payload.localUri : '';
       if (remoteUrl && localUri) await rewriteQueuedUris(localUri, remoteUrl);
       await removeQueueItem(item.id);
+      if (remoteUrl && localUri) await deleteQueuedPhoto(localUri);
       synced += 1;
       await yieldToUi();
     } catch (err) {
@@ -253,39 +296,46 @@ export async function queueInspectionPhotoBatch(
   inspectionId: string,
   photos: LocalPhoto[],
   areaName: string,
-  onEach?: (localUri: string, remoteUrl: string) => void,
+  onEach?: (fromUri: string, toUri: string) => void,
 ): Promise<string[]> {
   const urls: string[] = [];
-  const online = await isDeviceOnline();
   for (const photo of photos) {
     const compressed = await compressPhotoToFile(photo);
+    const durable = await persistQueuedPhoto(compressed.uri);
+    if (compressed.uri !== durable) await deleteLocalPhoto(compressed.uri);
+    if (photo.uri !== compressed.uri && photo.uri !== durable) {
+      await deleteLocalPhoto(photo.uri);
+    }
+    onEach?.(photo.uri, durable);
+    const online = await isDeviceOnline();
     if (!online) {
-      const durable = await persistQueuedPhoto(compressed.uri);
       await enqueueOfflineAction(inspectionId, 'photo_upload', {
         localUri: durable,
         areaName,
       });
       urls.push(durable);
-      onEach?.(photo.uri, durable);
-      if (compressed.uri !== durable) await deleteLocalPhoto(compressed.uri);
-      if (photo.uri !== compressed.uri && photo.uri !== durable) {
-        await deleteLocalPhoto(photo.uri);
-      }
       await yieldToUi();
       continue;
     }
-    const prepared = await preparePhotoUpload(compressed);
+    const prepared = await preparePhotoUpload({
+      uri: durable,
+      width: compressed.width,
+      height: compressed.height,
+    });
     const saved = await queueInspectionPhoto(
       inspectionId,
       { ...prepared.body, areaName },
-      prepared.localUri,
+      durable,
       { keepLocal: true },
     );
     urls.push(saved.url);
-    onEach?.(photo.uri, saved.url);
-    if (saved.url !== prepared.localUri) await deleteLocalPhoto(prepared.localUri);
-    if (photo.uri !== prepared.localUri && saved.url !== photo.uri) {
-      await deleteLocalPhoto(photo.uri);
+    if (saved.url !== durable) onEach?.(durable, saved.url);
+    if (prepared.localUri !== durable && prepared.localUri !== saved.url) {
+      await deleteLocalPhoto(prepared.localUri);
+    }
+    if (saved.url !== durable && saved.url.startsWith('http')) {
+      await rewriteQueuedUris(durable, saved.url);
+      await deleteQueuedPhoto(durable);
     }
     await yieldToUi();
   }
@@ -322,27 +372,40 @@ export async function queueKeyCustody(
   inspectionId: string,
   phase: 'collect' | 'return',
   body: { notes?: string } = {},
+  options?: { estimatedHours?: number; alreadyCompleted?: boolean },
 ): Promise<InspectorKeyCustody | 'queued'> {
-  if (!(await isDeviceOnline())) {
+  const needsComplete = phase === 'return' && options?.alreadyCompleted !== true;
+  const enqueue = async (completeFirst: boolean): Promise<'queued'> => {
     await replaceOfflineAction(
       inspectionId,
       'key_custody',
-      { phase, notes: body.notes },
+      {
+        phase,
+        notes: body.notes,
+        estimatedHours: options?.estimatedHours,
+        needsComplete: completeFirst,
+      },
       phase,
     );
     return 'queued';
+  };
+  if (!(await isDeviceOnline())) {
+    return enqueue(needsComplete);
   }
   try {
-    return await recordKeyCustody(inspectionId, phase, body);
+    if (needsComplete) {
+      await completeInspectionForKeyReturn(inspectionId, options?.estimatedHours);
+    }
+    try {
+      return await recordKeyCustody(inspectionId, phase, body);
+    } catch (err) {
+      if (!isReturnBeforeCompleteConflict(err)) throw err;
+      await completeInspectionForKeyReturn(inspectionId, options?.estimatedHours);
+      return await recordKeyCustody(inspectionId, phase, body);
+    }
   } catch (err) {
     if (!isRetryableNetworkError(err)) throw err;
-    await replaceOfflineAction(
-      inspectionId,
-      'key_custody',
-      { phase, notes: body.notes },
-      phase,
-    );
-    return 'queued';
+    return enqueue(needsComplete);
   }
 }
 

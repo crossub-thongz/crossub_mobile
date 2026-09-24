@@ -4,12 +4,14 @@ import { ActivityIndicator, Alert, Linking, Pressable, ScrollView, StyleSheet, T
 
 import { AppTextInput } from '@/src/ui/app-text-input';
 
+import { apiErrorMessage } from '@/src/api/client';
 import { useAccount } from '@/src/account/account-context';
 import { useAuth } from '@/src/auth/auth-context';
 import { useInspections } from '@/src/inspections/inspections-context';
 import {
   deleteLocalPhoto,
   preparePhotoUpload,
+  prepareStoredPhotoUpload,
   type LocalPhoto,
 } from '@/src/jobs/compress-photo';
 import { InspectionPhotosField } from '@/src/jobs/inspection-photos-field';
@@ -35,6 +37,21 @@ import {
 } from '@/src/lib/key-access';
 import { jobLookupMiss } from '@/src/lib/job-lookup';
 import type { InspectionJob } from '@/src/lib/types';
+import {
+  deleteHandoverDraft,
+  loadHandoverDraft,
+  loadOfflineQueue,
+  saveHandoverDraft,
+  subscribeDraftsChanged,
+  type HandoverFormDraft,
+} from '@/src/offline/db';
+import {
+  deleteQueuedPhoto,
+  isRemotePhotoUrl,
+  localPhotoExists,
+  persistQueuedPhoto,
+  resolveLocalFileUri,
+} from '@/src/offline/queued-photo';
 import { queueKeyCustody, queueKeyCustodyPhoto } from '@/src/offline/sync';
 import { useOffline } from '@/src/offline/offline-context';
 import { colors } from '@/src/theme';
@@ -167,6 +184,30 @@ function contactsFor(job: InspectionJob, party: HandoverParty) {
   };
 }
 
+async function keepHandoverPhotos(urls: string[]): Promise<string[]> {
+  const next: string[] = [];
+  for (const url of urls) {
+    if (!url) continue;
+    if (isRemotePhotoUrl(url) || (await localPhotoExists(url))) next.push(url);
+  }
+  return next;
+}
+
+async function queuedHandoverPhotos(
+  jobId: string,
+  phase: 'collect' | 'return',
+): Promise<string[]> {
+  const items = await loadOfflineQueue();
+  const urls: string[] = [];
+  for (const item of items) {
+    if (item.jobId !== jobId || item.action !== 'key_photo') continue;
+    if (item.payload.phase !== phase) continue;
+    const uri = typeof item.payload.localUri === 'string' ? item.payload.localUri : '';
+    if (uri && (await localPhotoExists(uri)) && !urls.includes(uri)) urls.push(uri);
+  }
+  return urls;
+}
+
 export function JobHandoverPanel({
   id,
   phase,
@@ -178,7 +219,7 @@ export function JobHandoverPanel({
   onChangeTab: (tab: WorkspaceTab, extras?: { keys?: 'collect' | 'return' }) => void;
   onFinished?: () => void;
 }) {
-  const { getJob, patchJob, deviceLocation, jobsHydrated } = useInspections();
+  const { getJob, getDraft, patchJob, deviceLocation, jobsHydrated, draftsHydrated } = useInspections();
   const { user } = useAuth();
   const { profile } = useAccount();
   const { refreshPending } = useOffline();
@@ -200,40 +241,107 @@ export function JobHandoverPanel({
   const [contactEmail, setContactEmail] = useState(start?.contactEmail ?? '');
   const [agencyName, setAgencyName] = useState(start?.agencyName ?? '');
   const [notes, setNotes] = useState('');
+  const formKey = `${id}:${phase}`;
+  const [hydratedKey, setHydratedKey] = useState<string | null>(null);
+  const photoUrlsRef = useRef<string[]>([]);
+  photoUrlsRef.current = photoUrls;
 
   const collectDone = job ? isKeyCollectComplete(job) : false;
   const returnDone = job ? isKeyReturnComplete(job) : false;
-  const returnUnlocked = job ? canAccessKeyReturnTab(job) : false;
+  const draft = id ? getDraft(id) : undefined;
+  const returnUnlocked = job ? canAccessKeyReturnTab(job, draft) : false;
   const returnLocked = phase === 'return' && !returnUnlocked;
+  const phaseDone = phase === 'collect' ? collectDone : returnDone;
   const jobReady = Boolean(job);
   const jobRef = useRef(job);
   jobRef.current = job;
 
   useEffect(() => {
-    if (phase !== 'return' || returnUnlocked) return;
+    if (phase !== 'return' || returnUnlocked || !draftsHydrated) return;
     onChangeTab('handover', { keys: 'collect' });
-  }, [phase, returnUnlocked, onChangeTab]);
+  }, [phase, returnUnlocked, onChangeTab, draftsHydrated]);
 
   useEffect(() => {
-    const current = jobRef.current;
-    if (!current) return;
-    const nextParty: HandoverParty = current.type === 'open' ? 'agent' : 'tenant';
-    const nextContacts = contactsFor(current, nextParty);
-    setCameraOpen(false);
-    setBusy(false);
-    setError(null);
-    setPhotoUrls([]);
-    setPhotoBusy(false);
-    setNoImageOpen(false);
-    setParty(nextParty);
-    setCondition('good');
-    setKeySets(1);
-    setContactName(nextContacts.contactName);
-    setContactPhone(nextContacts.contactPhone);
-    setContactEmail(nextContacts.contactEmail);
-    setAgencyName(nextContacts.agencyName);
-    setNotes('');
+    let cancelled = false;
+    void (async () => {
+      const current = jobRef.current;
+      if (!current) return;
+      const done =
+        phase === 'collect' ? isKeyCollectComplete(current) : isKeyReturnComplete(current);
+      const nextParty: HandoverParty = current.type === 'open' ? 'agent' : 'tenant';
+      const nextContacts = contactsFor(current, nextParty);
+      let saved: HandoverFormDraft | null = null;
+      let photos: string[] = [];
+      if (!done) {
+        saved = await loadHandoverDraft(id, phase);
+        const queued = await queuedHandoverPhotos(id, phase);
+        photos = await keepHandoverPhotos([
+          ...(saved?.photoUrls ?? []),
+          ...queued,
+          ...photoUrlsRef.current,
+        ]);
+      }
+      if (cancelled) return;
+      setCameraOpen(false);
+      setBusy(false);
+      setError(null);
+      setPhotoBusy(false);
+      setNoImageOpen(false);
+      setPhotoUrls(photos);
+      setParty(saved?.party ?? nextParty);
+      setCondition(saved?.condition ?? 'good');
+      setKeySets(saved?.keySets && saved.keySets > 0 ? saved.keySets : 1);
+      setContactName(saved?.contactName ?? nextContacts.contactName);
+      setContactPhone(saved?.contactPhone ?? nextContacts.contactPhone);
+      setContactEmail(saved?.contactEmail ?? nextContacts.contactEmail);
+      setAgencyName(saved?.agencyName ?? nextContacts.agencyName);
+      setNotes(saved?.notes ?? '');
+      setHydratedKey(`${id}:${phase}`);
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [phase, id, jobReady]);
+
+  useEffect(() => {
+    return subscribeDraftsChanged((rewrite) => {
+      if (!rewrite) return;
+      setPhotoUrls((current) =>
+        current.map((url) => (url === rewrite.from ? rewrite.to : url)),
+      );
+    });
+  }, []);
+
+  useEffect(() => {
+    if (hydratedKey !== formKey || !id || phaseDone) return;
+    const draft: HandoverFormDraft = {
+      photoUrls,
+      party,
+      condition,
+      keySets,
+      contactName,
+      contactPhone,
+      contactEmail,
+      agencyName,
+      notes,
+    };
+    void saveHandoverDraft(id, phase, draft);
+  }, [
+    hydratedKey,
+    formKey,
+    id,
+    phase,
+    phaseDone,
+    photoUrls,
+    party,
+    condition,
+    keySets,
+    contactName,
+    contactPhone,
+    contactEmail,
+    agencyName,
+    notes,
+  ]);
 
   if (!job) {
     return <JobLookupFallback state={jobLookupMiss(jobsHydrated)} />;
@@ -267,7 +375,6 @@ export function JobHandoverPanel({
     setAgencyName(nextContacts.agencyName);
   };
 
-  const phaseDone = phase === 'collect' ? collectDone : returnDone;
   const phaseRecord = getKeyWorkflow(job)?.[phase];
   const phaseLabel = phase === 'collect' ? 'Collecting keys' : 'Returning keys';
 
@@ -280,12 +387,15 @@ export function JobHandoverPanel({
       const added: string[] = [];
       for (const photo of photos.slice(0, room)) {
         const prepared = await preparePhotoUpload(photo);
-        added.push(prepared.localUri);
-        if (photo.uri !== prepared.localUri) await deleteLocalPhoto(photo.uri);
+        const durable = await persistQueuedPhoto(prepared.localUri);
+        const readable = (await resolveLocalFileUri(durable)) ?? durable;
+        added.push(readable);
+        if (photo.uri !== readable) await deleteLocalPhoto(photo.uri);
+        if (prepared.localUri !== readable) await deleteLocalPhoto(prepared.localUri);
       }
       setPhotoUrls((current) => [...current, ...added]);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not add proof photo.');
+      setError(apiErrorMessage(err, 'Could not add proof photo.'));
     } finally {
       setPhotoBusy(false);
     }
@@ -294,7 +404,10 @@ export function JobHandoverPanel({
   const removePhoto = (index: number) => {
     setPhotoUrls((current) => {
       const uri = current[index];
-      if (uri && !uri.startsWith('http')) void deleteLocalPhoto(uri);
+      if (uri && !isRemotePhotoUrl(uri)) {
+        void deleteQueuedPhoto(uri);
+        void deleteLocalPhoto(uri);
+      }
       return current.filter((_, i) => i !== index);
     });
   };
@@ -312,6 +425,22 @@ export function JobHandoverPanel({
     setBusy(true);
     setError(null);
     try {
+      const existing: string[] = [];
+      for (const url of photoUrls) {
+        if (!url) continue;
+        if (isRemotePhotoUrl(url)) {
+          existing.push(url);
+          continue;
+        }
+        const resolved = await resolveLocalFileUri(url);
+        if (resolved) existing.push(resolved);
+      }
+      if (existing.length !== photoUrls.length) setPhotoUrls(existing);
+      if (existing.length < 1) {
+        setNoImageOpen(true);
+        setError('Could not read the handover photo. Take it again.');
+        return;
+      }
       const extras = {
         handoverParty: party,
         keyCondition: condition,
@@ -324,12 +453,12 @@ export function JobHandoverPanel({
       };
       const packed = formatHandoverNotes(extras, phase);
       const uploaded: string[] = [];
-      for (const [index, uri] of photoUrls.entries()) {
+      for (const [index, uri] of existing.entries()) {
         if (uri.startsWith('http://') || uri.startsWith('https://')) {
           uploaded.push(uri);
           continue;
         }
-        const prepared = await preparePhotoUpload({ uri, width: 0, height: 0 });
+        const prepared = await prepareStoredPhotoUpload(uri);
         const saved = await queueKeyCustodyPhoto(
           id,
           {
@@ -345,7 +474,17 @@ export function JobHandoverPanel({
           await deleteLocalPhoto(prepared.localUri);
         }
       }
-      const custody = await queueKeyCustody(id, phase, packed ? { notes: packed } : {});
+      const alreadyFiled =
+        job.status === 'completed' || job.status === 'awaiting_approval';
+      const custody = await queueKeyCustody(
+        id,
+        phase,
+        packed ? { notes: packed } : {},
+        {
+          estimatedHours: job.estimatedHours,
+          alreadyCompleted: alreadyFiled,
+        },
+      );
       void refreshPending();
       const record: KeyPhaseRecord = {
         ...extras,
@@ -370,7 +509,20 @@ export function JobHandoverPanel({
         custody === 'queued'
           ? phase === 'return' || keyAccess.returnComplete
           : custody.returnComplete;
-      patchJob(id, withKeyPhase(job, phase, record, { collectComplete, returnComplete }));
+      const statusPatch =
+        phase === 'return' && !alreadyFiled
+          ? {
+              status:
+                (job.type === 'ingoing' || job.type === 'outgoing') && !job.approvedAt
+                  ? ('awaiting_approval' as const)
+                  : ('completed' as const),
+            }
+          : {};
+      patchJob(id, {
+        ...withKeyPhase(job, phase, record, { collectComplete, returnComplete }),
+        ...statusPatch,
+      });
+      await deleteHandoverDraft(id, phase);
       if (custody === 'queued') {
         Alert.alert('Saved on this phone', 'Handover will upload when you are back online.');
       }
@@ -380,7 +532,7 @@ export function JobHandoverPanel({
         onFinished?.();
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not record handover.');
+      setError(apiErrorMessage(err, 'Could not record handover.'));
     } finally {
       setBusy(false);
     }
@@ -629,8 +781,12 @@ export function JobHandoverPanel({
           onPress={() => {
             void submit();
           }}
-          disabled={busy || returnLocked}
-          style={[styles.primary, { backgroundColor: accentBtn }, (busy || returnLocked) && styles.disabled]}
+          disabled={busy || photoBusy || returnLocked}
+          style={[
+            styles.primary,
+            { backgroundColor: accentBtn },
+            (busy || photoBusy || returnLocked) && styles.disabled,
+          ]}
         >
           {busy ? (
             <ActivityIndicator color="#fff" />

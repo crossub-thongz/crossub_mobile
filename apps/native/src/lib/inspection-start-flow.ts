@@ -6,23 +6,23 @@ const START_COPY: Record<
   { startLabel: string; continueLabel: string; body: string }
 > = {
   ingoing: {
-    startLabel: 'Start ingoing',
-    continueLabel: 'Continue ingoing',
+    startLabel: 'Start Ingoing',
+    continueLabel: 'Continue Ingoing',
     body: 'Arrange the rooms first — add, rename, reorder, or remove. Then start the condition report and walk room by room.',
   },
   outgoing: {
-    startLabel: 'Start outgoing',
-    continueLabel: 'Continue outgoing',
+    startLabel: 'Start Outgoing',
+    continueLabel: 'Continue Outgoing',
     body: 'Arrange rooms first. Move-in photos copy across so you only record what changed once you start.',
   },
   routine: {
-    startLabel: 'Start routine',
-    continueLabel: 'Continue routine',
+    startLabel: 'Start Routine',
+    continueLabel: 'Continue Routine',
     body: 'Arrange rooms first. After you start, photograph each room overall — skip any area that is in order.',
   },
   open: {
-    startLabel: 'Start inspection',
-    continueLabel: 'Continue inspection',
+    startLabel: 'Start Inspection',
+    continueLabel: 'Continue Inspection',
     body: 'Open the viewing when you arrive on site.',
   },
 };

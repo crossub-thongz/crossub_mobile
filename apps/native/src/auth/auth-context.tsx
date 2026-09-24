@@ -17,6 +17,7 @@ import {
 } from '@/src/api/client';
 import { clearSession, getAccessToken, loadStoredUser, saveUser } from '@/src/auth/session';
 import type { AuthUser } from '@/src/auth/types';
+import { unregisterInspectorPush } from '@/src/push/register-push';
 
 export type AuthStatus = 'loading' | 'authed' | 'guest';
 
@@ -114,6 +115,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const logout = useCallback(async () => {
+    await unregisterInspectorPush().catch(() => undefined);
     await logoutRemote();
     setUser(null);
     setStatus('guest');

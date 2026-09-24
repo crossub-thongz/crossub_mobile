@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { apiErrorMessage } from '@/src/api/client';
 import {
   INSPECTION_BURST_MAX,
   compressPhotoToFile,
@@ -173,7 +174,7 @@ export function JobCamera({
       setShotList([...shotsRef.current, captured]);
       queueCompress(captured);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not take photo.');
+      setError(apiErrorMessage(err, 'Could not take photo.'));
       setStalled(true);
     } finally {
       setBusy(false);
@@ -199,7 +200,7 @@ export function JobCamera({
       }
       setShotList([...shotsRef.current, ...picked]);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not open the photo library.');
+      setError(apiErrorMessage(err, 'Could not open the photo library.'));
     }
   };
 

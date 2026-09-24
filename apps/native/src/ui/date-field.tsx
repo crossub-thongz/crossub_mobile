@@ -248,7 +248,13 @@ function NativePickerField({
             <Pressable style={styles.backdrop} onPress={() => setOpen(false)} />
             <View style={styles.popover}>
               {mode === 'datetime' ? picker('datetime', true) : picker(mode, true)}
-              <Pressable onPress={() => setOpen(false)} style={styles.done}>
+              <Pressable
+                onPress={() => {
+                  commit(selected);
+                  setOpen(false);
+                }}
+                style={styles.done}
+              >
                 <Text style={styles.doneText}>Done</Text>
               </Pressable>
             </View>

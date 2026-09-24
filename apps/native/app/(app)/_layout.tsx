@@ -5,8 +5,10 @@ import { AccountProvider } from '@/src/account/account-context';
 import { OnboardingGate } from '@/src/account/onboarding-gate';
 import { LedgerProvider } from '@/src/account/ledger-context';
 import { InboxProvider } from '@/src/inbox/inbox-context';
+import { ReportDecisionAlerts } from '@/src/inbox/report-decision-alerts';
 import { InspectionsProvider } from '@/src/inspections/inspections-context';
 import { PoolUrgentAlerts } from '@/src/jobs/pool-urgent-alerts';
+import { InspectorPushBridge } from '@/src/push/push-bridge';
 import { colors } from '@/src/theme';
 
 export default function AppLayout() {
@@ -43,6 +45,8 @@ export default function AppLayout() {
                 <Stack.Screen name="system-access-agreement" options={{ headerShown: false }} />
               </Stack>
               <PoolUrgentAlerts />
+              <ReportDecisionAlerts />
+              <InspectorPushBridge />
             </View>
           </InboxProvider>
         </LedgerProvider>

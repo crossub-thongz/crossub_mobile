@@ -148,15 +148,75 @@ export function isKeyReturnComplete(job: InspectionJob): boolean {
   return job.keyAccess.returnComplete;
 }
 
-export function isInspectionWorkflowFinished(job: InspectionJob): boolean {
-  if (job.status === 'completed' || job.status === 'awaiting_approval') return true;
-  return job.workflowData?.inspectionFinished === true;
+export type InspectionFinishedDraft = {
+  inspectionFinished?: boolean;
+  specialReportingComplete?: boolean;
+};
+
+export function buildInspectionFinishedPatch(
+  workflowData?: Record<string, unknown>,
+): Record<string, unknown> {
+  const previousAt = workflowData?.inspectionFinishedAt;
+  return {
+    ...workflowData,
+    inspectionFinished: true,
+    inspectionFinishedAt:
+      typeof previousAt === 'string' ? previousAt : new Date().toISOString(),
+  };
 }
 
-export function canAccessKeyReturnTab(job: InspectionJob): boolean {
+export function mergeJobLocalState(
+  incoming: InspectionJob,
+  previous?: InspectionJob,
+): InspectionJob {
+  if (!previous) return incoming;
+  const workflowData: Record<string, unknown> = {
+    ...previous.workflowData,
+    ...incoming.workflowData,
+  };
+  if (previous.workflowData?.inspectionFinished === true) {
+    workflowData.inspectionFinished = true;
+    if (
+      typeof previous.workflowData.inspectionFinishedAt === 'string' &&
+      typeof workflowData.inspectionFinishedAt !== 'string'
+    ) {
+      workflowData.inspectionFinishedAt = previous.workflowData.inspectionFinishedAt;
+    }
+  }
+  const prevKeys = getKeyWorkflow(previous);
+  const nextKeys = getKeyWorkflow(incoming);
+  if (prevKeys || nextKeys) {
+    workflowData[KEY_WORKFLOW_KEY] = {
+      collect: nextKeys?.collect ?? prevKeys?.collect,
+      return: nextKeys?.return ?? prevKeys?.return,
+    };
+  }
+  return {
+    ...incoming,
+    keyAccess: incoming.keyAccess ?? previous.keyAccess,
+    leasingKeyCollection: incoming.leasingKeyCollection ?? previous.leasingKeyCollection,
+    workflowData,
+  };
+}
+
+export function isInspectionWorkflowFinished(
+  job: InspectionJob,
+  draft?: InspectionFinishedDraft | null,
+): boolean {
+  if (job.status === 'completed' || job.status === 'awaiting_approval') return true;
+  if (job.workflowData?.inspectionFinished === true) return true;
+  if (draft?.inspectionFinished === true) return true;
+  if (draft?.specialReportingComplete === true) return true;
+  return false;
+}
+
+export function canAccessKeyReturnTab(
+  job: InspectionJob,
+  draft?: InspectionFinishedDraft | null,
+): boolean {
   if (!job.keyAccess) return false;
   if (!isKeyCollectComplete(job)) return false;
-  return isInspectionWorkflowFinished(job);
+  return isInspectionWorkflowFinished(job, draft);
 }
 
 export function jobAccessMethodLabel(job: InspectionJob): string {

@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect } from 'react';
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { AppTextInput } from '@/src/ui/app-text-input';
 
@@ -83,17 +83,28 @@ function YesNo({
 }) {
   return (
     <View style={styles.toggleRow}>
-      {([true, false] as const).map((option) => (
-        <Pressable
-          key={String(option)}
-          onPress={() => onChange(option)}
-          style={[styles.toggle, value === option && styles.toggleOn]}
-        >
-          <Text style={[styles.toggleText, value === option && styles.toggleTextOn]}>
-            {option ? 'Yes' : 'No'}
-          </Text>
-        </Pressable>
-      ))}
+      {([true, false] as const).map((option) => {
+        const selected = value === option;
+        return (
+          <Pressable
+            key={String(option)}
+            onPress={() => onChange(option)}
+            style={[
+              styles.toggle,
+              selected && (option ? styles.toggleYes : styles.toggleNo),
+            ]}
+          >
+            <Text
+              style={[
+                styles.toggleText,
+                selected && (option ? styles.toggleTextYes : styles.toggleTextNo),
+              ]}
+            >
+              {option ? 'Yes' : 'No'}
+            </Text>
+          </Pressable>
+        );
+      })}
     </View>
   );
 }
@@ -107,17 +118,38 @@ function YesNoNaRow({
 }) {
   return (
     <View style={styles.toggleRow}>
-      {(['yes', 'no', 'na'] as const).map((option) => (
-        <Pressable
-          key={option}
-          onPress={() => onChange(option)}
-          style={[styles.toggle, value === option && styles.toggleOn]}
-        >
-          <Text style={[styles.toggleText, value === option && styles.toggleTextOn]}>
-            {option === 'na' ? 'N/A' : option === 'yes' ? 'Yes' : 'No'}
-          </Text>
-        </Pressable>
-      ))}
+      {(['yes', 'no', 'na'] as const).map((option) => {
+        const selected = value === option;
+        return (
+          <Pressable
+            key={option}
+            onPress={() => onChange(option)}
+            style={[
+              styles.toggle,
+              selected &&
+                (option === 'yes'
+                  ? styles.toggleYes
+                  : option === 'no'
+                    ? styles.toggleNo
+                    : styles.toggleNa),
+            ]}
+          >
+            <Text
+              style={[
+                styles.toggleText,
+                selected &&
+                  (option === 'yes'
+                    ? styles.toggleTextYes
+                    : option === 'no'
+                      ? styles.toggleTextNo
+                      : styles.toggleTextNa),
+              ]}
+            >
+              {option === 'na' ? 'N/A' : option === 'yes' ? 'Yes' : 'No'}
+            </Text>
+          </Pressable>
+        );
+      })}
     </View>
   );
 }
@@ -137,14 +169,16 @@ export function SpecialReportingForm({
   onBack: () => void;
   onFinalise: () => void;
 }) {
-  const [localError, setLocalError] = useState<string | null>(null);
   const patch = (partial: Partial<SpecialReportingDraft>) => onChange({ ...value, ...partial });
-  const shownError = error ?? localError;
+
+  useEffect(() => {
+    if (!error) return;
+    Alert.alert('Could not finalise', error);
+  }, [error]);
 
   return (
     <ScrollView contentContainerStyle={styles.inner} keyboardShouldPersistTaps="handled" style={{ flex: 1 }}>
       <Text style={styles.title}>NSW Special Reporting</Text>
-      {shownError ? <Text style={styles.error}>{shownError}</Text> : null}
 
       {BOOL_SECTIONS.map((section) => (
         <View key={section.title} style={styles.card}>
@@ -315,10 +349,9 @@ export function SpecialReportingForm({
           onPress={() => {
             const missing = specialReportingMissing(value);
             if (missing) {
-              setLocalError(missing);
+              Alert.alert('Cannot finalise', missing);
               return;
             }
-            setLocalError(null);
             onFinalise();
           }}
           style={[styles.primary, submitting && styles.disabled]}
@@ -363,9 +396,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
   },
-  toggleOn: { backgroundColor: colors.primary, borderColor: colors.primary },
+  toggleYes: { backgroundColor: colors.primary, borderColor: colors.primary },
+  toggleNo: { backgroundColor: colors.destructive, borderColor: colors.destructive },
+  toggleNa: { backgroundColor: colors.secondary, borderColor: colors.muted },
   toggleText: { color: colors.text, fontWeight: '600', fontSize: 12 },
-  toggleTextOn: { color: colors.primaryFg },
+  toggleTextYes: { color: colors.primaryFg },
+  toggleTextNo: { color: '#fff' },
+  toggleTextNa: { color: colors.text },
   input: {
     borderWidth: 1,
     borderColor: colors.border,
@@ -376,7 +413,6 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   notes: { minHeight: 80, textAlignVertical: 'top' },
-  error: { color: colors.destructive, fontSize: 13 },
   actions: { flexDirection: 'row', gap: 8, marginTop: 8 },
   primary: {
     flex: 1,

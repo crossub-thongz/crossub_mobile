@@ -8,7 +8,9 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import { AppState } from 'react-native';
 
+import { apiErrorMessage } from '@/src/api/client';
 import {
   acceptInspection,
   claimInspection,
@@ -29,8 +31,15 @@ import {
   isUpcomingInspection,
 } from '@/src/lib/inspector-job-filters';
 import { mapAssignedJobs, mapPoolJobs, toInspectionJob } from '@/src/lib/job-map';
-import { applyKeyCollection } from '@/src/lib/key-access';
-import { loadAllDrafts, saveDraftLocal } from '@/src/offline/db';
+import { applyKeyCollection, mergeJobLocalState } from '@/src/lib/key-access';
+import {
+  loadAllDrafts,
+  loadOfflineQueue,
+  saveDraftLocal,
+  subscribeDraftsChanged,
+  rewriteStrings,
+} from '@/src/offline/db';
+import { mergeQueuedPhotosIntoDraft } from '@/src/offline/hydrate-draft-photos';
 import type { GeoPoint } from '@/src/lib/travel';
 import type { InspectionJob, RoutineExecutionDraft } from '@/src/lib/types';
 import { useDeviceLocation } from '@/src/lib/use-device-location';
@@ -58,6 +67,7 @@ type InspectionsContextValue = {
   patchJob: (id: string, patch: Partial<InspectionJob>) => void;
   getDraft: (id: string) => RoutineExecutionDraft | undefined;
   setDraft: (id: string, draft: RoutineExecutionDraft) => void;
+  draftsHydrated: boolean;
 };
 
 const InspectionsContext = createContext<InspectionsContextValue | undefined>(
@@ -92,16 +102,7 @@ function mergePreservedJobState(
   previous: InspectionJob[],
 ): InspectionJob[] {
   const prevById = new Map(previous.map((job) => [job.id, job]));
-  return fresh.map((job) => {
-    const prev = prevById.get(job.id);
-    if (!prev) return job;
-    return {
-      ...job,
-      keyAccess: job.keyAccess ?? prev.keyAccess,
-      leasingKeyCollection: job.leasingKeyCollection ?? prev.leasingKeyCollection,
-      workflowData: { ...prev.workflowData, ...job.workflowData },
-    };
-  });
+  return fresh.map((job) => mergeJobLocalState(job, prevById.get(job.id)));
 }
 
 export function InspectionsProvider({ children }: { children: ReactNode }) {
@@ -109,6 +110,7 @@ export function InspectionsProvider({ children }: { children: ReactNode }) {
   const [jobs, setJobs] = useState<InspectionJob[]>([]);
   const [pool, setPool] = useState<InspectionJob[]>([]);
   const [drafts, setDrafts] = useState<Record<string, RoutineExecutionDraft>>({});
+  const [draftsHydrated, setDraftsHydrated] = useState(false);
   const [loading, setLoading] = useState(true);
   const [jobsHydrated, setJobsHydrated] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -123,12 +125,52 @@ export function InspectionsProvider({ children }: { children: ReactNode }) {
   });
 
   useEffect(() => {
-    void loadAllDrafts().then(setDrafts);
+    let cancelled = false;
+    void (async () => {
+      try {
+        const loaded = await loadAllDrafts();
+        const queue = await loadOfflineQueue();
+        const byJob = new Map<string, typeof queue>();
+        for (const item of queue) {
+          if (item.action !== 'photo_upload') continue;
+          const list = byJob.get(item.jobId) ?? [];
+          list.push(item);
+          byJob.set(item.jobId, list);
+        }
+        const next: Record<string, RoutineExecutionDraft> = {};
+        for (const [jobId, draft] of Object.entries(loaded)) {
+          const merged = await mergeQueuedPhotosIntoDraft(draft, byJob.get(jobId) ?? []);
+          next[jobId] = merged;
+          if (JSON.stringify(merged) !== JSON.stringify(draft)) {
+            await saveDraftLocal(jobId, merged);
+          }
+        }
+        if (!cancelled) setDrafts(next);
+      } finally {
+        if (!cancelled) setDraftsHydrated(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  const load = useCallback(async (mode: 'initial' | 'refresh', receivingOverride?: boolean) => {
+  useEffect(() => {
+    return subscribeDraftsChanged((rewrite) => {
+      if (!rewrite) return;
+      setDrafts((current) => {
+        const next: Record<string, RoutineExecutionDraft> = {};
+        for (const [id, draft] of Object.entries(current)) {
+          next[id] = rewriteStrings(draft, rewrite.from, rewrite.to) as RoutineExecutionDraft;
+        }
+        return next;
+      });
+    });
+  }, []);
+
+  const load = useCallback(async (mode: 'initial' | 'refresh' | 'background', receivingOverride?: boolean) => {
     if (mode === 'initial') setLoading(true);
-    else setRefreshing(true);
+    else if (mode === 'refresh') setRefreshing(true);
     setError(null);
     try {
       let receiving = receivingOverride ?? receivingRef.current;
@@ -149,7 +191,7 @@ export function InspectionsProvider({ children }: { children: ReactNode }) {
       setJobs((previous) => mergePreservedJobState(assignedJobs, previous));
       setPool(receiving ? poolJobs : []);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load jobs');
+      setError(apiErrorMessage(err, 'Could not load inspections.'));
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -163,6 +205,14 @@ export function InspectionsProvider({ children }: { children: ReactNode }) {
       return;
     }
     void load('initial');
+  }, [status, load]);
+
+  useEffect(() => {
+    if (status !== 'authed') return;
+    const sub = AppState.addEventListener('change', (next) => {
+      if (next === 'active') void load('background');
+    });
+    return () => sub.remove();
   }, [status, load]);
 
   useEffect(() => {
@@ -196,7 +246,11 @@ export function InspectionsProvider({ children }: { children: ReactNode }) {
       return;
     }
     setPool((current) => current.filter((row) => row.id !== job.id));
-    setJobs((current) => [job, ...current.filter((row) => row.id !== job.id)]);
+    setJobs((current) => {
+      const previous = current.find((row) => row.id === job.id);
+      const merged = mergeJobLocalState(job, previous);
+      return [merged, ...current.filter((row) => row.id !== job.id)];
+    });
   }, []);
 
   const patchJob = useCallback((id: string, patch: Partial<InspectionJob>) => {
@@ -234,7 +288,7 @@ export function InspectionsProvider({ children }: { children: ReactNode }) {
     } catch (err) {
       setReceivingJobs(!next);
       receivingRef.current = !next;
-      setError(err instanceof Error ? err.message : 'Could not sync availability');
+      setError(apiErrorMessage(err, 'Could not sync availability.'));
     }
   }, [load]);
 
@@ -295,7 +349,7 @@ export function InspectionsProvider({ children }: { children: ReactNode }) {
   const completedJobs = useMemo(
     () =>
       assignedCore
-        .filter((job) => job.status === 'completed' || job.status === 'awaiting_approval')
+        .filter((job) => job.status === 'completed')
         .sort(
           (a, b) =>
             new Date(b.scheduledTime || b.scheduledDate).getTime() -
@@ -315,6 +369,7 @@ export function InspectionsProvider({ children }: { children: ReactNode }) {
       pendingJobs,
       loading,
       jobsHydrated,
+      draftsHydrated,
       refreshing,
       error,
       claimingId,
@@ -339,6 +394,7 @@ export function InspectionsProvider({ children }: { children: ReactNode }) {
       pendingJobs,
       loading,
       jobsHydrated,
+      draftsHydrated,
       refreshing,
       error,
       claimingId,

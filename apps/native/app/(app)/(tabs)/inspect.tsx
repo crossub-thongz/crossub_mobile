@@ -329,7 +329,14 @@ const styles = StyleSheet.create({
   pager: { flex: 1 },
   page: { paddingHorizontal: 16 },
   list: { paddingTop: 12, paddingBottom: 96, flexGrow: 1 },
-  error: { color: colors.destructive, paddingHorizontal: 16, paddingTop: 8 },
+  error: {
+    color: colors.destructive,
+    fontSize: 13,
+    lineHeight: 18,
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 4,
+  },
   section: {
     color: colors.muted,
     fontSize: 11,

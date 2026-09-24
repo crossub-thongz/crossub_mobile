@@ -2,6 +2,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 
 import type { UploadInspectorPhoto } from '@/src/api/inspector';
+import { isDurableLocalPhoto, readLocalFileBase64, resolveLocalFileUri } from '@/src/lib/local-file';
 
 /** Longest edge for inspection evidence. Smaller than full camera stills so 1500+ photos stay safe. */
 export const INSPECTION_PHOTO_MAX_EDGE = 1280;
@@ -42,6 +43,10 @@ async function fileSize(uri: string): Promise<number> {
   return 0;
 }
 
+function isDurableQueueUri(uri: string): boolean {
+  return uri.includes('/offline-queue/');
+}
+
 function resizeActions(
   width: number,
   height: number,
@@ -57,28 +62,47 @@ function resizeActions(
  * Drops the original capture file when a smaller copy is written.
  */
 export async function compressPhotoToFile(photo: LocalPhoto): Promise<LocalPhoto> {
-  const existing = await fileSize(photo.uri);
+  const resolved = await resolveLocalFileUri(photo.uri);
+  if (!resolved) {
+    throw new Error('That photo is no longer on this phone. Take it again.');
+  }
+  const sourcePhoto = { ...photo, uri: resolved };
+  const existing = await fileSize(sourcePhoto.uri);
+  const knownSize = existing > 0 && existing <= INSPECTION_PHOTO_MAX_BYTES;
   const withinEdge =
-    photo.width > 0 &&
-    photo.height > 0 &&
-    photo.width <= INSPECTION_PHOTO_MAX_EDGE &&
-    photo.height <= INSPECTION_PHOTO_MAX_EDGE;
-  if (existing > 0 && existing <= INSPECTION_PHOTO_MAX_BYTES && withinEdge) {
-    return photo;
+    sourcePhoto.width > 0 &&
+    sourcePhoto.height > 0 &&
+    sourcePhoto.width <= INSPECTION_PHOTO_MAX_EDGE &&
+    sourcePhoto.height <= INSPECTION_PHOTO_MAX_EDGE;
+  if (knownSize && (withinEdge || sourcePhoto.width <= 0 || sourcePhoto.height <= 0)) {
+    return sourcePhoto;
   }
 
-  let source = photo.uri;
-  let width = photo.width;
-  let height = photo.height;
+  let source = sourcePhoto.uri;
+  let width = sourcePhoto.width;
+  let height = sourcePhoto.height;
   let quality = START_QUALITY;
   let edge = INSPECTION_PHOTO_MAX_EDGE;
-  let current = photo.uri;
+  let current = sourcePhoto.uri;
 
   for (let attempt = 0; attempt < 8; attempt += 1) {
-    const result = await manipulateAsync(current, resizeActions(width, height, edge), {
-      compress: quality,
-      format: SaveFormat.JPEG,
-    });
+    let result: { uri: string; width: number; height: number };
+    try {
+      result = await manipulateAsync(current, resizeActions(width, height, edge), {
+        compress: quality,
+        format: SaveFormat.JPEG,
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message.toLowerCase() : String(err).toLowerCase();
+      if (
+        message.includes('no such file') ||
+        message.includes('could not load') ||
+        message.includes('imageloadingfailed')
+      ) {
+        throw new Error('That photo is no longer on this phone. Take it again.');
+      }
+      throw new Error('Could not save the photo on this device.');
+    }
     if (result.uri !== current && current !== source) {
       await deleteLocalPhoto(current);
     }
@@ -94,7 +118,9 @@ export async function compressPhotoToFile(photo: LocalPhoto): Promise<LocalPhoto
     }
   }
 
-  if (current !== source) await deleteLocalPhoto(source);
+  if (current !== source && !isDurableQueueUri(source)) {
+    await deleteLocalPhoto(source);
+  }
   return { uri: current, width, height };
 }
 
@@ -103,14 +129,26 @@ export async function preparePhotoUpload(photo: LocalPhoto): Promise<{
   localUri: string;
 }> {
   const compressed = await compressPhotoToFile(photo);
-  const contentBase64 = await FileSystem.readAsStringAsync(compressed.uri, {
-    encoding: FileSystem.EncodingType.Base64,
-  });
-  if (!contentBase64) {
-    throw new Error('Could not encode the photo for upload.');
-  }
+  const { uri, contentBase64 } = await readLocalFileBase64(compressed.uri);
   return {
-    localUri: compressed.uri,
+    localUri: uri,
+    body: {
+      fileName: `inspection-${Date.now()}.jpg`,
+      mimeType: 'image/jpeg',
+      sizeBytes: Math.floor((contentBase64.length * 3) / 4),
+      contentBase64,
+    },
+  };
+}
+
+/** Read a photo already saved on this phone. Do not run ImageManipulator again. */
+export async function prepareStoredPhotoUpload(uri: string): Promise<{
+  body: UploadInspectorPhoto;
+  localUri: string;
+}> {
+  const { uri: localUri, contentBase64 } = await readLocalFileBase64(uri);
+  return {
+    localUri,
     body: {
       fileName: `inspection-${Date.now()}.jpg`,
       mimeType: 'image/jpeg',

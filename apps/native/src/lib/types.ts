@@ -133,5 +133,6 @@ export type RoutineExecutionDraft = {
   updatedAt?: string;
   specialReporting?: SpecialReportingDraft;
   specialReportingComplete?: boolean;
+  inspectionFinished?: boolean;
   workflowStep?: 'areas' | 'special';
 };

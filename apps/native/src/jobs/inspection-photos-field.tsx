@@ -15,6 +15,7 @@ import {
 
 import type { LocalPhoto } from '@/src/jobs/compress-photo';
 import { pickInspectionPhotos } from '@/src/jobs/pick-inspection-photos';
+import { apiErrorMessage } from '@/src/api/client';
 import { colors } from '@/src/theme';
 
 const CELL_GAP = 8;
@@ -23,10 +24,14 @@ const ADD_ITEM = { type: 'add' as const };
 
 type GridItem = { type: 'photo'; url: string; index: number } | { type: 'add' };
 
+function photoCachePolicy(uri: string) {
+  return uri.startsWith('http') ? ('disk' as const) : ('none' as const);
+}
+
 function photoSource(uri: string) {
   return {
     uri,
-    cachePolicy: uri.startsWith('http') ? ('disk' as const) : ('memory' as const),
+    cachePolicy: photoCachePolicy(uri),
   };
 }
 
@@ -115,7 +120,7 @@ export function InspectionPhotosField({
       const photos = await pickInspectionPhotos();
       if (photos.length > 0) onAddPhotos(photos);
     } catch (err) {
-      Alert.alert('Upload photos', err instanceof Error ? err.message : 'Could not open the photo library.');
+      Alert.alert('Upload photos', apiErrorMessage(err, 'Could not open the photo library.'));
     } finally {
       setPicking(false);
     }
@@ -307,7 +312,7 @@ export function InspectionPhotosField({
               source={{ uri: previewUrl }}
               style={styles.previewImage}
               contentFit="contain"
-              cachePolicy={previewUrl.startsWith('http') ? 'disk' : 'memory'}
+              cachePolicy={photoCachePolicy(previewUrl)}
               recyclingKey={previewUrl}
               transition={0}
             />
@@ -346,7 +351,7 @@ export function BeforeAfterPhotoColumn({
       const photos = await pickInspectionPhotos();
       if (photos.length > 0) onAddPhotos(photos);
     } catch (err) {
-      Alert.alert('Upload photos', err instanceof Error ? err.message : 'Could not open the photo library.');
+      Alert.alert('Upload photos', apiErrorMessage(err, 'Could not open the photo library.'));
     } finally {
       setPicking(false);
     }
@@ -364,7 +369,7 @@ export function BeforeAfterPhotoColumn({
             source={{ uri: primaryUrl }}
             style={styles.squareImage}
             contentFit="cover"
-            cachePolicy={primaryUrl.startsWith('http') ? 'disk' : 'memory'}
+            cachePolicy={photoCachePolicy(primaryUrl)}
             recyclingKey={primaryUrl}
             allowDownscaling
             transition={0}

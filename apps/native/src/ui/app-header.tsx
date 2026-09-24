@@ -109,7 +109,11 @@ export function AppHeader({
       <Pressable
         onPress={() => go('/notifications')}
         style={styles.iconBtn}
-        accessibilityLabel="Notifications"
+        accessibilityLabel={
+          unreadNotifications > 0
+            ? `Notifications, ${unreadNotifications} unread`
+            : 'Notifications'
+        }
       >
         <Ionicons name="notifications-outline" size={20} color={colors.muted} />
         {unreadNotifications > 0 ? <View style={styles.notifDot} /> : null}

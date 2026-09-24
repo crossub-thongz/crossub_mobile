@@ -57,9 +57,13 @@ import { formatJobRefId, propertyAddressLines } from '@/src/lib/property-address
 import { jobHistory } from '@/src/lib/routes';
 import { colors } from '@/src/theme';
 
-function Banner({ tone, children }: { tone: 'amber' | 'danger'; children: string }) {
+function Banner({ tone, children }: { tone: 'amber' | 'danger' | 'ok'; children: string }) {
   return (
-    <Text style={tone === 'danger' ? styles.danger : styles.amber}>{children}</Text>
+    <Text
+      style={tone === 'danger' ? styles.danger : tone === 'ok' ? styles.ok : styles.amber}
+    >
+      {children}
+    </Text>
   );
 }
 
@@ -147,7 +151,7 @@ export default function JobDetailsScreen() {
   const primary = jobPrimaryAction(job, started);
   const keyCollectDone = isKeyCollectComplete(job);
   const keyReturnDone = isKeyReturnComplete(job);
-  const inspectionFinished = isInspectionWorkflowFinished(job);
+  const inspectionFinished = isInspectionWorkflowFinished(job, draft);
   const paymentBlocked = Boolean(job.awaitingAgentPayment);
   const keysBlocked = Boolean(job.keyAccess && !keyCollectDone);
   const returnPending =
@@ -275,6 +279,9 @@ export default function JobDetailsScreen() {
           </Banner>
         ) : keysBlocked ? (
           <Banner tone="amber">Complete handover before starting the inspection.</Banner>
+        ) : null}
+        {job.approvedAt && job.status === 'completed' ? (
+          <Banner tone="ok">Report approved. You can view the inspection report.</Banner>
         ) : null}
         {job.reportDeclineReason &&
         job.status !== 'completed' &&
@@ -427,6 +434,16 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(239,68,68,0.1)',
     borderWidth: 1,
     borderColor: 'rgba(239,68,68,0.3)',
+    borderRadius: 8,
+    padding: 10,
+    fontSize: 12,
+    overflow: 'hidden',
+  },
+  ok: {
+    color: colors.primary,
+    backgroundColor: 'rgba(0,212,164,0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(0,212,164,0.3)',
     borderRadius: 8,
     padding: 10,
     fontSize: 12,

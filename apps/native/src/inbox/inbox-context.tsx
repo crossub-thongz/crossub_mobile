@@ -7,6 +7,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import { AppState } from 'react-native';
 
 import {
   createInspectorMessage,
@@ -69,9 +70,9 @@ export function InboxProvider({ children }: { children: ReactNode }) {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(async (mode: 'initial' | 'refresh') => {
+  const load = useCallback(async (mode: 'initial' | 'refresh' | 'background') => {
     if (mode === 'initial') setLoading(true);
-    else setRefreshing(true);
+    else if (mode === 'refresh') setRefreshing(true);
     setError(null);
     try {
       const [threadDtos, notificationDtos] = await Promise.all([
@@ -91,8 +92,29 @@ export function InboxProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (status !== 'authed') return;
+    if (status !== 'authed') {
+      setMessages([]);
+      setThreadMessages({});
+      setNotifications([]);
+      return;
+    }
     void load('initial');
+  }, [status, load]);
+
+  useEffect(() => {
+    if (status !== 'authed') return;
+    const timer = setInterval(() => {
+      void load('background');
+    }, 15_000);
+    return () => clearInterval(timer);
+  }, [status, load]);
+
+  useEffect(() => {
+    if (status !== 'authed') return;
+    const sub = AppState.addEventListener('change', (next) => {
+      if (next === 'active') void load('background');
+    });
+    return () => sub.remove();
   }, [status, load]);
 
   const refresh = useCallback(async () => {

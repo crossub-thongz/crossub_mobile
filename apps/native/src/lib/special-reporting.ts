@@ -5,6 +5,13 @@ type FindingsItem = NonNullable<FindingsArea['items']>[number];
 
 export type YesNoNa = 'yes' | 'no' | 'na';
 
+/** NSW Special Reporting is the Fair Trading condition-report page on Ingoing and Outgoing only. */
+export function inspectionHasNswSpecialReporting(
+  type: string,
+): type is 'ingoing' | 'outgoing' {
+  return type === 'ingoing' || type === 'outgoing';
+}
+
 export type SpecialReportingDraft = {
   structurallySound: boolean;
   lighting: boolean;

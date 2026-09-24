@@ -1,6 +1,22 @@
 import * as FileSystem from 'expo-file-system/legacy';
+import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 
 import { deleteLocalPhoto } from '@/src/jobs/compress-photo';
+import {
+  asFileUri,
+  isDurableLocalPhoto,
+  isRemotePhotoUrl,
+  localPhotoExists,
+  resolveLocalFileUri,
+} from '@/src/lib/local-file';
+
+export {
+  asFileUri,
+  isDurableLocalPhoto,
+  isRemotePhotoUrl,
+  localPhotoExists,
+  resolveLocalFileUri,
+};
 
 const QUEUE_DIR = `${FileSystem.documentDirectory ?? ''}offline-queue/`;
 
@@ -17,26 +33,71 @@ function newQueuePhotoPath(): string {
   return `${QUEUE_DIR}photo-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`;
 }
 
-export async function localPhotoExists(uri: string): Promise<boolean> {
-  if (!uri || !uri.startsWith('file:')) return false;
-  try {
-    const info = await FileSystem.getInfoAsync(uri);
-    return Boolean(info.exists);
-  } catch {
-    return false;
+/** Keep a photo URL list in sync as a cache file is copied, then uploaded. */
+export function upsertPhotoUrl(urls: string[], from: string, to: string): string[] {
+  if (!to) return urls;
+  if (from && from !== to && urls.includes(from)) {
+    return urls.map((url) => (url === from ? to : url));
   }
+  if (urls.includes(to)) return urls;
+  return [...urls, to];
 }
 
-/** Copy a cache/camera JPEG into app documents so iOS cannot purge it before drain. */
+async function copyToQueue(from: string, dest: string): Promise<void> {
+  await FileSystem.copyAsync({ from, to: dest });
+}
+
+/**
+ * Copy a camera, library, or cache JPEG into app documents so iOS cannot purge
+ * it when the inspector closes the app before sync.
+ */
 export async function persistQueuedPhoto(uri: string): Promise<string> {
-  if (!uri.startsWith('file:')) return uri;
-  if (uri.includes('/offline-queue/')) {
-    if (await localPhotoExists(uri)) return uri;
-  }
+  if (!uri) throw new Error('Photo is missing from this device.');
+  if (isRemotePhotoUrl(uri)) return uri;
+  const resolved = (await resolveLocalFileUri(uri)) ?? asFileUri(uri);
+  const durable = isDurableLocalPhoto(resolved)
+    ? await resolveLocalFileUri(resolved)
+    : null;
+  if (durable) return durable;
+
   await ensureQueueDir();
   const dest = newQueuePhotoPath();
-  await FileSystem.copyAsync({ from: uri, to: dest });
-  return dest;
+  let copied = false;
+  try {
+    await copyToQueue(resolved, dest);
+    copied = Boolean(await resolveLocalFileUri(dest));
+  } catch {
+    copied = false;
+  }
+  if (!copied) {
+    try {
+      const contentBase64 = await FileSystem.readAsStringAsync(resolved, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+      await FileSystem.writeAsStringAsync(dest, contentBase64, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+    } catch {
+      let resultUri = '';
+      try {
+        const result = await manipulateAsync(resolved, [], {
+          compress: 0.92,
+          format: SaveFormat.JPEG,
+        });
+        resultUri = result.uri;
+        await copyToQueue(result.uri, dest);
+      } catch {
+        throw new Error('Could not save the photo on this device.');
+      } finally {
+        if (resultUri && resultUri !== resolved && resultUri !== dest) {
+          await deleteLocalPhoto(resultUri);
+        }
+      }
+    }
+  }
+  const saved = await resolveLocalFileUri(dest);
+  if (!saved) throw new Error('Could not save the photo on this device.');
+  return saved;
 }
 
 export async function writeQueuedPhotoFromBase64(contentBase64: string): Promise<string> {
