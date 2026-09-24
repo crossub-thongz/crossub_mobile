@@ -16,6 +16,7 @@ import {
 import type { LocalPhoto } from '@/src/jobs/compress-photo';
 import { pickInspectionPhotos } from '@/src/jobs/pick-inspection-photos';
 import { apiErrorMessage } from '@/src/api/client';
+import { asFileUri, isRemotePhotoUrl, resolveLocalFileUri } from '@/src/lib/local-file';
 import { colors } from '@/src/theme';
 
 const CELL_GAP = 8;
@@ -25,14 +26,7 @@ const ADD_ITEM = { type: 'add' as const };
 type GridItem = { type: 'photo'; url: string; index: number } | { type: 'add' };
 
 function photoCachePolicy(uri: string) {
-  return uri.startsWith('http') ? ('disk' as const) : ('none' as const);
-}
-
-function photoSource(uri: string) {
-  return {
-    uri,
-    cachePolicy: photoCachePolicy(uri),
-  };
+  return isRemotePhotoUrl(uri) ? ('disk' as const) : ('memory' as const);
 }
 
 function PhotoThumb({
@@ -42,15 +36,29 @@ function PhotoThumb({
   uri: string;
   onPress: () => void;
 }) {
-  const source = photoSource(uri);
+  const [src, setSrc] = useState(uri);
+
+  useEffect(() => {
+    let cancelled = false;
+    setSrc(uri);
+    if (!uri || isRemotePhotoUrl(uri)) return;
+    void resolveLocalFileUri(uri).then((resolved) => {
+      if (!cancelled && resolved) setSrc(resolved);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [uri]);
+
+  const display = isRemotePhotoUrl(src) ? src : asFileUri(src);
   return (
     <Pressable onPress={onPress} style={styles.thumbBtn}>
       <Image
-        source={{ uri: source.uri }}
+        source={{ uri: display }}
         style={StyleSheet.absoluteFill}
         contentFit="cover"
-        cachePolicy={source.cachePolicy}
-        recyclingKey={uri}
+        cachePolicy={photoCachePolicy(display)}
+        recyclingKey={display}
         allowDownscaling
         transition={0}
       />
@@ -61,7 +69,7 @@ function PhotoThumb({
 export function InspectionPhotosField({
   label = 'Photos',
   photoUrls,
-  uploading = false,
+  uploading: _uploading = false,
   disabled = false,
   emptyLabel = 'Add at least one photo for this area.',
   compact = false,
@@ -90,7 +98,6 @@ export function InspectionPhotosField({
   const listRef = useRef<FlatList<GridItem>>(null);
   const previewUrl = previewIndex != null ? photoUrls[previewIndex] : null;
   const prevCountRef = useRef(photoUrls.length);
-  const busy = uploading || picking;
   const atLimit = maxPhotos != null && photoUrls.length >= maxPhotos;
   const canAdd = !disabled && !atLimit;
   const gridItems = useMemo<GridItem[]>(() => {
@@ -174,25 +181,19 @@ export function InspectionPhotosField({
         <View style={styles.actions}>
           <Pressable
             onPress={onTakePhotos}
-            disabled={busy}
-            style={[styles.takeBtn, compact && styles.takeBtnCompact, busy && styles.actionDisabled]}
+            disabled={picking}
+            style={[styles.takeBtn, compact && styles.takeBtnCompact, picking && styles.actionDisabled]}
           >
-            {busy && !picking ? (
-              <ActivityIndicator color={colors.primaryFg} />
-            ) : (
-              <>
-                <Ionicons name="camera-outline" size={16} color={colors.primaryFg} />
-                <Text style={styles.takeText}>Take photos</Text>
-              </>
-            )}
+            <Ionicons name="camera-outline" size={16} color={colors.primaryFg} />
+            <Text style={styles.takeText}>Take photos</Text>
           </Pressable>
           {onAddPhotos ? (
             <Pressable
               onPress={() => {
                 void uploadFromLibrary();
               }}
-              disabled={busy}
-              style={[styles.uploadBtn, compact && styles.takeBtnCompact, busy && styles.actionDisabled]}
+              disabled={picking}
+              style={[styles.uploadBtn, compact && styles.takeBtnCompact, picking && styles.actionDisabled]}
             >
               {picking ? (
                 <ActivityIndicator color={colors.text} />
@@ -229,7 +230,7 @@ export function InspectionPhotosField({
                 ref={listRef}
                 data={gridItems}
                 numColumns={3}
-                extraData={`${cellSize}:${disabled}:${photoUrls.length}`}
+                extraData={`${cellSize}:${disabled}:${photoUrls.join('\n')}`}
                 keyExtractor={(item) =>
                   item.type === 'add' ? 'add' : `${item.index}:${item.url.slice(-32)}`
                 }
@@ -239,9 +240,9 @@ export function InspectionPhotosField({
                 style={{ height: gridHeight }}
                 columnWrapperStyle={styles.inlineRow}
                 initialNumToRender={12}
-                maxToRenderPerBatch={9}
-                windowSize={5}
-                removeClippedSubviews
+                maxToRenderPerBatch={12}
+                windowSize={8}
+                removeClippedSubviews={false}
               />
             ) : (
               <View style={{ height: 96 }} />
@@ -275,8 +276,8 @@ export function InspectionPhotosField({
             columnWrapperStyle={styles.allRow}
             initialNumToRender={12}
             maxToRenderPerBatch={9}
-            windowSize={5}
-            removeClippedSubviews
+            windowSize={8}
+            removeClippedSubviews={false}
             renderItem={({ item, index }) => (
               <View style={styles.allCell}>
                 <PhotoThumb
@@ -326,7 +327,7 @@ export function InspectionPhotosField({
 export function BeforeAfterPhotoColumn({
   title,
   photoUrls,
-  uploading = false,
+  uploading: _uploading = false,
   disabled = false,
   onTakePhotos,
   onAddPhotos,
@@ -342,7 +343,7 @@ export function BeforeAfterPhotoColumn({
 }) {
   const primaryUrl = photoUrls[0];
   const [picking, setPicking] = useState(false);
-  const busy = uploading || picking;
+  const pickingBusy = picking;
 
   const uploadFromLibrary = async () => {
     if (disabled || !onAddPhotos || picking) return;
@@ -390,12 +391,8 @@ export function BeforeAfterPhotoColumn({
       <Text style={styles.columnTitle}>{title}</Text>
       {!disabled ? (
         <View style={styles.columnActions}>
-          <Pressable onPress={onTakePhotos} style={styles.columnSnap} disabled={busy}>
-            {busy && !picking ? (
-              <ActivityIndicator color={colors.primaryFg} size="small" />
-            ) : (
-              <Text style={styles.columnSnapText}>Snap</Text>
-            )}
+          <Pressable onPress={onTakePhotos} style={styles.columnSnap} disabled={pickingBusy}>
+            <Text style={styles.columnSnapText}>Snap</Text>
           </Pressable>
           {onAddPhotos ? (
             <Pressable
@@ -403,7 +400,7 @@ export function BeforeAfterPhotoColumn({
                 void uploadFromLibrary();
               }}
               style={styles.columnUpload}
-              disabled={busy}
+              disabled={pickingBusy}
             >
               {picking ? (
                 <ActivityIndicator color={colors.text} size="small" />

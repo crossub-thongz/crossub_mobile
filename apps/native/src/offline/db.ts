@@ -405,31 +405,4 @@ export async function rewriteQueuedUris(from: string, to: string): Promise<void>
       await updateQueuePayload(item.id, next);
     }
   }
-  const drafts = await loadAllDrafts();
-  let draftsChanged = false;
-  for (const [inspectionId, draft] of Object.entries(drafts)) {
-    const next = rewriteStrings(draft, from, to) as RoutineExecutionDraft;
-    if (JSON.stringify(next) !== JSON.stringify(draft)) {
-      await saveDraftLocal(inspectionId, next);
-      draftsChanged = true;
-    }
-  }
-  const handoverRows = await (await getDb()).getAllAsync<{
-    job_id: string;
-    phase: string;
-    json: string;
-  }>(`SELECT job_id, phase, json FROM handover_drafts`);
-  for (const row of handoverRows) {
-    try {
-      const parsed = JSON.parse(row.json) as HandoverFormDraft;
-      const next = rewriteStrings(parsed, from, to) as HandoverFormDraft;
-      if (JSON.stringify(next) !== JSON.stringify(parsed)) {
-        await saveHandoverDraft(row.job_id, row.phase === 'return' ? 'return' : 'collect', next);
-        draftsChanged = true;
-      }
-    } catch {
-      // Skip a corrupt handover row.
-    }
-  }
-  if (draftsChanged) notifyDraftsChanged({ from, to });
 }

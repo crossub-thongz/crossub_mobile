@@ -1203,6 +1203,7 @@ export default function OutgoingInspectionPage() {
                 setDraft((prev) => ({ ...prev, specialReporting }))
               }
               submitting={busy}
+              phase="outgoing"
               onBack={() => setDraft((prev) => ({ ...prev, workflowStep: 'areas' }))}
               onFinalise={() => {
                 setFormBusy(true);

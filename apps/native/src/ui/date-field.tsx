@@ -12,6 +12,7 @@ import DateTimePicker, {
 } from '@react-native-community/datetimepicker';
 
 import { colors } from '@/src/theme';
+import { isSpecialReportingNa } from '@/src/lib/special-reporting';
 
 function pad(value: number): string {
   return String(value).padStart(2, '0');
@@ -73,6 +74,7 @@ type DateFieldProps = {
   onChange: (next: string) => void;
   placeholder?: string;
   optional?: boolean;
+  allowNa?: boolean;
   minimumDate?: Date;
   maximumDate?: Date;
 };
@@ -82,22 +84,40 @@ export function DateField({
   onChange,
   placeholder = 'Select date',
   optional = false,
+  allowNa = false,
   minimumDate,
   maximumDate,
 }: DateFieldProps) {
+  const markedNa = allowNa && isSpecialReportingNa(value);
+  const dateValue = markedNa ? '' : value;
   return (
-    <NativePickerField
-      value={value}
-      onChange={onChange}
-      placeholder={placeholder}
-      optional={optional}
-      mode="date"
-      label={value ? formatYmdLabel(value) : ''}
-      parse={parseYmd}
-      format={toYmd}
-      minimumDate={minimumDate}
-      maximumDate={maximumDate}
-    />
+    <View style={styles.dateRow}>
+      <View style={styles.dateField}>
+        <NativePickerField
+          value={dateValue}
+          onChange={onChange}
+          placeholder={markedNa ? 'N/A' : placeholder}
+          optional={optional}
+          mode="date"
+          label={dateValue ? formatYmdLabel(dateValue) : markedNa ? 'N/A' : ''}
+          parse={parseYmd}
+          format={toYmd}
+          minimumDate={minimumDate}
+          maximumDate={maximumDate}
+        />
+      </View>
+      {allowNa ? (
+        <Pressable
+          onPress={() => onChange(markedNa ? '' : 'na')}
+          style={[styles.naBtn, markedNa && styles.naBtnOn]}
+          accessibilityRole="button"
+          accessibilityState={{ selected: markedNa }}
+          accessibilityLabel="Not applicable"
+        >
+          <Text style={[styles.naBtnText, markedNa && styles.naBtnTextOn]}>N/A</Text>
+        </Pressable>
+      ) : null}
+    </View>
   );
 }
 
@@ -266,6 +286,21 @@ function NativePickerField({
 }
 
 const styles = StyleSheet.create({
+  dateRow: { flexDirection: 'row', alignItems: 'stretch', gap: 8 },
+  dateField: { flex: 1, minWidth: 0 },
+  naBtn: {
+    minWidth: 64,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.card,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  naBtnOn: { backgroundColor: colors.secondary, borderColor: colors.muted },
+  naBtnText: { color: colors.text, fontWeight: '700', fontSize: 13 },
+  naBtnTextOn: { color: colors.text },
   field: {
     minHeight: 44,
     borderWidth: 1,

@@ -176,7 +176,7 @@ export function OutgoingSectionPhotos({
                       name={section}
                       marks={itemMarks?.[section] ?? emptyItemMarks()}
                       comment={itemComments?.[section] ?? ''}
-                      photoUrls={[]}
+                      photoUrls={photos.outgoingPhotoUrls}
                       busy={busy}
                       photoUploading={photoUploading}
                       showItemPhotos={false}

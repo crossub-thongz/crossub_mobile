@@ -98,11 +98,13 @@ export function FieldWorkflowScreen({
     selectedAreaNames: undefined,
     areaSetupComplete: false,
   };
+  const draftRef = useRef(draft);
 
   const persist = useCallback(
     (next: RoutineExecutionDraft) => {
       if (!id || !draftsHydrated) return;
       const stamped = { ...next, updatedAt: new Date().toISOString() };
+      draftRef.current = stamped;
       setDraft(id, stamped);
       void (async () => {
         try {
@@ -126,7 +128,6 @@ export function FieldWorkflowScreen({
   const areaIndex = Math.min(draft.areaIndex, Math.max(names.length - 1, 0));
   const currentName = names[areaIndex];
   const current = currentName ? draft.issues[currentName] ?? emptyRoutineIssue() : emptyRoutineIssue();
-  const draftRef = useRef(draft);
   draftRef.current = draft;
   const getDraftRef = useRef(getDraft);
   getDraftRef.current = getDraft;
@@ -331,18 +332,18 @@ export function FieldWorkflowScreen({
   };
 
   const onBurst = async (photos: LocalPhoto[]) => {
-    if (!id || !currentName || photos.length === 0) return;
-    setBusy('photo');
+    const areaName = currentName;
+    if (!id || !areaName || photos.length === 0) return;
     setError(null);
     try {
       await ensureAccepted();
-      await queueInspectionPhotoBatch(id, photos, currentName, (fromUri, toUri) => {
-        const latest = draftRef.current.issues[currentName] ?? current;
+      await queueInspectionPhotoBatch(id, photos, areaName, (fromUri, toUri) => {
+        const latest = draftRef.current.issues[areaName] ?? emptyRoutineIssue();
         persist({
           ...draftRef.current,
           issues: {
             ...draftRef.current.issues,
-            [currentName]: {
+            [areaName]: {
               ...latest,
               available: true as const,
               areaPhotos: upsertPhotoUrl(latest.areaPhotos ?? [], fromUri, toUri),
@@ -352,8 +353,6 @@ export function FieldWorkflowScreen({
       });
     } catch (err) {
       setError(apiErrorMessage(err, 'Photo upload failed - please retry'));
-    } finally {
-      setBusy(null);
     }
   };
 
@@ -545,7 +544,6 @@ export function FieldWorkflowScreen({
                 <InspectionPhotosField
                   label="Area photos"
                   photoUrls={current.areaPhotos ?? []}
-                  uploading={busy === 'photo'}
                   disabled={busy === 'complete'}
                   emptyLabel="Snap or upload several photos of this room, then attach them here."
                   onTakePhotos={() => setCameraOpen(true)}
@@ -601,8 +599,7 @@ export function FieldWorkflowScreen({
               checked={current.available === true && (current.areaPhotos?.length ?? 0) > 0 ? 1 : 0}
               total={current.available === false ? 0 : 1}
               issues={0}
-              busy={busy != null}
-              busyLabel={busy === 'photo' ? 'Uploading photos...' : undefined}
+              busy={busy === 'complete' || busy === 'reset'}
               isLast={areaIndex >= names.length - 1}
               onNext={() => {
                 void nextArea();

@@ -1,6 +1,6 @@
 'use client';
 
-import { Check, ChevronDown, ChevronUp, CircleAlert, Info, Trash2 } from 'lucide-react';
+import { Camera, Check, ChevronDown, ChevronUp, CircleAlert, Info, Trash2 } from 'lucide-react';
 import { type ReactNode } from 'react';
 
 import { InspectionAreaPhotosField } from '@/components/inspector/inspection-area-photos-field';
@@ -9,6 +9,7 @@ import {
   ISSUE_DETAIL_LABEL,
   ITEM_CONDITION_KEYS,
   ITEM_CONDITION_LABEL,
+  cycleItemMark,
   marksAreAllGood,
   marksHaveNo,
   type ItemConditionKey,
@@ -63,12 +64,13 @@ export function InspectionItemAccordion({
   const allGood = marksAreAllGood(current);
   const hasIssue = marksHaveNo(current);
   const Icon = inspectionItemIcon(name);
+  const photoCount = photoUrls.filter(Boolean).length;
+  const missingPhotos = photoCount === 0;
 
   const toggleChip = (key: ItemConditionKey) => {
-    const value = current[key];
     onChangeMarks({
       ...current,
-      [key]: value === true ? false : true,
+      [key]: cycleItemMark(current[key]),
     });
   };
 
@@ -85,26 +87,42 @@ export function InspectionItemAccordion({
         <span className="text-foreground min-w-0 flex-1 text-sm font-medium leading-snug">
           {name}
         </span>
-        <span
-          className={cn(
-            'inline-flex shrink-0 items-center gap-1 text-[11px] font-medium',
-            hasIssue ? 'text-destructive' : allGood ? 'text-emerald-400' : 'text-muted-foreground',
-          )}
-        >
-          {hasIssue ? (
-            <>
-              Issue found
-              <CircleAlert className="size-3.5" />
-            </>
-          ) : allGood ? (
-            <>
-              All good
-              <Check className="size-3.5" />
-            </>
-          ) : (
-            'Not marked'
-          )}
-          {open ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
+        <span className="inline-flex shrink-0 items-center gap-1.5">
+          <span
+            className={cn(
+              'inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-bold',
+              missingPhotos
+                ? 'bg-amber-400/15 text-amber-400'
+                : 'bg-primary/20 text-primary',
+            )}
+            aria-label={
+              missingPhotos ? 'No photos for this item' : `${photoCount} photos for this item`
+            }
+          >
+            <Camera className="size-3" />
+            {photoCount}
+          </span>
+          <span
+            className={cn(
+              'inline-flex shrink-0 items-center gap-1 text-[11px] font-medium',
+              hasIssue ? 'text-destructive' : allGood ? 'text-emerald-400' : 'text-muted-foreground',
+            )}
+          >
+            {hasIssue ? (
+              <>
+                Issue found
+                <CircleAlert className="size-3.5" />
+              </>
+            ) : allGood ? (
+              <>
+                All good
+                <Check className="size-3.5" />
+              </>
+            ) : (
+              'Not marked'
+            )}
+            {open ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
+          </span>
         </span>
       </button>
 
@@ -176,7 +194,7 @@ export function InspectionItemAccordion({
                     onClick={() =>
                       onChangeMarks({
                         ...current,
-                        [key]: selected ? true : false,
+                        [key]: selected ? null : false,
                       })
                     }
                     className="flex w-full items-center gap-2.5 text-left text-sm"

@@ -98,6 +98,7 @@ export function InspectionSectionPhotos({
   onAddPhotos,
   onRemovePhoto,
   onDraggingChange,
+  onOpenedItemVisible,
 }: {
   definition: InspectionAreaDefinition;
   activeSections: string[];
@@ -121,6 +122,7 @@ export function InspectionSectionPhotos({
   onAddPhotos?: (section: string, photos: LocalPhoto[], side?: 'ingoing' | 'outgoing') => void;
   onRemovePhoto: (section: string, index: number, side?: 'ingoing' | 'outgoing') => void;
   onDraggingChange?: (dragging: boolean) => void;
+  onOpenedItemVisible?: (itemWindowY: number) => void;
 }) {
   const [renameFrom, setRenameFrom] = useState<string | null>(null);
   const [openName, setOpenName] = useState<string | null>(null);
@@ -198,7 +200,7 @@ export function InspectionSectionPhotos({
                     comment={itemComments?.[section] ?? ''}
                     photoUrls={
                       variant === 'beforeAfter'
-                        ? []
+                        ? photos.outgoingPhotoUrls
                         : photos.outgoingPhotoUrls.length > 0
                           ? photos.outgoingPhotoUrls
                           : photos.ingoingPhotoUrls
@@ -208,6 +210,7 @@ export function InspectionSectionPhotos({
                     showItemPhotos={variant !== 'beforeAfter'}
                     open={openName === section}
                     onOpenChange={(next) => setOpenName(next ? section : null)}
+                    onOpenedVisible={onOpenedItemVisible}
                     onRename={() => setRenameFrom(section)}
                     onRemove={() => onRemoveSection(section)}
                     onChangeMarks={(marks) => onChangeMarks(section, marks)}

@@ -5,6 +5,12 @@ type FindingsItem = NonNullable<FindingsArea['items']>[number];
 
 export type YesNoNa = 'yes' | 'no' | 'na';
 
+export const SPECIAL_REPORTING_NA = 'na';
+
+export function isSpecialReportingNa(value: string | undefined): boolean {
+  return (value ?? '').trim().toLowerCase() === SPECIAL_REPORTING_NA;
+}
+
 /** NSW Special Reporting is the Fair Trading condition-report page on Ingoing and Outgoing only. */
 export function inspectionHasNswSpecialReporting(
   type: string,
@@ -259,15 +265,24 @@ export function mergeSpecialReporting(
 /** Empty-version required fields that the filled defaults do not already answer. */
 export function specialReportingMissing(
   draft: SpecialReportingDraft,
+  phase: 'ingoing' | 'outgoing' = 'ingoing',
 ): string | null {
   if (!draft.waterEfficiencyLastChecked.trim()) {
-    return 'Enter the date water efficiency measures were last checked';
+    return 'Enter the date water efficiency measures were last checked, or mark N/A';
   }
   if (!draft.waterMeterStart.trim()) {
     return 'Enter the water meter reading at the start of the tenancy';
   }
   if (!draft.waterMeterStartDate.trim()) {
     return 'Enter the date of the start water meter reading';
+  }
+  if (phase === 'outgoing') {
+    if (!draft.waterMeterEnd.trim()) {
+      return 'Enter the water meter reading at the end of the tenancy';
+    }
+    if (!draft.waterMeterEndDate.trim()) {
+      return 'Enter the date of the end water meter reading';
+    }
   }
   return null;
 }
@@ -402,7 +417,9 @@ export function specialReportingAsFindings(
     }),
     item(
       'Water efficiency last checked',
-      draft.waterEfficiencyLastChecked,
+      isSpecialReportingNa(draft.waterEfficiencyLastChecked)
+        ? 'N/A'
+        : draft.waterEfficiencyLastChecked,
     ),
     item('Water meter reading at START of tenancy', undefined, {
       reading: draft.waterMeterStart,

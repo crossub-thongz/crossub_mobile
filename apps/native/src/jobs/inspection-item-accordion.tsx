@@ -1,5 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { type ReactNode } from 'react';
+import { type ReactNode, useEffect, useRef } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { AppTextInput } from '@/src/ui/app-text-input';
@@ -8,6 +8,7 @@ import { InspectionPhotosField } from '@/src/jobs/inspection-photos-field';
 import type { LocalPhoto } from '@/src/jobs/compress-photo';
 import { inspectionItemIcon } from '@/src/lib/inspection-item-icon';
 import {
+  cycleItemMark,
   emptyItemMarks,
   ISSUE_DETAIL_LABEL,
   ITEM_CONDITION_KEYS,
@@ -39,6 +40,7 @@ export function InspectionItemAccordion({
   onRemovePhoto,
   extra,
   showItemPhotos = true,
+  onOpenedVisible,
 }: {
   name: string;
   marks: ItemConditionMarks | undefined;
@@ -57,17 +59,30 @@ export function InspectionItemAccordion({
   onRemovePhoto?: (index: number) => void;
   extra?: ReactNode;
   showItemPhotos?: boolean;
+  onOpenedVisible?: (itemWindowY: number) => void;
 }) {
   const current = marks ?? emptyItemMarks();
   const allGood = marksAreAllGood(current);
   const hasIssue = marksHaveNo(current);
   const icon = inspectionItemIcon(name);
+  const rootRef = useRef<View>(null);
+  const photoCount = photoUrls.filter(Boolean).length;
+  const missingPhotos = photoCount === 0;
+
+  useEffect(() => {
+    if (!open) return;
+    const timer = setTimeout(() => {
+      rootRef.current?.measureInWindow((_x, y) => {
+        onOpenedVisible?.(y);
+      });
+    }, 80);
+    return () => clearTimeout(timer);
+  }, [open, onOpenedVisible]);
 
   const toggleChip = (key: ItemConditionKey) => {
-    const value = current[key];
     onChangeMarks({
       ...current,
-      [key]: value === true ? false : true,
+      [key]: cycleItemMark(current[key]),
     });
   };
 
@@ -75,13 +90,28 @@ export function InspectionItemAccordion({
   const statusLabel = hasIssue ? 'Issue found' : allGood ? 'All good' : 'Not marked';
 
   return (
-    <View style={styles.root}>
+    <View ref={rootRef} collapsable={false} style={styles.root}>
       <Pressable onPress={() => onOpenChange(!open)} style={styles.header}>
         <View style={styles.iconBox}>
           <Ionicons name={icon as never} size={16} color={colors.muted} />
         </View>
         <Text style={styles.name}>{name}</Text>
         <View style={styles.status}>
+          <View
+            style={[styles.photoBadge, missingPhotos && styles.photoBadgeEmpty]}
+            accessibilityLabel={
+              missingPhotos ? 'No photos for this item' : `${photoCount} photos for this item`
+            }
+          >
+            <Ionicons
+              name={missingPhotos ? 'camera-outline' : 'camera'}
+              size={12}
+              color={missingPhotos ? '#fbbf24' : colors.primary}
+            />
+            <Text style={[styles.photoBadgeText, missingPhotos && styles.photoBadgeTextEmpty]}>
+              {photoCount}
+            </Text>
+          </View>
           <Text style={[styles.statusText, { color: statusColor }]}>{statusLabel}</Text>
           {hasIssue ? (
             <Ionicons name="alert-circle-outline" size={14} color={colors.destructive} />
@@ -116,11 +146,21 @@ export function InspectionItemAccordion({
             <View style={styles.chips}>
               {ITEM_CONDITION_KEYS.map((key) => {
                 const value = current[key];
+                const marked = value === true || value === false;
                 return (
                   <Pressable
                     key={key}
                     disabled={busy}
                     onPress={() => toggleChip(key)}
+                    accessibilityRole="button"
+                    accessibilityState={{ checked: marked }}
+                    accessibilityLabel={
+                      value === true
+                        ? `${ITEM_CONDITION_LABEL[key]}, good`
+                        : value === false
+                          ? `${ITEM_CONDITION_LABEL[key]}, not good`
+                          : `${ITEM_CONDITION_LABEL[key]}, not marked`
+                    }
                     style={[
                       styles.chip,
                       value === true && styles.chipYes,
@@ -130,12 +170,17 @@ export function InspectionItemAccordion({
                     <Text
                       style={[
                         styles.chipText,
-                        (value === true || value === false) && styles.chipTextOn,
+                        marked && styles.chipTextOn,
                       ]}
+                      numberOfLines={1}
                     >
                       {ITEM_CONDITION_LABEL[key]}
-                      {value === true ? ' ?' : value === false ? ' x' : ''}
                     </Text>
+                    {value === true ? (
+                      <Ionicons name="checkmark" size={12} color="#fff" />
+                    ) : value === false ? (
+                      <Ionicons name="close" size={12} color="#fff" />
+                    ) : null}
                   </Pressable>
                 );
               })}
@@ -154,7 +199,7 @@ export function InspectionItemAccordion({
                     onPress={() =>
                       onChangeMarks({
                         ...current,
-                        [key]: selected ? true : false,
+                        [key]: selected ? null : false,
                       })
                     }
                     style={styles.detailRow}
@@ -177,6 +222,7 @@ export function InspectionItemAccordion({
               editable={!busy}
               placeholder="Describe the issue or leave blank if all good..."
               placeholderTextColor={colors.muted}
+              autoFocus={false}
               multiline
               style={styles.comment}
             />
@@ -224,7 +270,20 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   name: { color: colors.text, fontSize: 14, fontWeight: '500', flex: 1, minWidth: 0 },
-  status: { flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 0 },
+  status: { flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 0 },
+  photoBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    minWidth: 32,
+    height: 20,
+    paddingHorizontal: 6,
+    borderRadius: 10,
+    backgroundColor: 'rgba(0,212,164,0.18)',
+  },
+  photoBadgeEmpty: { backgroundColor: 'rgba(251,191,36,0.16)' },
+  photoBadgeText: { color: colors.primary, fontSize: 10, fontWeight: '700' },
+  photoBadgeTextEmpty: { color: '#fbbf24' },
   statusText: { fontSize: 11, fontWeight: '600' },
   body: { marginTop: 12, paddingLeft: 8, gap: 12 },
   actions: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
@@ -239,7 +298,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.secondary,
     borderRadius: 8,
     paddingVertical: 8,
+    paddingHorizontal: 4,
     alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 4,
   },
   chipYes: { backgroundColor: '#047857' },
   chipNo: { backgroundColor: colors.destructive },

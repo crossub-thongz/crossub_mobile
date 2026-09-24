@@ -23,7 +23,14 @@ export function inspectionItemIcon(name: string): string {
   }
   if (n.includes('light') || n.includes('power')) return 'bulb-outline';
   if (n.includes('skirt')) return 'square-outline';
-  if (n.includes('wash') || n.includes('dryer') || n.includes('laundry')) return 'shirt-outline';
+  if (n.includes('dishwasher')) return 'restaurant-outline';
+  if (
+    n.includes('washing') ||
+    n.includes('laundry') ||
+    n.includes('dryer')
+  ) {
+    return 'shirt-outline';
+  }
   if (n.includes('exhaust') || n.includes('fan') || n.includes('vent') || n.includes('heat')) {
     return 'sync-outline';
   }

@@ -16,7 +16,7 @@ import { attendanceWindowFromHours } from '@/src/lib/findings';
 import {
   compressPhotoToFile,
   deleteLocalPhoto,
-  preparePhotoUpload,
+  prepareStoredPhotoUpload,
   yieldToUi,
   type LocalPhoto,
 } from '@/src/jobs/compress-photo';
@@ -116,7 +116,7 @@ async function replayPhotoUpload(item: OfflineQueueItem): Promise<string | null>
   if (!(await localPhotoExists(localUri))) {
     throw new Error('Photo is missing from this device.');
   }
-  const prepared = await preparePhotoUpload({ uri: localUri, width: 0, height: 0 });
+  const prepared = await prepareStoredPhotoUpload(localUri);
   const uploaded = await uploadInspectionPhoto(item.jobId, {
     ...prepared.body,
     areaName: typeof payload.areaName === 'string' ? payload.areaName : undefined,
@@ -136,7 +136,7 @@ async function replayKeyPhoto(item: OfflineQueueItem): Promise<string | null> {
   if (!(await localPhotoExists(localUri))) {
     throw new Error('Photo is missing from this device.');
   }
-  const prepared = await preparePhotoUpload({ uri: localUri, width: 0, height: 0 });
+  const prepared = await prepareStoredPhotoUpload(localUri);
   const custody = await uploadKeyCustodyPhoto(item.jobId, {
     ...prepared.body,
     phase,
@@ -206,7 +206,6 @@ async function drainQueue(): Promise<{ synced: number; remaining: number }> {
         typeof item.payload.localUri === 'string' ? item.payload.localUri : '';
       if (remoteUrl && localUri) await rewriteQueuedUris(localUri, remoteUrl);
       await removeQueueItem(item.id);
-      if (remoteUrl && localUri) await deleteQueuedPhoto(localUri);
       synced += 1;
       await yieldToUi();
     } catch (err) {
@@ -300,13 +299,18 @@ export async function queueInspectionPhotoBatch(
 ): Promise<string[]> {
   const urls: string[] = [];
   for (const photo of photos) {
+    onEach?.(photo.uri, photo.uri);
+    await yieldToUi();
     const compressed = await compressPhotoToFile(photo);
     const durable = await persistQueuedPhoto(compressed.uri);
-    if (compressed.uri !== durable) await deleteLocalPhoto(compressed.uri);
-    if (photo.uri !== compressed.uri && photo.uri !== durable) {
-      await deleteLocalPhoto(photo.uri);
-    }
     onEach?.(photo.uri, durable);
+    if (
+      compressed.uri !== durable &&
+      compressed.uri !== photo.uri &&
+      !compressed.uri.includes('/offline-queue/')
+    ) {
+      await deleteLocalPhoto(compressed.uri);
+    }
     const online = await isDeviceOnline();
     if (!online) {
       await enqueueOfflineAction(inspectionId, 'photo_upload', {
@@ -317,26 +321,15 @@ export async function queueInspectionPhotoBatch(
       await yieldToUi();
       continue;
     }
-    const prepared = await preparePhotoUpload({
-      uri: durable,
-      width: compressed.width,
-      height: compressed.height,
-    });
+    const prepared = await prepareStoredPhotoUpload(durable);
     const saved = await queueInspectionPhoto(
       inspectionId,
       { ...prepared.body, areaName },
       durable,
       { keepLocal: true },
     );
-    urls.push(saved.url);
-    if (saved.url !== durable) onEach?.(durable, saved.url);
-    if (prepared.localUri !== durable && prepared.localUri !== saved.url) {
-      await deleteLocalPhoto(prepared.localUri);
-    }
-    if (saved.url !== durable && saved.url.startsWith('http')) {
-      await rewriteQueuedUris(durable, saved.url);
-      await deleteQueuedPhoto(durable);
-    }
+    urls.push(saved.url || durable);
+    if (prepared.localUri !== durable) await deleteLocalPhoto(prepared.localUri);
     await yieldToUi();
   }
   return urls;

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { AppTextInput } from '@/src/ui/app-text-input';
@@ -135,6 +135,10 @@ export function ChecklistWalk({
 }) {
   const [cameraTarget, setCameraTarget] = useState<CameraTarget | null>(null);
   const cameraTargetRef = useRef<CameraTarget | null>(null);
+  const listScrollRef = useRef<ScrollView>(null);
+  const listWrapRef = useRef<View>(null);
+  const listScrollY = useRef(0);
+  const listWindowY = useRef(0);
   const [itemsDragging, setItemsDragging] = useState(false);
   const [ingoingFromReference, setIngoingFromReference] = useState(false);
   const seededRef = useRef(false);
@@ -148,6 +152,15 @@ export function ChecklistWalk({
   draftRef.current = draft;
   const sections = issue.activeSections ?? [];
   const isLast = names.length > 0 && areaIndex >= names.length - 1;
+
+  const keepOpenedItemInView = useCallback((itemWindowY: number) => {
+    const delta = itemWindowY - listWindowY.current - 8;
+    if (Math.abs(delta) < 12) return;
+    listScrollRef.current?.scrollTo({
+      y: Math.max(0, listScrollY.current + delta),
+      animated: true,
+    });
+  }, []);
 
   useEffect(() => {
     if (!draftsHydrated || type !== 'outgoing' || seededRef.current || names.length === 0) return;
@@ -186,33 +199,38 @@ export function ChecklistWalk({
 
   const updateIssue = (next: RoutineAreaIssueDraft) => {
     if (!currentName) return;
-    persist({
-      ...draftRef.current,
-      issues: { ...draftRef.current.issues, [currentName]: next },
-    });
+    patchIssue(currentName, () => next);
   };
 
-  const latestIssue = () =>
-    ensureIssue(currentName ?? '', currentName ? draftRef.current.issues[currentName] : undefined, customAreas);
+  const patchIssue = (
+    areaName: string,
+    updater: (current: RoutineAreaIssueDraft) => RoutineAreaIssueDraft,
+  ) => {
+    if (!areaName) return;
+    const rec = ensureIssue(areaName, draftRef.current.issues[areaName], customAreas);
+    const merged = {
+      ...draftRef.current,
+      issues: { ...draftRef.current.issues, [areaName]: updater(rec) },
+    };
+    draftRef.current = merged;
+    persist(merged);
+  };
 
   const attachAreaPhotos = async (photos: LocalPhoto[]) => {
-    if (!currentName || photos.length === 0) return;
-    setBusy('photo');
+    const areaName = currentName;
+    if (!areaName || photos.length === 0) return;
     setError(null);
     try {
       await ensureAccepted();
-      await queueInspectionPhotoBatch(inspectionId, photos, currentName, (fromUri, toUri) => {
-        const rec = latestIssue();
-        updateIssue({
+      await queueInspectionPhotoBatch(inspectionId, photos, areaName, (fromUri, toUri) => {
+        patchIssue(areaName, (rec) => ({
           ...rec,
           available: true,
           areaPhotos: upsertPhotoUrl(rec.areaPhotos ?? [], fromUri, toUri),
-        });
+        }));
       });
     } catch (err) {
       setError(apiErrorMessage(err, 'Photo upload failed - please retry'));
-    } finally {
-      setBusy(null);
     }
   };
 
@@ -221,58 +239,56 @@ export function ChecklistWalk({
     photos: LocalPhoto[],
     side?: 'ingoing' | 'outgoing',
   ) => {
-    if (!currentName || photos.length === 0) return;
+    const areaName = currentName;
+    if (!areaName || photos.length === 0) return;
     const resolvedSide = side ?? (type === 'outgoing' ? 'outgoing' : undefined);
     const slot: 'ingoing' | 'outgoing' =
       resolvedSide === 'outgoing' || type === 'outgoing' ? 'outgoing' : 'ingoing';
 
-    setBusy('photo');
     setError(null);
     try {
       await ensureAccepted();
       await queueInspectionPhotoBatch(
         inspectionId,
         photos,
-        photoAreaName(currentName, section, resolvedSide),
+        photoAreaName(areaName, section, resolvedSide),
         (fromUri, toUri) => {
-          const next = latestIssue();
-          const photosForSection = next.photosBySection?.[section];
-          if (resolvedSide === 'ingoing') {
-            updateIssue({
-              ...next,
+          patchIssue(areaName, (rec) => {
+            const photosForSection = rec.photosBySection?.[section];
+            if (resolvedSide === 'ingoing') {
+              return {
+                ...rec,
+                available: true,
+                photosBySection: {
+                  ...(rec.photosBySection ?? {}),
+                  [section]: {
+                    ...(photosForSection ?? emptySectionPhotos()),
+                    ingoingPhotoUrls: upsertPhotoUrl(
+                      photosForSection?.ingoingPhotoUrls ?? [],
+                      fromUri,
+                      toUri,
+                    ),
+                  },
+                },
+              };
+            }
+            return {
+              ...rec,
               available: true,
               photosBySection: {
-                ...(next.photosBySection ?? {}),
-                [section]: {
-                  ...(photosForSection ?? emptySectionPhotos()),
-                  ingoingPhotoUrls: upsertPhotoUrl(
-                    photosForSection?.ingoingPhotoUrls ?? [],
-                    fromUri,
-                    toUri,
-                  ),
-                },
+                ...(rec.photosBySection ?? {}),
+                [section]: withCurrentUrls(
+                  slot,
+                  photosForSection,
+                  upsertPhotoUrl(currentUrls(slot, photosForSection), fromUri, toUri),
+                ),
               },
-            });
-            return;
-          }
-          updateIssue({
-            ...next,
-            available: true,
-            photosBySection: {
-              ...(next.photosBySection ?? {}),
-              [section]: withCurrentUrls(
-                slot,
-                photosForSection,
-                upsertPhotoUrl(currentUrls(slot, photosForSection), fromUri, toUri),
-              ),
-            },
+            };
           });
         },
       );
     } catch (err) {
       setError(apiErrorMessage(err, 'Photo upload failed - please retry'));
-    } finally {
-      setBusy(null);
     }
   };
 
@@ -391,6 +407,7 @@ export function ChecklistWalk({
         onChange={(specialReporting) => persist({ ...draft, specialReporting })}
         submitting={busy === 'complete'}
         error={error}
+        phase={type}
         onBack={() => persist({ ...draft, workflowStep: 'areas' })}
         onFinalise={() => {
           void finalize();
@@ -402,7 +419,6 @@ export function ChecklistWalk({
   const checkedCount = sections.filter((section) => marksAreComplete(issue.itemMarks?.[section])).length;
   const issueCount = sections.filter((section) => marksHaveNo(issue.itemMarks?.[section])).length;
   const formBusy = busy === 'complete';
-  const photoBusy = busy === 'photo';
 
   const areaComplete = (index: number, name: string) => {
     const rec = draft.issues[name];
@@ -427,11 +443,27 @@ export function ChecklistWalk({
         <InspectionAreaNav names={names} areaIndex={areaIndex} isComplete={areaComplete} onGoToArea={goArea} />
       ) : null}
       {error ? <Text style={styles.error}>{error}</Text> : null}
+      <View
+        ref={listWrapRef}
+        style={styles.flex}
+        onLayout={() => {
+          listWrapRef.current?.measureInWindow((_x: number, y: number) => {
+            listWindowY.current = y;
+          });
+        }}
+      >
       <ScrollView
+        ref={listScrollRef}
         contentContainerStyle={styles.inner}
         keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        automaticallyAdjustKeyboardInsets={false}
         style={styles.flex}
         scrollEnabled={!itemsDragging}
+        scrollEventThrottle={16}
+        onScroll={(event) => {
+          listScrollY.current = event.nativeEvent.contentOffset.y;
+        }}
       >
         {names.length === 0 ? (
           <Text style={styles.body}>No areas selected for this inspection.</Text>
@@ -449,7 +481,6 @@ export function ChecklistWalk({
             <InspectionPhotosField
               label="Area photos"
               photoUrls={issue.areaPhotos ?? []}
-              uploading={photoBusy}
               disabled={formBusy}
               emptyLabel="Snap or upload several photos of this room, then attach them here."
               onTakePhotos={() => {
@@ -474,10 +505,10 @@ export function ChecklistWalk({
               itemMarks={issue.itemMarks}
               itemComments={issue.itemComments}
               busy={formBusy}
-              photoUploading={photoBusy}
               variant={type === 'outgoing' ? 'beforeAfter' : 'single'}
               ingoingReadOnly={ingoingFromReference}
               onDraggingChange={setItemsDragging}
+              onOpenedItemVisible={keepOpenedItemInView}
               onAddSection={(section) => {
                 if (sections.some((item) => item.toLowerCase() === section.toLowerCase())) return;
                 updateIssue({ ...issue, activeSections: [...sections, section] });
@@ -595,13 +626,13 @@ export function ChecklistWalk({
           </>
         )}
       </ScrollView>
+      </View>
       {names.length > 0 ? (
         <InspectionAreaActionBar
           checked={issue.available === false ? 0 : checkedCount}
           total={issue.available === false ? 0 : sections.length}
           issues={issue.available === false ? 0 : issueCount}
-          busy={busy != null}
-          busyLabel={photoBusy ? 'Uploading photos...' : undefined}
+          busy={formBusy}
           isLast={isLast}
           onNext={saveAreaAndAdvance}
         />

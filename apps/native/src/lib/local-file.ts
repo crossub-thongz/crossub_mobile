@@ -13,6 +13,15 @@ export function asFileUri(uri: string): string {
   return uri;
 }
 
+/** True when two local file URIs point at the same path (/var vs /private/var). */
+export function sameLocalPhotoUri(a: string, b: string): boolean {
+  if (!a || !b) return false;
+  if (a === b) return true;
+  if (isRemotePhotoUrl(a) || isRemotePhotoUrl(b)) return false;
+  const other = new Set(localFileCandidates(b));
+  return localFileCandidates(a).some((item) => other.has(item));
+}
+
 export function localFileCandidates(uri: string): string[] {
   if (!uri) return [];
   let decoded = uri;

@@ -43,10 +43,6 @@ async function fileSize(uri: string): Promise<number> {
   return 0;
 }
 
-function isDurableQueueUri(uri: string): boolean {
-  return uri.includes('/offline-queue/');
-}
-
 function resizeActions(
   width: number,
   height: number,
@@ -118,9 +114,6 @@ export async function compressPhotoToFile(photo: LocalPhoto): Promise<LocalPhoto
     }
   }
 
-  if (current !== source && !isDurableQueueUri(source)) {
-    await deleteLocalPhoto(source);
-  }
   return { uri: current, width, height };
 }
 

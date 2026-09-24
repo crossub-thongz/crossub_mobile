@@ -10,6 +10,7 @@ import {
   PanelsTopLeft,
   Shirt,
   Square,
+  UtensilsCrossed,
   WashingMachine,
 } from 'lucide-react';
 
@@ -35,7 +36,8 @@ export function inspectionItemIcon(name: string): LucideIcon {
   }
   if (n.includes('light') || n.includes('power')) return Lamp;
   if (n.includes('skirt')) return Square;
-  if (n.includes('wash') || n.includes('dryer') || n.includes('laundry')) {
+  if (n.includes('dishwasher')) return UtensilsCrossed;
+  if (n.includes('washing') || n.includes('laundry') || n.includes('dryer')) {
     return WashingMachine;
   }
   if (n.includes('exhaust') || n.includes('fan') || n.includes('vent') || n.includes('heat')) {

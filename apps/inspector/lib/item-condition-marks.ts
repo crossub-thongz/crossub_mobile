@@ -45,6 +45,13 @@ export function emptyItemMarks(): ItemConditionMarks {
   return { clean: null, undamaged: null, working: null };
 }
 
+/** Unchecked -> good -> not good -> unchecked. */
+export function cycleItemMark(value: boolean | null): boolean | null {
+  if (value === true) return false;
+  if (value === false) return null;
+  return true;
+}
+
 export function mergeItemMarks(
   base: ItemConditionMarks | undefined,
   overlay: ItemConditionMarks | undefined,

@@ -8,6 +8,7 @@ import {
   isRemotePhotoUrl,
   localPhotoExists,
   resolveLocalFileUri,
+  sameLocalPhotoUri,
 } from '@/src/lib/local-file';
 
 export {
@@ -33,13 +34,25 @@ function newQueuePhotoPath(): string {
   return `${QUEUE_DIR}photo-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`;
 }
 
+function indexOfPhotoUrl(urls: string[], target: string): number {
+  if (!target) return -1;
+  const exact = urls.indexOf(target);
+  if (exact >= 0) return exact;
+  return urls.findIndex((url) => sameLocalPhotoUri(url, target));
+}
+
 /** Keep a photo URL list in sync as a cache file is copied, then uploaded. */
 export function upsertPhotoUrl(urls: string[], from: string, to: string): string[] {
   if (!to) return urls;
-  if (from && from !== to && urls.includes(from)) {
-    return urls.map((url) => (url === from ? to : url));
+  const fromIndex = from && from !== to ? indexOfPhotoUrl(urls, from) : -1;
+  if (fromIndex >= 0) {
+    const alreadyHasTo = urls.some(
+      (url, index) => index !== fromIndex && (url === to || sameLocalPhotoUri(url, to)),
+    );
+    if (alreadyHasTo) return urls.filter((_, index) => index !== fromIndex);
+    return urls.map((url, index) => (index === fromIndex ? to : url));
   }
-  if (urls.includes(to)) return urls;
+  if (indexOfPhotoUrl(urls, to) >= 0) return urls;
   return [...urls, to];
 }
 

@@ -161,6 +161,7 @@ export function SpecialReportingForm({
   error,
   onBack,
   onFinalise,
+  phase = 'ingoing',
 }: {
   value: SpecialReportingDraft;
   onChange: (next: SpecialReportingDraft) => void;
@@ -168,6 +169,7 @@ export function SpecialReportingForm({
   error?: string | null;
   onBack: () => void;
   onFinalise: () => void;
+  phase?: 'ingoing' | 'outgoing';
 }) {
   const patch = (partial: Partial<SpecialReportingDraft>) => onChange({ ...value, ...partial });
 
@@ -242,6 +244,7 @@ export function SpecialReportingForm({
                 onChange={(waterEfficiencyLastChecked) =>
                   patch({ waterEfficiencyLastChecked })
                 }
+                allowNa
               />
               <Text style={styles.label}>Water meter reading at START of tenancy *</Text>
               <AppTextInput
@@ -256,20 +259,27 @@ export function SpecialReportingForm({
                 value={value.waterMeterStartDate}
                 onChange={(waterMeterStartDate) => patch({ waterMeterStartDate })}
               />
-              <Text style={styles.label}>Water meter reading at END of tenancy</Text>
-              <AppTextInput
-                value={value.waterMeterEnd}
-                onChangeText={(waterMeterEnd) => patch({ waterMeterEnd })}
-                placeholder="Reading"
-                placeholderTextColor={colors.muted}
-                style={styles.input}
-              />
-              <Text style={styles.label}>Date of end reading</Text>
-              <DateField
-                value={value.waterMeterEndDate}
-                onChange={(waterMeterEndDate) => patch({ waterMeterEndDate })}
-                optional
-              />
+              {phase === 'outgoing' ? (
+                <>
+                  <Text style={styles.label}>Water meter reading at END of tenancy *</Text>
+                  <AppTextInput
+                    value={value.waterMeterEnd}
+                    onChangeText={(waterMeterEnd) => patch({ waterMeterEnd })}
+                    placeholder="Reading"
+                    placeholderTextColor={colors.muted}
+                    style={styles.input}
+                  />
+                  <Text style={styles.label}>Date of end reading *</Text>
+                  <DateField
+                    value={value.waterMeterEndDate}
+                    onChange={(waterMeterEndDate) => patch({ waterMeterEndDate })}
+                  />
+                </>
+              ) : (
+                <Text style={styles.hint}>
+                  End of tenancy meter reading and date are completed at move-out.
+                </Text>
+              )}
             </>
           ) : null}
         </View>
@@ -347,7 +357,7 @@ export function SpecialReportingForm({
         <Pressable
           disabled={submitting}
           onPress={() => {
-            const missing = specialReportingMissing(value);
+            const missing = specialReportingMissing(value, phase);
             if (missing) {
               Alert.alert('Cannot finalise', missing);
               return;

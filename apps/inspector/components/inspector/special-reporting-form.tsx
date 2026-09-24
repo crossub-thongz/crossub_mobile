@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import type { SpecialReportingDraft, YesNoNa } from '@/lib/special-reporting';
-import { specialReportingMissing } from '@/lib/special-reporting';
+import { isSpecialReportingNa, specialReportingMissing } from '@/lib/special-reporting';
 import { stripEmojis } from '@/lib/strip-emojis';
 import { cn } from '@/lib/utils';
 
@@ -123,25 +123,42 @@ function DateField({
   required,
   value,
   onChange,
+  allowNa,
 }: {
   id: string;
   label: string;
   required?: boolean;
   value: string;
   onChange: (value: string) => void;
+  allowNa?: boolean;
 }) {
+  const markedNa = Boolean(allowNa && isSpecialReportingNa(value));
   return (
     <div className="space-y-1.5 py-1.5">
       <Label htmlFor={id} className="text-sm leading-snug font-normal">
         {label}
         {required ? <RequiredMark /> : null}
       </Label>
-      <Input
-        id={id}
-        type="date"
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-      />
+      <div className="flex items-stretch gap-2">
+        <Input
+          id={id}
+          type="date"
+          disabled={markedNa}
+          value={markedNa ? '' : value}
+          onChange={(event) => onChange(event.target.value)}
+          className="min-w-0 flex-1"
+        />
+        {allowNa ? (
+          <Button
+            type="button"
+            variant={markedNa ? 'secondary' : 'outline'}
+            className="shrink-0"
+            onClick={() => onChange(markedNa ? '' : 'na')}
+          >
+            N/A
+          </Button>
+        ) : null}
+      </div>
     </div>
   );
 }
@@ -201,18 +218,20 @@ export function SpecialReportingForm({
   submitting,
   onBack,
   onFinalise,
+  phase = 'ingoing',
 }: {
   value: SpecialReportingDraft;
   onChange: (next: SpecialReportingDraft) => void;
   submitting?: boolean;
   onBack: () => void;
   onFinalise: () => void;
+  phase?: 'ingoing' | 'outgoing';
 }) {
   const patch = (partial: Partial<SpecialReportingDraft>) =>
     onChange({ ...value, ...partial });
 
   const handleFinalise = () => {
-    const missing = specialReportingMissing(value);
+    const missing = specialReportingMissing(value, phase);
     if (missing) {
       toast.error(missing);
       return;
@@ -571,6 +590,7 @@ export function SpecialReportingForm({
           id="water-efficiency-checked"
           label="Date the premises were last checked to see if it is compliant with the water efficiency measures:"
           required
+          allowNa
           value={value.waterEfficiencyLastChecked}
           onChange={(waterEfficiencyLastChecked) =>
             patch({ waterEfficiencyLastChecked })
@@ -586,15 +606,22 @@ export function SpecialReportingForm({
           onDateChange={(waterMeterStartDate) => patch({ waterMeterStartDate })}
           required
         />
-        <MeterReadingRow
-          readingId="water-end"
-          readingLabel="Water meter reading at END of tenancy:"
-          reading={value.waterMeterEnd}
-          onReadingChange={(waterMeterEnd) => patch({ waterMeterEnd })}
-          dateId="water-end-date"
-          date={value.waterMeterEndDate}
-          onDateChange={(waterMeterEndDate) => patch({ waterMeterEndDate })}
-        />
+        {phase === 'outgoing' ? (
+          <MeterReadingRow
+            readingId="water-end"
+            readingLabel="Water meter reading at END of tenancy:"
+            reading={value.waterMeterEnd}
+            onReadingChange={(waterMeterEnd) => patch({ waterMeterEnd })}
+            dateId="water-end-date"
+            date={value.waterMeterEndDate}
+            onDateChange={(waterMeterEndDate) => patch({ waterMeterEndDate })}
+            required
+          />
+        ) : (
+          <p className="text-muted-foreground text-[11px] italic">
+            End of tenancy meter reading and date are completed at move-out.
+          </p>
+        )}
       </section>
 
       <section className="border-border space-y-2 rounded-xl border bg-card px-3 py-3">

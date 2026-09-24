@@ -1,11 +1,16 @@
 import { useMemo, useRef, useState, type ReactNode } from 'react';
-import { Animated, PanResponder, StyleSheet, View } from 'react-native';
+import {
+  Animated,
+  PanResponder,
+  StyleSheet,
+  View,
+  type PanResponderGestureState,
+} from 'react-native';
 
 import { colors } from '@/src/theme';
 
-const DRAG_THRESHOLD_PX = 8;
-
-type RowFrame = { y: number; height: number };
+const ACTIVATE_PX = 20;
+const DEFAULT_ROW_H = 48;
 
 export function DraggableNamedList({
   items,
@@ -22,8 +27,7 @@ export function DraggableNamedList({
   variant?: 'row' | 'card';
   disabled?: boolean;
 }) {
-  const rowRefs = useRef<Array<View | null>>([]);
-  const frames = useRef<RowFrame[]>([]);
+  const heights = useRef<number[]>([]);
   const itemsRef = useRef(items);
   const onReorderRef = useRef(onReorder);
   const onDraggingChangeRef = useRef(onDraggingChange);
@@ -31,8 +35,7 @@ export function DraggableNamedList({
   const draggingRef = useRef(false);
   const fromRef = useRef(0);
   const overRef = useRef(0);
-  const didMove = useRef(false);
-  const fromHeightRef = useRef(48);
+  const fromHeightRef = useRef(DEFAULT_ROW_H);
   const dragY = useRef(new Animated.Value(0)).current;
   const lift = useRef(new Animated.Value(0)).current;
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
@@ -45,29 +48,39 @@ export function DraggableNamedList({
 
   const gap = variant === 'card' ? 8 : 0;
 
-  const measureRows = () => {
-    itemsRef.current.forEach((_, index) => {
-      rowRefs.current[index]?.measureInWindow((_x, y, _w, height) => {
-        frames.current[index] = { y, height };
-      });
-    });
+  const shouldActivate = (gesture: PanResponderGestureState) => {
+    if (disabledRef.current) return false;
+    return (
+      Math.abs(gesture.dy) >= ACTIVATE_PX &&
+      Math.abs(gesture.dy) > Math.abs(gesture.dx) + 4
+    );
   };
 
-  const indexFromPageY = (pageY: number): number => {
-    const last = itemsRef.current.length - 1;
-    if (last < 0) return 0;
-    for (let i = 0; i <= last; i += 1) {
-      const frame = frames.current[i];
-      if (!frame) continue;
-      if (pageY < frame.y + frame.height / 2) return i;
+  const indexFromDy = (dy: number): number => {
+    const from = fromRef.current;
+    const count = itemsRef.current.length;
+    if (count <= 1) return from;
+    let travelled = 0;
+    if (dy >= 0) {
+      for (let i = from; i < count - 1; i += 1) {
+        const step = (heights.current[i + 1] ?? fromHeightRef.current) + gap;
+        if (dy < travelled + step / 2) return i;
+        travelled += step;
+      }
+      return count - 1;
     }
-    return last;
+    for (let i = from; i > 0; i -= 1) {
+      const step = (heights.current[i - 1] ?? fromHeightRef.current) + gap;
+      if (-dy < travelled + step / 2) return i;
+      travelled += step;
+    }
+    return 0;
   };
 
   const endDrag = (commit: boolean) => {
     const from = fromRef.current;
     const over = overRef.current;
-    const moved = commit && didMove.current && from !== over;
+    const moved = commit && draggingRef.current && from !== over;
     draggingRef.current = false;
     dragY.setValue(0);
     lift.setValue(0);
@@ -81,20 +94,19 @@ export function DraggableNamedList({
     () =>
       items.map((_, index) =>
         PanResponder.create({
-          onStartShouldSetPanResponder: () => !disabledRef.current,
-          onMoveShouldSetPanResponder: (_event, gesture) =>
-            !disabledRef.current && Math.abs(gesture.dy) > DRAG_THRESHOLD_PX,
+          onStartShouldSetPanResponder: () => false,
+          onStartShouldSetPanResponderCapture: () => false,
+          onMoveShouldSetPanResponder: (_event, gesture) => shouldActivate(gesture),
+          onMoveShouldSetPanResponderCapture: (_event, gesture) => shouldActivate(gesture),
           onPanResponderTerminationRequest: () => false,
           onShouldBlockNativeResponder: () => true,
-          onPanResponderGrant: () => {
+          onPanResponderGrant: (_event, gesture) => {
             if (disabledRef.current) return;
             fromRef.current = index;
             overRef.current = index;
-            didMove.current = false;
             draggingRef.current = true;
-            dragY.setValue(0);
-            measureRows();
-            fromHeightRef.current = frames.current[index]?.height ?? 48;
+            fromHeightRef.current = heights.current[index] ?? DEFAULT_ROW_H;
+            dragY.setValue(gesture.dy);
             onDraggingChangeRef.current?.(true);
             setActiveIndex(index);
             setOverIndex(index);
@@ -106,14 +118,10 @@ export function DraggableNamedList({
             }).start();
           },
           onPanResponderMove: (_event, gesture) => {
-            if (!didMove.current) {
-              if (Math.abs(gesture.dy) < DRAG_THRESHOLD_PX) return;
-              didMove.current = true;
-              measureRows();
-              fromHeightRef.current = frames.current[fromRef.current]?.height ?? 48;
-            }
+            if (!draggingRef.current) return;
             dragY.setValue(gesture.dy);
-            const over = indexFromPageY(gesture.moveY);
+            const over = indexFromDy(gesture.dy);
+            if (overRef.current === over) return;
             overRef.current = over;
             setOverIndex(over);
           },
@@ -125,8 +133,7 @@ export function DraggableNamedList({
   );
 
   const shiftFor = (index: number): number => {
-    if (activeIndex == null || overIndex == null || !didMove.current) return 0;
-    if (index === activeIndex) return 0;
+    if (activeIndex == null || overIndex == null || index === activeIndex) return 0;
     const distance = fromHeightRef.current + gap;
     if (activeIndex < overIndex && index > activeIndex && index <= overIndex) return -distance;
     if (activeIndex > overIndex && index >= overIndex && index < activeIndex) return distance;
@@ -138,20 +145,14 @@ export function DraggableNamedList({
       {items.map((name, index) => {
         const dragging = activeIndex === index;
         const dropTarget =
-          overIndex === index && activeIndex != null && activeIndex !== index && didMove.current;
+          overIndex === index && activeIndex != null && activeIndex !== index;
         const shift = shiftFor(index);
         return (
           <Animated.View
             key={`${name}-${index}`}
             collapsable={false}
-            ref={(node) => {
-              rowRefs.current[index] = node as View | null;
-            }}
-            onLayout={() => {
-              if (draggingRef.current) return;
-              rowRefs.current[index]?.measureInWindow((_x, y, _w, height) => {
-                frames.current[index] = { y, height };
-              });
+            onLayout={(event) => {
+              heights.current[index] = event.nativeEvent.layout.height;
             }}
             style={[
               variant === 'card' ? styles.cardRow : styles.row,
@@ -185,7 +186,6 @@ export function DraggableNamedList({
             <View
               {...(disabled ? {} : responders[index]?.panHandlers)}
               style={[styles.grip, disabled && styles.gripDisabled]}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               accessibilityRole="button"
               accessibilityLabel={`Drag ${name} to reorder`}
             >
