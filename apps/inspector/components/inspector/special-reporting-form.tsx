@@ -1,7 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { FileCheck, Save, X } from 'lucide-react';
+import { ChevronLeft, FileCheck, Save } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
@@ -242,7 +242,17 @@ export function SpecialReportingForm({
   return (
     <>
       <div className="space-y-5 pb-6">
-        <h2 className="text-foreground px-1 pt-3 text-center text-sm font-semibold">
+        <button
+          type="button"
+          onClick={onBack}
+          className="text-primary px-1 pt-1 text-left text-sm font-medium"
+        >
+          <span className="inline-flex items-center gap-1">
+            <ChevronLeft className="size-4" />
+            Back to areas
+          </span>
+        </button>
+        <h2 className="text-foreground px-1 text-center text-sm font-semibold">
           NSW Special Reporting
         </h2>
 
@@ -725,8 +735,8 @@ export function SpecialReportingForm({
       >
         <div className="flex items-center justify-between gap-3">
           <Button type="button" variant="outline" size="sm" onClick={onBack}>
-            <X className="size-3.5" />
-            Cancel
+            <ChevronLeft className="size-3.5" />
+            Back to areas
           </Button>
           <div className="flex gap-2.5">
             <Button

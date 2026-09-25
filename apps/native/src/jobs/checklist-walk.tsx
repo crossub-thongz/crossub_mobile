@@ -408,7 +408,13 @@ export function ChecklistWalk({
         submitting={busy === 'complete'}
         error={error}
         phase={type}
-        onBack={() => persist({ ...draft, workflowStep: 'areas' })}
+        onBack={() =>
+          persist({
+            ...draft,
+            workflowStep: 'areas',
+            areaIndex: names.length > 0 ? names.length - 1 : 0,
+          })
+        }
         onFinalise={() => {
           void finalize();
         }}

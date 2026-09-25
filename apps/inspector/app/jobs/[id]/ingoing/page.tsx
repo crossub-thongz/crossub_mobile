@@ -957,7 +957,13 @@ export default function IngoingInspectionPage() {
               }
               submitting={busy}
               phase="ingoing"
-              onBack={() => setDraft((prev) => ({ ...prev, workflowStep: 'areas' }))}
+              onBack={() =>
+                setDraft((prev) => ({
+                  ...prev,
+                  workflowStep: 'areas',
+                  areaIndex: Math.max(areaCatalog.length - 1, 0),
+                }))
+              }
               onFinalise={() => {
                 setFormBusy(true);
                 void finalizeAndSubmit(entries).finally(() => setFormBusy(false));

@@ -9,6 +9,7 @@ import {
   type YesNoNa,
 } from '@/src/lib/special-reporting';
 import { colors } from '@/src/theme';
+import { BACK_LABEL } from '@/src/ui/back-label';
 import { DateField } from '@/src/ui/date-field';
 
 const BOOL_SECTIONS: {
@@ -179,7 +180,17 @@ export function SpecialReportingForm({
   }, [error]);
 
   return (
-    <ScrollView contentContainerStyle={styles.inner} keyboardShouldPersistTaps="handled" style={{ flex: 1 }}>
+    <View style={styles.screen}>
+      <Pressable
+        onPress={onBack}
+        hitSlop={12}
+        accessibilityRole="button"
+        accessibilityLabel="Back to areas"
+        style={styles.backHit}
+      >
+        <Text style={styles.backText}>{BACK_LABEL} to areas</Text>
+      </Pressable>
+      <ScrollView contentContainerStyle={styles.inner} keyboardShouldPersistTaps="handled" style={styles.flex}>
       <Text style={styles.title}>NSW Special Reporting</Text>
 
       {BOOL_SECTIONS.map((section) => (
@@ -350,9 +361,10 @@ export function SpecialReportingForm({
         />
       </View>
 
+      </ScrollView>
       <View style={styles.actions}>
-        <Pressable onPress={onBack} style={styles.secondary}>
-          <Text style={styles.secondaryText}>Back</Text>
+        <Pressable onPress={onBack} style={styles.secondary} accessibilityLabel="Back to areas">
+          <Text style={styles.secondaryText}>Back to areas</Text>
         </Pressable>
         <Pressable
           disabled={submitting}
@@ -373,12 +385,16 @@ export function SpecialReportingForm({
           )}
         </Pressable>
       </View>
-    </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  inner: { padding: 16, paddingBottom: 40, gap: 12 },
+  screen: { flex: 1, backgroundColor: colors.background },
+  flex: { flex: 1 },
+  backHit: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 4 },
+  backText: { color: colors.primary, fontSize: 14, fontWeight: '500' },
+  inner: { padding: 16, paddingBottom: 24, gap: 12 },
   title: { color: colors.text, fontSize: 22, fontWeight: '700', textAlign: 'center' },
   card: {
     borderWidth: 1,
@@ -423,7 +439,15 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   notes: { minHeight: 80, textAlignVertical: 'top' },
-  actions: { flexDirection: 'row', gap: 8, marginTop: 8 },
+  actions: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+    backgroundColor: colors.background,
+  },
   primary: {
     flex: 1,
     backgroundColor: colors.primary,
