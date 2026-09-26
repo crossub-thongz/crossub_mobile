@@ -1,10 +1,13 @@
 /**
- * Downscale + re-encode proof photos before base64 upload.
- * The inspector photo endpoint accepts up to 25 MB; we target ~1.5 MB JPEG so
- * phone HEIC / desktop camera files compress instead of failing the request.
+ * Downscale + re-encode proof photos on the device before upload.
+ * Exit photo packs download at ~40-50 KB each (~16.4 MB / 403 files). Matching that
+ * ratio keeps 2000 inspection photos around 100 MB and avoids Nest-side compression.
  */
-const MAX_BASE64_CHARS = 2_000_000;
-const START_MAX_EDGE = 1920;
+export const INSPECTION_PHOTO_MAX_EDGE = 1024;
+export const INSPECTION_PHOTO_MAX_BYTES = 50_000;
+const MAX_BASE64_CHARS = Math.ceil((INSPECTION_PHOTO_MAX_BYTES * 4) / 3);
+const START_QUALITY = 0.5;
+const MIN_QUALITY = 0.32;
 
 export const IMAGE_UPLOAD_ACCEPT =
   'image/jpeg,image/png,image/webp,image/heic,image/heif,image/*,.heic,.heif';
@@ -33,18 +36,18 @@ export function looksLikeImageFile(file: File): boolean {
   return /\.(jpe?g|png|gif|webp|heic|heif|bmp|tiff?)$/i.test(file.name);
 }
 
-/** Re-encode an existing data URL if it exceeds the upload payload budget. */
+/** Re-encode an existing data URL if it exceeds the inspection photo budget. */
 export async function shrinkDataUrlForUpload(dataUrl: string): Promise<string> {
   if (!dataUrl.startsWith('data:image/')) return dataUrl;
   if (dataUrlBase64Length(dataUrl) <= MAX_BASE64_CHARS) return dataUrl;
 
   const image = await loadImage(dataUrl);
-  return encodeImageAsJpeg(image, START_MAX_EDGE);
+  return encodeImageAsJpeg(image, INSPECTION_PHOTO_MAX_EDGE);
 }
 
 export async function compressImageForUpload(
   file: File,
-  maxEdge = START_MAX_EDGE,
+  maxEdge = INSPECTION_PHOTO_MAX_EDGE,
 ): Promise<string> {
   if (!looksLikeImageFile(file)) {
     throw new Error('Please choose a photo (JPEG, PNG, or HEIC).');
@@ -106,8 +109,8 @@ function encodeImageAsJpeg(
       return dataUrl;
     }
     const next = document.createElement('canvas');
-    next.width = Math.max(1, Math.round(canvas.width * 0.7));
-    next.height = Math.max(1, Math.round(canvas.height * 0.7));
+    next.width = Math.max(1, Math.round(canvas.width * 0.78));
+    next.height = Math.max(1, Math.round(canvas.height * 0.78));
     const nextCtx = next.getContext('2d');
     if (!nextCtx) {
       throw new Error('Could not shrink photo');
@@ -118,20 +121,14 @@ function encodeImageAsJpeg(
     canvas = next;
   }
 
-  const last = canvasToJpeg(canvas);
-  if (dataUrlBase64Length(last) <= MAX_BASE64_CHARS) {
-    return last;
-  }
-  throw new Error(
-    'Photo is still too large after compression. Try a smaller image.',
-  );
+  return canvasToJpeg(canvas);
 }
 
 function canvasToJpeg(canvas: HTMLCanvasElement): string {
-  let quality = 0.84;
+  let quality = START_QUALITY;
   let dataUrl = canvas.toDataURL('image/jpeg', quality);
-  while (dataUrlBase64Length(dataUrl) > MAX_BASE64_CHARS && quality > 0.45) {
-    quality -= 0.08;
+  while (dataUrlBase64Length(dataUrl) > MAX_BASE64_CHARS && quality > MIN_QUALITY) {
+    quality = Math.max(MIN_QUALITY, quality - 0.1);
     dataUrl = canvas.toDataURL('image/jpeg', quality);
   }
   return dataUrl;
@@ -139,7 +136,7 @@ function canvasToJpeg(canvas: HTMLCanvasElement): string {
 
 /** JPEG re-encode loop used by the in-app camera capture canvas. */
 export function compressCanvasToDataUrl(canvas: HTMLCanvasElement): string {
-  return encodeImageAsJpeg(canvas, Math.max(canvas.width, canvas.height));
+  return encodeImageAsJpeg(canvas, INSPECTION_PHOTO_MAX_EDGE);
 }
 
 export function dataUrlToFile(dataUrl: string, fileName: string): File | null {

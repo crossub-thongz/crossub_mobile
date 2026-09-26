@@ -2,10 +2,13 @@ import * as ImagePicker from 'expo-image-picker';
 
 import {
   INSPECTION_BURST_MAX,
+  compressPhotoToFile,
+  deleteLocalPhoto,
+  yieldToUi,
   type LocalPhoto,
 } from '@/src/jobs/compress-photo';
 
-/** Pick images from the library. Compression happens after they are shown. */
+/** Pick images from the library and compress each one before recording. */
 export async function pickInspectionPhotos(
   limit = INSPECTION_BURST_MAX,
 ): Promise<LocalPhoto[]> {
@@ -20,15 +23,23 @@ export async function pickInspectionPhotos(
   const result = await ImagePicker.launchImageLibraryAsync({
     mediaTypes: ['images'],
     allowsMultipleSelection: true,
-    quality: 0.7,
+    quality: 0.5,
     selectionLimit: Math.max(1, Math.min(INSPECTION_BURST_MAX, limit)),
   });
   if (result.canceled) return [];
-  return result.assets
+  const picked = result.assets
     .filter((asset) => Boolean(asset.uri))
     .map((asset) => ({
       uri: asset.uri,
       width: asset.width ?? 0,
       height: asset.height ?? 0,
     }));
+  const compressed: LocalPhoto[] = [];
+  for (const photo of picked) {
+    await yieldToUi();
+    const next = await compressPhotoToFile(photo);
+    if (next.uri !== photo.uri) await deleteLocalPhoto(photo.uri);
+    compressed.push(next);
+  }
+  return compressed;
 }

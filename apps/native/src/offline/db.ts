@@ -6,7 +6,8 @@ import { deleteQueuedPhoto, stripBase64Payload } from '@/src/offline/queued-phot
 
 const DB_NAME = 'crossub-inspector.db';
 
-export const OFFLINE_QUEUE_MAX_ITEMS = 2000;
+/** Room for 2000 inspection photos plus findings/key actions. */
+export const OFFLINE_QUEUE_MAX_ITEMS = 2500;
 
 export type OfflineAction =
   | 'execution_draft'

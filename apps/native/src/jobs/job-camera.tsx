@@ -18,6 +18,7 @@ import {
   INSPECTION_BURST_MAX,
   compressPhotoToFile,
   deleteLocalPhoto,
+  yieldToUi,
   type LocalPhoto,
 } from '@/src/jobs/compress-photo';
 import { pickInspectionPhotos } from '@/src/jobs/pick-inspection-photos';
@@ -122,7 +123,6 @@ export function JobCamera({
         }
         return photo;
       })
-      .catch(() => captured)
       .finally(() => {
         pendingRef.current.delete(captured.uri);
       });
@@ -132,16 +132,25 @@ export function JobCamera({
   const finish = async (photos: LocalPhoto[]) => {
     if (photos.length === 0 || handedOffRef.current) return;
     setBusy(true);
+    setError(null);
     try {
       await Promise.all([...pendingRef.current.values()]);
-      const copy = [...shotsRef.current];
-      if (copy.length === 0) return;
+      const compressed: LocalPhoto[] = [];
+      for (const shot of shotsRef.current) {
+        await yieldToUi();
+        const photo = await compressPhotoToFile(shot);
+        if (photo.uri !== shot.uri) await deleteLocalPhoto(shot.uri);
+        compressed.push(photo);
+      }
+      if (compressed.length === 0) return;
       handedOffRef.current = true;
       pendingRef.current.clear();
       setShotList([]);
-      if (burst && onBurstComplete) onBurstComplete(copy);
-      else if (onCapture) onCapture(copy[copy.length - 1]);
+      if (burst && onBurstComplete) onBurstComplete(compressed);
+      else if (onCapture) onCapture(compressed[compressed.length - 1]);
       onClose();
+    } catch (err) {
+      setError(apiErrorMessage(err, 'Could not save the photo on this device.'));
     } finally {
       setBusy(false);
     }

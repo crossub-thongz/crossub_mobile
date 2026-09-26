@@ -2,17 +2,23 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 
 import type { UploadInspectorPhoto } from '@/src/api/inspector';
-import { isDurableLocalPhoto, readLocalFileBase64, resolveLocalFileUri } from '@/src/lib/local-file';
+import { readLocalFileBase64, resolveLocalFileUri } from '@/src/lib/local-file';
 
-/** Longest edge for inspection evidence. Smaller than full camera stills so 1500+ photos stay safe. */
-export const INSPECTION_PHOTO_MAX_EDGE = 1280;
-/** Target decoded JPEG size (~450 KB). Nest allows 25 MB; this is a device-memory budget. */
-export const INSPECTION_PHOTO_MAX_BYTES = 450_000;
+/**
+ * Longest edge for inspection evidence.
+ * Downloaded Exit packs land at ~40-50 KB per file (~16.4 MB / 403 photos). 1024px JPEG
+ * at moderate quality matches that ratio so 2000 photos stay around 100 MB on device.
+ */
+export const INSPECTION_PHOTO_MAX_EDGE = 1024;
+/** Cap each JPEG at 50 KB. Compression runs on the phone before recording, not on Nest. */
+export const INSPECTION_PHOTO_MAX_BYTES = 50_000;
 export const INSPECTION_BURST_MAX = 80;
 
-const START_QUALITY = 0.62;
-const MIN_QUALITY = 0.4;
+const START_QUALITY = 0.5;
+const MIN_QUALITY = 0.32;
 const MIN_EDGE = 640;
+const QUALITY_STEP = 0.1;
+const EDGE_SCALE = 0.78;
 
 export type LocalPhoto = {
   uri: string;
@@ -53,9 +59,16 @@ function resizeActions(
   return width >= height ? [{ resize: { width: edge } }] : [{ resize: { height: edge } }];
 }
 
+function withinInspectionBudget(size: number, width: number, height: number): boolean {
+  if (size <= 0 || size > INSPECTION_PHOTO_MAX_BYTES) return false;
+  if (width <= 0 || height <= 0) return true;
+  return width <= INSPECTION_PHOTO_MAX_EDGE && height <= INSPECTION_PHOTO_MAX_EDGE;
+}
+
 /**
  * Resize and JPEG-encode to a cache file. Never returns base64.
  * Drops the original capture file when a smaller copy is written.
+ * Call this on the device as soon as a photo is taken, before recording.
  */
 export async function compressPhotoToFile(photo: LocalPhoto): Promise<LocalPhoto> {
   const resolved = await resolveLocalFileUri(photo.uri);
@@ -64,13 +77,7 @@ export async function compressPhotoToFile(photo: LocalPhoto): Promise<LocalPhoto
   }
   const sourcePhoto = { ...photo, uri: resolved };
   const existing = await fileSize(sourcePhoto.uri);
-  const knownSize = existing > 0 && existing <= INSPECTION_PHOTO_MAX_BYTES;
-  const withinEdge =
-    sourcePhoto.width > 0 &&
-    sourcePhoto.height > 0 &&
-    sourcePhoto.width <= INSPECTION_PHOTO_MAX_EDGE &&
-    sourcePhoto.height <= INSPECTION_PHOTO_MAX_EDGE;
-  if (knownSize && (withinEdge || sourcePhoto.width <= 0 || sourcePhoto.height <= 0)) {
+  if (withinInspectionBudget(existing, sourcePhoto.width, sourcePhoto.height)) {
     return sourcePhoto;
   }
 
@@ -108,9 +115,9 @@ export async function compressPhotoToFile(photo: LocalPhoto): Promise<LocalPhoto
     const size = await fileSize(current);
     if (size > 0 && size <= INSPECTION_PHOTO_MAX_BYTES) break;
     if (quality > MIN_QUALITY + 0.01) {
-      quality = Math.max(MIN_QUALITY, quality - 0.12);
+      quality = Math.max(MIN_QUALITY, quality - QUALITY_STEP);
     } else {
-      edge = Math.max(MIN_EDGE, Math.round(edge * 0.72));
+      edge = Math.max(MIN_EDGE, Math.round(edge * EDGE_SCALE));
     }
   }
 

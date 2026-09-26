@@ -4,7 +4,10 @@ import { useCallback, useEffect, useRef, useState, type Touch, type TouchEvent }
 import { createPortal } from 'react-dom';
 import { Check, X } from 'lucide-react';
 
-import { compressCanvasToDataUrl } from '@/lib/compress-image';
+import {
+  INSPECTION_PHOTO_MAX_EDGE,
+  compressCanvasToDataUrl,
+} from '@/lib/compress-image';
 import { cn } from '@/lib/utils';
 
 type ZoomCaps = { min: number; max: number; step: number };
@@ -303,7 +306,7 @@ export function KeyCameraCapture({
     if (!video || video.videoWidth === 0) return;
 
     const canvas = document.createElement('canvas');
-    const maxEdge = 1280;
+    const maxEdge = INSPECTION_PHOTO_MAX_EDGE;
     const longest = Math.max(video.videoWidth, video.videoHeight);
     const scale = longest > maxEdge ? maxEdge / longest : 1;
     canvas.width = Math.max(1, Math.round(video.videoWidth * scale));
