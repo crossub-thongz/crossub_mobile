@@ -13,8 +13,7 @@ import {
   ISSUE_DETAIL_LABEL,
   ITEM_CONDITION_KEYS,
   ITEM_CONDITION_LABEL,
-  marksAreAllGood,
-  marksHaveNo,
+  itemMarkStatus,
   type ItemConditionKey,
   type ItemConditionMarks,
 } from '@/src/lib/item-condition-marks';
@@ -62,8 +61,7 @@ export function InspectionItemAccordion({
   onOpenedVisible?: (itemWindowY: number) => void;
 }) {
   const current = marks ?? emptyItemMarks();
-  const allGood = marksAreAllGood(current);
-  const hasIssue = marksHaveNo(current);
+  const status = itemMarkStatus(current);
   const icon = inspectionItemIcon(name);
   const rootRef = useRef<View>(null);
   const photoCount = photoUrls.filter(Boolean).length;
@@ -86,8 +84,15 @@ export function InspectionItemAccordion({
     });
   };
 
-  const statusColor = hasIssue ? colors.destructive : allGood ? '#34d399' : colors.muted;
-  const statusLabel = hasIssue ? 'Issue found' : allGood ? 'All good' : 'Not marked';
+  const statusColor =
+    status.tone === 'issue'
+      ? colors.destructive
+      : status.tone === 'good'
+        ? '#34d399'
+        : status.tone === 'partial'
+          ? colors.amber
+          : colors.muted;
+  const statusLabel = status.label;
 
   return (
     <View ref={rootRef} collapsable={false} style={styles.root}>
@@ -113,9 +118,9 @@ export function InspectionItemAccordion({
             </Text>
           </View>
           <Text style={[styles.statusText, { color: statusColor }]}>{statusLabel}</Text>
-          {hasIssue ? (
+          {status.tone === 'issue' ? (
             <Ionicons name="alert-circle-outline" size={14} color={colors.destructive} />
-          ) : allGood ? (
+          ) : status.tone === 'good' ? (
             <Ionicons name="checkmark" size={14} color="#34d399" />
           ) : null}
           <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={16} color={colors.muted} />

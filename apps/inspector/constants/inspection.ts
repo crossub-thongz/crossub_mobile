@@ -24,8 +24,8 @@ export const ESTIMATED_HOURS_BY_TYPE: Record<InspectionType, number> = {
 
 export const INSPECTION_PAY_LABEL: Record<InspectionType, string> = {
   open: 'Open',
-  ingoing: 'Ingoing',
-  outgoing: 'Outgoing',
+  ingoing: 'Entry',
+  outgoing: 'Final',
   routine: 'Routine',
   tribunal: 'Tribunal',
 };
@@ -42,8 +42,8 @@ export type CoreInspectionType = (typeof CORE_INSPECTION_TYPES)[number];
 
 export const INSPECTION_TYPE_LABEL: Record<CoreInspectionType, string> = {
   open: 'OPEN',
-  ingoing: 'INGOING',
-  outgoing: 'OUTGOING',
+  ingoing: 'ENTRY',
+  outgoing: 'FINAL',
   routine: 'ROUTINE',
 };
 

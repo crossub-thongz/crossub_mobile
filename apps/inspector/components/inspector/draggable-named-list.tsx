@@ -135,7 +135,7 @@ export function DraggableNamedList({
             type="button"
             aria-label={`Drag ${name} to reorder`}
             disabled={disabled}
-            className="text-muted-foreground hover:text-foreground flex size-11 shrink-0 cursor-grab touch-none items-center justify-center rounded-md active:cursor-grabbing disabled:opacity-30"
+            className="text-primary flex size-11 shrink-0 cursor-grab touch-none items-center justify-center rounded-md border border-primary/50 bg-primary/15 active:cursor-grabbing disabled:opacity-30"
             onPointerDown={(event) => startDrag(index, event)}
           >
             <GripVertical className="size-5" />

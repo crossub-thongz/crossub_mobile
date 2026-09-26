@@ -10,8 +10,7 @@ import {
   ITEM_CONDITION_KEYS,
   ITEM_CONDITION_LABEL,
   cycleItemMark,
-  marksAreAllGood,
-  marksHaveNo,
+  itemMarkStatus,
   type ItemConditionKey,
   type ItemConditionMarks,
   emptyItemMarks,
@@ -61,8 +60,7 @@ export function InspectionItemAccordion({
   showItemPhotos?: boolean;
 }) {
   const current = marks ?? emptyItemMarks();
-  const allGood = marksAreAllGood(current);
-  const hasIssue = marksHaveNo(current);
+  const status = itemMarkStatus(current);
   const Icon = inspectionItemIcon(name);
   const photoCount = photoUrls.filter(Boolean).length;
   const missingPhotos = photoCount === 0;
@@ -105,21 +103,27 @@ export function InspectionItemAccordion({
           <span
             className={cn(
               'inline-flex shrink-0 items-center gap-1 text-[11px] font-medium',
-              hasIssue ? 'text-destructive' : allGood ? 'text-emerald-400' : 'text-muted-foreground',
+              status.tone === 'issue'
+                ? 'text-destructive'
+                : status.tone === 'good'
+                  ? 'text-emerald-400'
+                  : status.tone === 'partial'
+                    ? 'text-amber-400'
+                    : 'text-muted-foreground',
             )}
           >
-            {hasIssue ? (
+            {status.tone === 'issue' ? (
               <>
-                Issue found
+                {status.label}
                 <CircleAlert className="size-3.5" />
               </>
-            ) : allGood ? (
+            ) : status.tone === 'good' ? (
               <>
-                All good
+                {status.label}
                 <Check className="size-3.5" />
               </>
             ) : (
-              'Not marked'
+              status.label
             )}
             {open ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
           </span>

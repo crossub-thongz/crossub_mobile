@@ -1,6 +1,7 @@
 'use client';
 
 import {
+  INSPECTION_PAY_LABEL,
   type CoreInspectionType,
 } from '@/constants/inspection';
 import { cn } from '@/lib/utils';
@@ -26,14 +27,7 @@ export function InspectionTypeStrip({
     <div className="border-border flex border-b">
       {types.map((type) => {
         const selected = active === type;
-        const label =
-          type === 'routine'
-            ? 'Routine'
-            : type === 'ingoing'
-              ? 'Ingoing'
-              : type === 'outgoing'
-                ? 'Outgoing'
-                : 'Open';
+        const label = INSPECTION_PAY_LABEL[type] ?? type;
 
         return (
           <button

@@ -12,7 +12,9 @@ export default function JobLayout() {
         headerShadowVisible: false,
         headerTitleStyle: { fontWeight: '600', fontSize: 16, color: colors.text },
         contentStyle: { backgroundColor: colors.background },
-        headerLeft: () => <BackLabelButton />,
+        headerTitleAlign: 'left',
+        headerBackVisible: false,
+        headerLeft: () => <BackLabelButton label="Back" />,
       }}
     >
       <Stack.Screen name="index" />

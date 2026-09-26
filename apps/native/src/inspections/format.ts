@@ -24,9 +24,9 @@ export function inspectionWhen(item: InspectorInspection): string {
 export function inspectionTypeLabel(type: InspectorInspection['type']): string {
   switch (type) {
     case 'INGOING':
-      return 'Ingoing';
+      return 'Entry';
     case 'OUTGOING':
-      return 'Outgoing';
+      return 'Final';
     case 'ROUTINE':
       return 'Routine';
     case 'OPEN':

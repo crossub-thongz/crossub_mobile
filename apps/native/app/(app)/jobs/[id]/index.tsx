@@ -20,7 +20,6 @@ import {
   fetchInspection,
   fetchKeyCollection,
 } from '@/src/api/inspector';
-import { INSPECTION_PAY_LABEL } from '@/src/constants/inspection';
 import { useInspections } from '@/src/inspections/inspections-context';
 import { CancelTaskSheet } from '@/src/jobs/cancel-task-sheet';
 import { FieldWorkflowScreen } from '@/src/jobs/field-workflow';
@@ -157,9 +156,7 @@ export default function JobDetailsScreen() {
   const returnPending =
     Boolean(job.keyAccess && inspectionFinished && !keyReturnDone && job.status !== 'completed');
   const { street, locality } = propertyAddressLines(job);
-  const title = poolPreview
-    ? 'Job preview'
-    : `${INSPECTION_PAY_LABEL[job.type] ?? job.type} Inspection`;
+  const title = poolPreview ? 'Job preview' : street || job.propertyAddress;
 
   const handoverNext = Boolean(job.keyAccess && !keyCollectDone && !paymentBlocked);
   const ctaLabel = paymentBlocked

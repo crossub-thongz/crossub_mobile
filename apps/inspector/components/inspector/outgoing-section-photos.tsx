@@ -4,7 +4,6 @@ import { ListFilter } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
 import { AddSectionControl } from '@/components/inspector/add-section-control';
-import { BeforeAfterPhotoColumn } from '@/components/inspector/before-after-photo-column';
 import { DraggableNamedList } from '@/components/inspector/draggable-named-list';
 import { InspectionItemAccordion } from '@/components/inspector/inspection-item-accordion';
 import { MarkAllItemsControl } from '@/components/inspector/inspection-section-photos';
@@ -34,8 +33,6 @@ type OutgoingSectionPhotosProps = {
   busy?: boolean;
   /** Photo upload in progress — show on Snap, do not disable the camera. */
   photoUploading?: boolean;
-  ingoingReadOnly?: boolean;
-  currentLabel?: string;
   onAddSection: (section: string) => void;
   onRemoveSection: (section: string) => void;
   onRenameSection: (from: string, to: string) => void;
@@ -75,8 +72,6 @@ export function OutgoingSectionPhotos({
   itemComments,
   busy = false,
   photoUploading = false,
-  ingoingReadOnly = false,
-  currentLabel = 'Outgoing',
   onAddSection,
   onRemoveSection,
   onRenameSection,
@@ -169,8 +164,6 @@ export function OutgoingSectionPhotos({
                     ingoingPhotoUrls: [],
                     outgoingPhotoUrls: [],
                   };
-                  const sectionIngoingLocked =
-                    ingoingReadOnly && photos.ingoingPhotoUrls.length > 0;
                   return (
                     <InspectionItemAccordion
                       name={section}
@@ -179,57 +172,22 @@ export function OutgoingSectionPhotos({
                       photoUrls={photos.outgoingPhotoUrls}
                       busy={busy}
                       photoUploading={photoUploading}
-                      showItemPhotos={false}
+                      showItemPhotos
                       open={openName === section}
                       onOpenChange={(next) => setOpenName(next ? section : null)}
                       onRename={() => setRenameFrom(section)}
                       onRemove={() => onRemoveSection(section)}
                       onChangeMarks={(marks) => onChangeMarks(section, marks)}
                       onChangeComment={(comment) => onChangeComment(section, comment)}
-                      extra={
-                        <div className="grid grid-cols-2 gap-3">
-                          <BeforeAfterPhotoColumn
-                            title="Ingoing"
-                            photoUrls={photos.ingoingPhotoUrls}
-                            uploading={photoUploading}
-                            disabled={busy || sectionIngoingLocked}
-                            sessionKey={`${section}-ingoing`}
-                            onAddFiles={(files) => onAddFiles(section, 'ingoing', files)}
-                            onAddDataUrl={(dataUrl) =>
-                              onAddDataUrl(section, 'ingoing', dataUrl)
-                            }
-                            onAddDataUrls={
-                              onAddDataUrls
-                                ? (urls) => onAddDataUrls(section, 'ingoing', urls)
-                                : undefined
-                            }
-                            onRemove={
-                              sectionIngoingLocked
-                                ? undefined
-                                : (photoIndex) =>
-                                    onRemovePhoto(section, 'ingoing', photoIndex)
-                            }
-                          />
-                          <BeforeAfterPhotoColumn
-                            title={currentLabel}
-                            photoUrls={photos.outgoingPhotoUrls}
-                            uploading={photoUploading}
-                            disabled={busy}
-                            sessionKey={`${section}-outgoing`}
-                            onAddFiles={(files) => onAddFiles(section, 'outgoing', files)}
-                            onAddDataUrl={(dataUrl) =>
-                              onAddDataUrl(section, 'outgoing', dataUrl)
-                            }
-                            onAddDataUrls={
-                              onAddDataUrls
-                                ? (urls) => onAddDataUrls(section, 'outgoing', urls)
-                                : undefined
-                            }
-                            onRemove={(photoIndex) =>
-                              onRemovePhoto(section, 'outgoing', photoIndex)
-                            }
-                          />
-                        </div>
+                      onAddFiles={(files) => onAddFiles(section, 'outgoing', files)}
+                      onAddDataUrl={(dataUrl) => onAddDataUrl(section, 'outgoing', dataUrl)}
+                      onAddDataUrls={
+                        onAddDataUrls
+                          ? (urls) => onAddDataUrls(section, 'outgoing', urls)
+                          : undefined
+                      }
+                      onRemovePhoto={(photoIndex) =>
+                        onRemovePhoto(section, 'outgoing', photoIndex)
                       }
                     />
                   );

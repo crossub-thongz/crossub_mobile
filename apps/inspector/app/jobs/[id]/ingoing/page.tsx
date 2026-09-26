@@ -401,7 +401,7 @@ export default function IngoingInspectionPage() {
   // Payment gate redirects to job detail; don't render workflow while unpaid.
   if (!paymentCleared) {
     return (
-      <InspectorShell title="Ingoing Inspection" backHref={jobDetail(id)}>
+      <InspectorShell title="Entry Inspection" backHref={jobDetail(id)}>
         <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-3 text-sm text-amber-700 dark:text-amber-300">
           Waiting for the agency to pay the platform fee before you can start
           this job.
@@ -444,7 +444,7 @@ export default function IngoingInspectionPage() {
 
   if (areaCatalog.length === 0) {
     return (
-      <InspectorShell title="Ingoing Inspection" backHref={jobDetail(id)}>
+      <InspectorShell title="Entry Inspection" backHref={jobDetail(id)}>
         <p className="text-muted-foreground text-sm">No areas selected for this inspection.</p>
       </InspectorShell>
     );
@@ -872,7 +872,7 @@ export default function IngoingInspectionPage() {
     }
     clearDraft();
     submitInspection(
-      'Ingoing report sent for account manager review',
+      'Entry report sent for account manager review',
       'Awaiting approval',
     );
   };

@@ -59,12 +59,12 @@ export function FindingsRoomRow({ room }: { room: RoomInspectionEntry }) {
       {isBeforeAfter ? (
         <div className="grid grid-cols-2 gap-3">
           <SidePhoto
-            label="Ingoing"
+            label="Entry"
             urls={room.ingoingPhotoUrls ?? []}
             area={room.area}
           />
           <SidePhoto
-            label="Outgoing"
+            label="Final"
             urls={room.outgoingPhotoUrls ?? []}
             area={room.area}
           />

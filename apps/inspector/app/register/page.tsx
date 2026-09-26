@@ -266,7 +266,7 @@ export default function RegisterPage() {
         <section className="space-y-3">
           <h2 className="text-sm font-semibold">Access level</h2>
           <p className="text-xs text-muted-foreground">
-            New inspectors start at Level 1 (Outgoing, Ingoing). CROSSUB staff set your
+            New inspectors start at Level 1 (Final, Entry). CROSSUB staff set your
             level from the admin portal after review — it cannot be changed here.
           </p>
         </section>

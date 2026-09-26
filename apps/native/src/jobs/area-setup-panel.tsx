@@ -75,7 +75,7 @@ export function AreaSetupPanel({
       {availableExisting.length > 0 && onAddAllExisting ? (
         <Pressable onPress={onAddAllExisting} style={styles.secondary}>
           <Text style={styles.secondaryText}>
-            Add remaining from ingoing report ({availableExisting.length})
+            Add remaining from Entry report ({availableExisting.length})
           </Text>
         </Pressable>
       ) : null}
@@ -91,8 +91,8 @@ export function AreaSetupPanel({
       </View>
       <Text style={styles.hint}>
         {continuing
-          ? 'Add, remove, rename, or reorder areas. You can keep editing after the inspection has started.'
-          : 'Confirm the areas before starting the inspection.'}
+          ? 'Hold the green handle for a moment until the row pops up, then drag to rearrange. You can also add, remove, or rename areas after the inspection has started.'
+          : 'Hold the green handle for a moment until the row pops up, then drag to rearrange.'}
       </Text>
 
       {selectedAreaNames.length === 0 ? (
@@ -109,7 +109,9 @@ export function AreaSetupPanel({
           }}
           renderItem={(name) => (
             <>
-              <Text style={styles.areaName}>{name}</Text>
+              <Text style={styles.areaName} numberOfLines={2}>
+                {name}
+              </Text>
               <View style={styles.menuWrap}>
                 <Pressable
                   onPress={() => setMenuFor((current) => (current === name ? null : name))}
@@ -343,9 +345,22 @@ const styles = StyleSheet.create({
     borderRadius: 16,
   },
   empty: { color: colors.muted, textAlign: 'center', paddingVertical: 24, fontSize: 12 },
-  areaName: { color: colors.text, fontWeight: '500', flex: 1, fontSize: 14 },
+  areaName: {
+    color: colors.text,
+    fontWeight: '500',
+    flex: 1,
+    minWidth: 0,
+    fontSize: 14,
+    paddingVertical: 4,
+  },
   menuWrap: { position: 'relative', flexShrink: 0 },
-  menuBtn: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
+  menuBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   menu: {
     position: 'absolute',
     right: 0,

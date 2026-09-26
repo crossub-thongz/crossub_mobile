@@ -7,7 +7,6 @@ import { AppTextInput } from '@/src/ui/app-text-input';
 import { AddSectionControl } from '@/src/jobs/add-section-control';
 import { DraggableNamedList } from '@/src/jobs/draggable-named-list';
 import { InspectionItemAccordion } from '@/src/jobs/inspection-item-accordion';
-import { BeforeAfterPhotoColumn } from '@/src/jobs/inspection-photos-field';
 import type { LocalPhoto } from '@/src/jobs/compress-photo';
 import type { InspectionAreaDefinition } from '@/src/constants/inspection-areas';
 import { validateUniqueLabel } from '@/src/lib/inspection-layout-edit';
@@ -83,9 +82,7 @@ export function InspectionSectionPhotos({
   itemComments,
   busy = false,
   photoUploading = false,
-  variant = 'single',
-  ingoingReadOnly = false,
-  currentLabel = 'Outgoing',
+  photoSide = 'ingoing',
   onAddSection,
   onRemoveSection,
   onRenameSection,
@@ -107,9 +104,7 @@ export function InspectionSectionPhotos({
   itemComments?: Record<string, string>;
   busy?: boolean;
   photoUploading?: boolean;
-  variant?: 'single' | 'beforeAfter';
-  ingoingReadOnly?: boolean;
-  currentLabel?: string;
+  photoSide?: 'ingoing' | 'outgoing';
   onAddSection: (section: string) => void;
   onRemoveSection: (section: string) => void;
   onRenameSection: (from: string, to: string) => void;
@@ -192,22 +187,19 @@ export function InspectionSectionPhotos({
                   ingoingPhotoUrls: [],
                   outgoingPhotoUrls: [],
                 };
-                const sectionIngoingLocked = ingoingReadOnly && photos.ingoingPhotoUrls.length > 0;
                 return (
                   <InspectionItemAccordion
                     name={section}
                     marks={itemMarks?.[section] ?? emptyItemMarks()}
                     comment={itemComments?.[section] ?? ''}
                     photoUrls={
-                      variant === 'beforeAfter'
+                      photoSide === 'outgoing'
                         ? photos.outgoingPhotoUrls
-                        : photos.outgoingPhotoUrls.length > 0
-                          ? photos.outgoingPhotoUrls
-                          : photos.ingoingPhotoUrls
+                        : photos.ingoingPhotoUrls
                     }
                     busy={busy}
                     photoUploading={photoUploading}
-                    showItemPhotos={variant !== 'beforeAfter'}
+                    showItemPhotos
                     open={openName === section}
                     onOpenChange={(next) => setOpenName(next ? section : null)}
                     onOpenedVisible={onOpenedItemVisible}
@@ -215,47 +207,11 @@ export function InspectionSectionPhotos({
                     onRemove={() => onRemoveSection(section)}
                     onChangeMarks={(marks) => onChangeMarks(section, marks)}
                     onChangeComment={(comment) => onChangeComment(section, comment)}
-                    onTakePhotos={() => onTakePhotos(section)}
+                    onTakePhotos={() => onTakePhotos(section, photoSide)}
                     onAddPhotos={
-                      onAddPhotos ? (photos) => onAddPhotos(section, photos) : undefined
+                      onAddPhotos ? (photos) => onAddPhotos(section, photos, photoSide) : undefined
                     }
-                    onRemovePhoto={(index) => onRemovePhoto(section, index)}
-                    extra={
-                      variant === 'beforeAfter' ? (
-                        <View style={styles.beforeAfter}>
-                          <BeforeAfterPhotoColumn
-                            title="Ingoing"
-                            photoUrls={photos.ingoingPhotoUrls}
-                            uploading={photoUploading}
-                            disabled={busy || sectionIngoingLocked}
-                            onTakePhotos={() => onTakePhotos(section, 'ingoing')}
-                            onAddPhotos={
-                              onAddPhotos && !sectionIngoingLocked
-                                ? (photos) => onAddPhotos(section, photos, 'ingoing')
-                                : undefined
-                            }
-                            onRemove={
-                              sectionIngoingLocked
-                                ? undefined
-                                : (index) => onRemovePhoto(section, index, 'ingoing')
-                            }
-                          />
-                          <BeforeAfterPhotoColumn
-                            title={currentLabel}
-                            photoUrls={photos.outgoingPhotoUrls}
-                            uploading={photoUploading}
-                            disabled={busy}
-                            onTakePhotos={() => onTakePhotos(section, 'outgoing')}
-                            onAddPhotos={
-                              onAddPhotos
-                                ? (photos) => onAddPhotos(section, photos, 'outgoing')
-                                : undefined
-                            }
-                            onRemove={(index) => onRemovePhoto(section, index, 'outgoing')}
-                          />
-                        </View>
-                      ) : null
-                    }
+                    onRemovePhoto={(index) => onRemovePhoto(section, index, photoSide)}
                   />
                 );
               }}
@@ -363,7 +319,6 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     alignItems: 'center',
   },
-  beforeAfter: { flexDirection: 'row', gap: 12 },
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.65)',

@@ -100,9 +100,6 @@ export function InspectJobRow({
           <Text style={styles.ctaMutedText}>{action.label}</Text>
         </View>
       ) : null}
-      <Pressable onPress={onOpen} style={styles.chevron}>
-        <Ionicons name="chevron-forward" size={16} color={colors.muted} />
-      </Pressable>
     </View>
   );
 }
@@ -154,5 +151,4 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   ctaMutedText: { color: colors.muted, fontSize: 11, fontWeight: '600' },
-  chevron: { paddingLeft: 4, paddingVertical: 8, alignSelf: 'stretch', justifyContent: 'center' },
 });

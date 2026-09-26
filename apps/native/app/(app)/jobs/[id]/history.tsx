@@ -72,12 +72,12 @@ function FindingsRow({ room }: { room: FindingsRoom }) {
       {beforeAfter ? (
         <View style={styles.beforeAfter}>
           <View style={styles.side}>
-            <Text style={styles.sideLabel}>Ingoing</Text>
-            <PhotoStrip urls={room.ingoingPhotoUrls ?? []} empty="No ingoing photo" />
+            <Text style={styles.sideLabel}>Entry</Text>
+            <PhotoStrip urls={room.ingoingPhotoUrls ?? []} empty="No Entry photo" />
           </View>
           <View style={styles.side}>
-            <Text style={styles.sideLabel}>Outgoing</Text>
-            <PhotoStrip urls={room.outgoingPhotoUrls ?? []} empty="No outgoing photo" />
+            <Text style={styles.sideLabel}>Final</Text>
+            <PhotoStrip urls={room.outgoingPhotoUrls ?? []} empty="No Final photo" />
           </View>
         </View>
       ) : (

@@ -287,16 +287,16 @@ export default function OutgoingInspectionPage() {
         });
         if (plan) {
           toast.success(
-            `Loaded ${plan.rooms.length} area(s) from the ingoing report`,
+            `Loaded ${plan.rooms.length} area(s) from the Entry report`,
           );
         } else if (reference && seededFromReference) {
-          toast.success('Ingoing photos loaded from the latest ingoing report');
+          toast.success('Entry photos loaded from the latest Entry report');
         } else if (!reference) {
-          toast.message('No completed ingoing report found for this property');
+          toast.message('No completed Entry report found for this property');
         }
       } catch {
         if (!cancelled) {
-          toast.error('Could not load ingoing reference photos');
+          toast.error('Could not load Entry reference photos');
         }
       } finally {
         if (!cancelled) {
@@ -543,7 +543,7 @@ export default function OutgoingInspectionPage() {
         issues: nextIssues,
       };
     });
-    toast.success(`Added ${names.length} area(s) from the ingoing report`);
+    toast.success(`Added ${names.length} area(s) from the Entry report`);
   };
 
   const completeAreaSetup = () => {
@@ -591,7 +591,7 @@ export default function OutgoingInspectionPage() {
   // Payment gate redirects to job detail; don't render workflow while unpaid.
   if (!paymentCleared) {
     return (
-      <InspectorShell title="Outgoing Inspection" backHref={jobDetail(id)}>
+      <InspectorShell title="Final Inspection" backHref={jobDetail(id)}>
         <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-3 text-sm text-amber-700 dark:text-amber-300">
           Waiting for the agency to pay the platform fee before you can start
           this job.
@@ -638,7 +638,7 @@ export default function OutgoingInspectionPage() {
 
   if (areaCatalog.length === 0) {
     return (
-      <InspectorShell title="Outgoing Inspection" backHref={jobDetail(id)}>
+      <InspectorShell title="Final Inspection" backHref={jobDetail(id)}>
         <p className="text-muted-foreground text-sm">No areas selected for this inspection.</p>
       </InspectorShell>
     );
@@ -727,15 +727,7 @@ export default function OutgoingInspectionPage() {
     sources: Array<File | string>,
   ) => {
     if (sources.length === 0) return;
-    const current = issues[area] ?? emptyAreaIssue(area, undefined, customAreas);
-    const sectionPhotos = current.photosBySection[section] ?? emptySectionPhotos();
-    if (
-      side === 'ingoing' &&
-      ingoingFromReference &&
-      sectionPhotos.ingoingPhotoUrls.length > 0
-    ) {
-      return;
-    }
+    if (side === 'ingoing') return;
     beginPhotoUpload();
     try {
       const uploadedUrls = await uploadInspectionPhotos(
@@ -778,15 +770,7 @@ export default function OutgoingInspectionPage() {
     side: 'ingoing' | 'outgoing',
     index: number,
   ) => {
-    const current = issues[area] ?? emptyAreaIssue(area, undefined, customAreas);
-    const sectionPhotos = current.photosBySection[section] ?? emptySectionPhotos();
-    if (
-      side === 'ingoing' &&
-      ingoingFromReference &&
-      sectionPhotos.ingoingPhotoUrls.length > 0
-    ) {
-      return;
-    }
+    if (side === 'ingoing') return;
     setDraft((prev) => {
       const rec = prev.issues[area] ?? emptyAreaIssue(area, undefined, prev.customAreas);
       const existing = rec.photosBySection[section] ?? emptySectionPhotos();
@@ -1117,7 +1101,7 @@ export default function OutgoingInspectionPage() {
     }
     clearDraft();
     submitInspection(
-      'Outgoing report sent for account manager review',
+      'Final report sent for account manager review',
       'Awaiting approval',
     );
   };
@@ -1254,7 +1238,7 @@ export default function OutgoingInspectionPage() {
         >
           {loadingReference ? (
             <p className="text-muted-foreground text-xs">
-              Loading ingoing reference photos…
+              Loading Entry reference photos…
             </p>
           ) : null}
 
@@ -1301,7 +1285,6 @@ export default function OutgoingInspectionPage() {
                 itemComments={issue.itemComments}
                 busy={formBusy || loadingReference}
                 photoUploading={photoBusy}
-                ingoingReadOnly={ingoingFromReference}
                 onAddSection={addSection}
                 onRemoveSection={removeSection}
                 onRenameSection={renameSection}
@@ -1322,13 +1305,6 @@ export default function OutgoingInspectionPage() {
                 }
                 onRemovePhoto={removePhoto}
               />
-
-              {ingoingFromReference ? (
-                <p className="text-muted-foreground text-[11px]">
-                  Ingoing photos are from the property&apos;s latest ingoing report
-                  and can&apos;t be replaced here.
-                </p>
-              ) : null}
 
               <div className="space-y-2">
                 <Label>Issue notes</Label>

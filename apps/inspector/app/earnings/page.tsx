@@ -50,7 +50,7 @@ export default function EarningsPage() {
         </div>
 
         <p className="text-muted-foreground text-center text-[10px]">
-          Routine &amp; open: ${ROUTINE_OPEN_INSPECTOR_FEE_INC_GST_AUD} inc GST · Ingoing/outgoing: agent price list
+          Routine &amp; open: ${ROUTINE_OPEN_INSPECTOR_FEE_INC_GST_AUD} inc GST · Entry/Final: agent price list
         </p>
 
         <section className="space-y-1">

@@ -6,14 +6,14 @@ const START_COPY: Record<
   { startLabel: string; continueLabel: string; body: string }
 > = {
   ingoing: {
-    startLabel: 'Start Ingoing',
-    continueLabel: 'Continue Ingoing',
+    startLabel: 'Start Entry',
+    continueLabel: 'Continue Entry',
     body: 'Arrange the rooms first — add, rename, reorder, or remove. Then start the condition report and walk room by room.',
   },
   outgoing: {
-    startLabel: 'Start Outgoing',
-    continueLabel: 'Continue Outgoing',
-    body: 'Arrange rooms first. Move-in photos copy across so you only record what changed once you start.',
+    startLabel: 'Start Final',
+    continueLabel: 'Continue Final',
+    body: 'Arrange rooms first. Photograph each item as it is now for the Final report.',
   },
   routine: {
     startLabel: 'Start Routine',
@@ -50,7 +50,7 @@ export function layoutSourceLabel(
 ): string | null {
   if (roomCount === 0) return null;
   if (source === 'copied') {
-    return `${roomCount} area${roomCount === 1 ? '' : 's'} copied from the last ingoing report`;
+    return `${roomCount} area${roomCount === 1 ? '' : 's'} copied from the last Entry report`;
   }
   if (source === 'template') {
     return `${roomCount} area${roomCount === 1 ? '' : 's'} loaded from the property layout`;

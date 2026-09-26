@@ -122,7 +122,7 @@ export function InspectionAreaSetupPanel({
           disabled={busy}
           onClick={onAddAllExisting}
         >
-          Add remaining from ingoing report ({availableExisting.length})
+          Add remaining from Entry report ({availableExisting.length})
         </Button>
       ) : null}
 
@@ -146,8 +146,8 @@ export function InspectionAreaSetupPanel({
         </div>
         <p className="text-muted-foreground text-xs">
           {continuing
-            ? 'Add, remove, or reorder areas. You can keep editing after the inspection has started.'
-            : 'Confirm the areas before starting the inspection.'}
+            ? 'Hold the green handle for a moment until the row pops up, then drag to rearrange. You can also add, remove, or rename areas after the inspection has started.'
+            : 'Hold the green handle for a moment until the row pops up, then drag to rearrange.'}
         </p>
 
         <ul className="border-border bg-card divide-y overflow-visible rounded-2xl border">

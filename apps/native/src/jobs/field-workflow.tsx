@@ -23,6 +23,7 @@ import { InspectionAreaNav } from '@/src/jobs/inspection-area-nav';
 import { InspectionPhotosField } from '@/src/jobs/inspection-photos-field';
 import { JobCamera } from '@/src/jobs/job-camera';
 import { JobLookupFallback } from '@/src/jobs/job-lookup-fallback';
+import { JobPropertyHeader } from '@/src/jobs/job-property-header';
 import { useFinishInspection } from '@/src/jobs/use-finish-inspection';
 import { type WorkspaceTab } from '@/src/jobs/workspace-nav';
 import {
@@ -614,7 +615,7 @@ export function FieldWorkflowScreen({
         scrollEnabled={!areasDragging}
       >
         {error ? <Text style={styles.error}>{error}</Text> : null}
-        <Text style={styles.title}>{INSPECTION_PAY_LABEL[type] ?? type}</Text>
+        <JobPropertyHeader job={job} />
         <Text style={styles.body}>{copy.body}</Text>
         <Pressable onPress={resetInspection} style={styles.secondary}>
           <Text style={styles.cancelLinkText}>Reset inspection</Text>
@@ -688,7 +689,6 @@ export function FieldWorkflowScreen({
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
   inner: { padding: 16, paddingBottom: 40, gap: 10 },
-  title: { color: colors.text, fontSize: 22, fontWeight: '700' },
   kicker: { color: colors.primary, fontSize: 12, fontWeight: '700' },
   body: { color: colors.muted, fontSize: 14, lineHeight: 20 },
   banner: {

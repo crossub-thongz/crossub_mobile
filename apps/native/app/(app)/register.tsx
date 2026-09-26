@@ -236,7 +236,7 @@ export default function RegisterScreen() {
 
         <Text style={styles.section}>Access level</Text>
         <Text style={styles.meta}>
-          New inspectors start at Level 1 (Outgoing, Ingoing). CROSSUB staff set your level
+          New inspectors start at Level 1 (Final, Entry). CROSSUB staff set your level
           from the admin portal after review ? it cannot be changed here.
         </Text>
         <Pressable

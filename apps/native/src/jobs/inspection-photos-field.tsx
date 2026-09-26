@@ -337,16 +337,20 @@ export function BeforeAfterPhotoColumn({
   photoUrls: string[];
   uploading?: boolean;
   disabled?: boolean;
-  onTakePhotos: () => void;
+  onTakePhotos?: () => void;
   onAddPhotos?: (photos: LocalPhoto[]) => void;
   onRemove?: (index: number) => void;
 }) {
   const primaryUrl = photoUrls[0];
+  const extraUrls = photoUrls.slice(1);
   const [picking, setPicking] = useState(false);
+  const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   const pickingBusy = picking;
+  const canCapture = !disabled && Boolean(onTakePhotos);
+  const previewUrl = previewIndex != null ? photoUrls[previewIndex] : null;
 
   const uploadFromLibrary = async () => {
-    if (disabled || !onAddPhotos || picking) return;
+    if (!canCapture || !onAddPhotos || picking) return;
     setPicking(true);
     try {
       const photos = await pickInspectionPhotos();
@@ -358,12 +362,28 @@ export function BeforeAfterPhotoColumn({
     }
   };
 
+  const openPreview = (index: number) => {
+    if (!photoUrls[index]) return;
+    setPreviewIndex(index);
+  };
+
+  const stepPreview = (delta: number) => {
+    if (previewIndex == null || photoUrls.length === 0) return;
+    const next = (previewIndex + delta + photoUrls.length) % photoUrls.length;
+    setPreviewIndex(next);
+  };
+
   return (
     <View style={styles.column}>
       <Pressable
-        onPress={primaryUrl ? onTakePhotos : disabled ? undefined : onTakePhotos}
-        disabled={disabled && !primaryUrl}
+        onPress={
+          primaryUrl ? () => openPreview(0) : canCapture ? onTakePhotos : undefined
+        }
+        disabled={!primaryUrl && !canCapture}
         style={styles.square}
+        accessibilityLabel={
+          primaryUrl ? `View ${title} photos, ${photoUrls.length} total` : title
+        }
       >
         {primaryUrl ? (
           <Image
@@ -387,9 +407,14 @@ export function BeforeAfterPhotoColumn({
             <Ionicons name="close" size={12} color={colors.text} />
           </Pressable>
         ) : null}
+        {photoUrls.length > 1 ? (
+          <View style={styles.squareCount} pointerEvents="none">
+            <Text style={styles.squareCountText}>{photoUrls.length}</Text>
+          </View>
+        ) : null}
       </Pressable>
       <Text style={styles.columnTitle}>{title}</Text>
-      {!disabled ? (
+      {canCapture ? (
         <View style={styles.columnActions}>
           <Pressable onPress={onTakePhotos} style={styles.columnSnap} disabled={pickingBusy}>
             <Text style={styles.columnSnapText}>Snap</Text>
@@ -411,9 +436,63 @@ export function BeforeAfterPhotoColumn({
           ) : null}
         </View>
       ) : null}
-      {photoUrls.length > 1 ? (
-        <Text style={styles.columnMore}>+{photoUrls.length - 1} more</Text>
+      {extraUrls.length > 0 ? (
+        <Pressable onPress={() => openPreview(1)} style={styles.columnMoreBtn}>
+          <Text style={styles.columnMore}>
+            {extraUrls.length === 1 ? 'View 1 more' : `View ${extraUrls.length} more`}
+          </Text>
+        </Pressable>
       ) : null}
+
+      <Modal
+        visible={previewUrl != null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setPreviewIndex(null)}
+      >
+        <View style={styles.preview}>
+          <Pressable
+            onPress={() => setPreviewIndex(null)}
+            style={styles.previewClose}
+            accessibilityLabel="Close preview"
+          >
+            <Ionicons name="close" size={20} color="#fff" />
+          </Pressable>
+          {photoUrls.length > 1 ? (
+            <Pressable
+              onPress={() => stepPreview(-1)}
+              style={styles.previewNavLeft}
+              accessibilityLabel="Previous photo"
+            >
+              <Ionicons name="chevron-back" size={28} color="#fff" />
+            </Pressable>
+          ) : null}
+          {previewUrl ? (
+            <Image
+              source={{ uri: previewUrl }}
+              style={styles.previewImage}
+              contentFit="contain"
+              cachePolicy={photoCachePolicy(previewUrl)}
+              recyclingKey={previewUrl}
+              transition={0}
+            />
+          ) : null}
+          {photoUrls.length > 1 ? (
+            <Pressable
+              onPress={() => stepPreview(1)}
+              style={styles.previewNavRight}
+              accessibilityLabel="Next photo"
+            >
+              <Ionicons name="chevron-forward" size={28} color="#fff" />
+            </Pressable>
+          ) : null}
+          {previewIndex != null ? (
+            <Text style={styles.previewCount}>
+              {previewIndex + 1} / {photoUrls.length}
+            </Text>
+          ) : null}
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -532,6 +611,39 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     zIndex: 2,
   },
+  previewNavLeft: {
+    position: 'absolute',
+    left: 8,
+    top: '50%',
+    marginTop: -22,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 2,
+  },
+  previewNavRight: {
+    position: 'absolute',
+    right: 8,
+    top: '50%',
+    marginTop: -22,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 2,
+  },
+  previewCount: {
+    position: 'absolute',
+    bottom: 36,
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '700',
+  },
   previewImage: { width: '100%', height: '85%' },
   column: { flex: 1, gap: 6 },
   square: {
@@ -558,6 +670,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  squareCount: {
+    position: 'absolute',
+    right: 6,
+    bottom: 6,
+    minWidth: 22,
+    height: 22,
+    borderRadius: 11,
+    paddingHorizontal: 6,
+    backgroundColor: 'rgba(11,15,16,0.85)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  squareCountText: { color: '#fff', fontSize: 11, fontWeight: '700' },
   columnTitle: { color: colors.muted, fontSize: 11, fontWeight: '600', textAlign: 'center' },
   columnSnap: {
     flex: 1,
@@ -578,5 +703,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   columnUploadText: { color: colors.text, fontWeight: '700', fontSize: 12 },
-  columnMore: { color: colors.muted, fontSize: 11, textAlign: 'center' },
+  columnMoreBtn: { alignSelf: 'center', paddingVertical: 2 },
+  columnMore: { color: colors.primary, fontSize: 11, fontWeight: '700', textAlign: 'center' },
 });

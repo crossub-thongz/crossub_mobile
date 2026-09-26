@@ -99,6 +99,21 @@ export function marksHaveNo(marks: ItemConditionMarks | undefined): boolean {
   return ITEM_CONDITION_KEYS.some((key) => marks[key] === false);
 }
 
+export function marksHaveAnswer(marks: ItemConditionMarks | undefined): boolean {
+  if (!marks) return false;
+  return ITEM_CONDITION_KEYS.some((key) => typeof marks[key] === 'boolean');
+}
+
+export function itemMarkStatus(marks: ItemConditionMarks | undefined): {
+  label: string;
+  tone: 'issue' | 'good' | 'partial' | 'unmarked';
+} {
+  if (marksHaveNo(marks)) return { label: 'Issue found', tone: 'issue' };
+  if (marksAreAllGood(marks)) return { label: 'All good', tone: 'good' };
+  if (marksHaveAnswer(marks)) return { label: 'In progress', tone: 'partial' };
+  return { label: 'Not marked', tone: 'unmarked' };
+}
+
 export function serializeItemMarks(marks: ItemConditionMarks | undefined): string[] {
   if (!marks) return [];
   const tags: string[] = [];

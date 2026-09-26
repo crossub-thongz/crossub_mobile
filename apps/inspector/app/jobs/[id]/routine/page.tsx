@@ -208,10 +208,10 @@ export default function RoutineInspectionPage() {
 
         if (plan?.rooms.length) {
           toast.success(
-            `Loaded ${plan.rooms.length} area(s) from the ingoing report`,
+            `Loaded ${plan.rooms.length} area(s) from the Entry report`,
           );
         } else if (reference) {
-          toast.message('No completed ingoing report found for this property');
+          toast.message('No completed Entry report found for this property');
         }
       } catch {
         if (!cancelled) toast.error('Could not load latest ingoing photos');
@@ -494,7 +494,7 @@ export default function RoutineInspectionPage() {
         issues: nextIssues,
       };
     });
-    toast.success(`Added ${names.length} area(s) from the ingoing report`);
+    toast.success(`Added ${names.length} area(s) from the Entry report`);
   };
 
   const completeAreaSetup = () => {

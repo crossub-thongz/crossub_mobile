@@ -70,7 +70,7 @@ export default function EarningsScreen() {
           </View>
         </View>
         <Text style={styles.rate}>
-          {`Routine & open: $${ROUTINE_OPEN_INSPECTOR_FEE_INC_GST_AUD} inc GST · Ingoing/outgoing: agent price list`}
+          {`Routine & open: $${ROUTINE_OPEN_INSPECTOR_FEE_INC_GST_AUD} inc GST · Entry/Final: agent price list`}
         </Text>
 
         <Text style={styles.section}>Payment history</Text>

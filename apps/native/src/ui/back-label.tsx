@@ -5,7 +5,13 @@ import { colors } from '@/src/theme';
 
 export const BACK_LABEL = '< Back';
 
-export function BackLabelButton({ onPress }: { onPress?: () => void }) {
+export function BackLabelButton({
+  onPress,
+  label = BACK_LABEL,
+}: {
+  onPress?: () => void;
+  label?: string;
+}) {
   const router = useRouter();
   return (
     <Pressable
@@ -15,7 +21,7 @@ export function BackLabelButton({ onPress }: { onPress?: () => void }) {
       accessibilityLabel="Back"
       style={styles.hit}
     >
-      <Text style={styles.text}>{BACK_LABEL}</Text>
+      <Text style={styles.text}>{label}</Text>
     </Pressable>
   );
 }

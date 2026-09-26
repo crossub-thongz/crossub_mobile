@@ -241,6 +241,7 @@ export function ChecklistWalk({
   ) => {
     const areaName = currentName;
     if (!areaName || photos.length === 0) return;
+    if (type === 'outgoing' && side === 'ingoing') return;
     const resolvedSide = side ?? (type === 'outgoing' ? 'outgoing' : undefined);
     const slot: 'ingoing' | 'outgoing' =
       resolvedSide === 'outgoing' || type === 'outgoing' ? 'outgoing' : 'ingoing';
@@ -511,8 +512,7 @@ export function ChecklistWalk({
               itemMarks={issue.itemMarks}
               itemComments={issue.itemComments}
               busy={formBusy}
-              variant={type === 'outgoing' ? 'beforeAfter' : 'single'}
-              ingoingReadOnly={ingoingFromReference}
+              photoSide={type === 'outgoing' ? 'outgoing' : 'ingoing'}
               onDraggingChange={setItemsDragging}
               onOpenedItemVisible={keepOpenedItemInView}
               onAddSection={(section) => {
@@ -556,14 +556,17 @@ export function ChecklistWalk({
                 })
               }
               onTakePhotos={(section, side) => {
+                if (type === 'outgoing' && side === 'ingoing') return;
                 const target = { kind: 'section' as const, section, side };
                 cameraTargetRef.current = target;
                 setCameraTarget(target);
               }}
               onAddPhotos={(section, photos, side) => {
+                if (type === 'outgoing' && side === 'ingoing') return;
                 void attachSectionPhotos(section, photos, side);
               }}
               onRemovePhoto={(section, index, side) => {
+                if (type === 'outgoing' && side === 'ingoing') return;
                 const existing = issue.photosBySection?.[section] ?? emptySectionPhotos();
                 const resolved = side ?? (type === 'outgoing' ? 'outgoing' : 'ingoing');
                 updateIssue({
@@ -584,12 +587,6 @@ export function ChecklistWalk({
                 });
               }}
             />
-
-            {type === 'outgoing' && ingoingFromReference ? (
-              <Text style={styles.hint}>
-                Ingoing photos are from the property's latest ingoing report and can't be replaced here.
-              </Text>
-            ) : null}
 
             <View>
               <Text style={styles.label}>{type === 'outgoing' ? 'Issue notes' : 'Comments'}</Text>
