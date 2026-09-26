@@ -1,7 +1,7 @@
 import * as FileSystem from 'expo-file-system/legacy';
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 
-import { deleteLocalPhoto } from '@/src/jobs/compress-photo';
+import { compressPhotoToFile, deleteLocalPhoto, type LocalPhoto } from '@/src/jobs/compress-photo';
 import {
   asFileUri,
   isDurableLocalPhoto,
@@ -60,6 +60,18 @@ async function copyToQueue(from: string, dest: string): Promise<void> {
   await FileSystem.copyAsync({ from, to: dest });
 }
 
+export async function repairQueuedPhotoUri(uri: string): Promise<string | null> {
+  if (!uri) return null;
+  if (isRemotePhotoUrl(uri)) return uri;
+  const existing = await resolveLocalFileUri(uri);
+  if (existing) return existing;
+  const name = uri.split('?')[0]?.split('/').pop();
+  if (!name) return null;
+  if (!QUEUE_DIR) return null;
+  await ensureQueueDir();
+  return resolveLocalFileUri(`${QUEUE_DIR}${name}`);
+}
+
 /**
  * Copy a camera, library, or cache JPEG into app documents so iOS cannot purge
  * it when the inspector closes the app before sync.
@@ -67,7 +79,9 @@ async function copyToQueue(from: string, dest: string): Promise<void> {
 export async function persistQueuedPhoto(uri: string): Promise<string> {
   if (!uri) throw new Error('Photo is missing from this device.');
   if (isRemotePhotoUrl(uri)) return uri;
-  const resolved = (await resolveLocalFileUri(uri)) ?? asFileUri(uri);
+  const repaired = await repairQueuedPhotoUri(uri);
+  if (repaired && isDurableLocalPhoto(repaired)) return repaired;
+  const resolved = repaired ?? (await resolveLocalFileUri(uri)) ?? asFileUri(uri);
   const durable = isDurableLocalPhoto(resolved)
     ? await resolveLocalFileUri(resolved)
     : null;
@@ -121,6 +135,20 @@ export async function writeQueuedPhotoFromBase64(contentBase64: string): Promise
     encoding: FileSystem.EncodingType.Base64,
   });
   return dest;
+}
+
+/** Compress, then copy into Documents before recording so an update cannot drop the file. */
+export async function compressAndPersistPhoto(photo: LocalPhoto): Promise<LocalPhoto> {
+  const compressed = await compressPhotoToFile(photo);
+  const durable = await persistQueuedPhoto(compressed.uri);
+  if (
+    compressed.uri !== durable &&
+    compressed.uri !== photo.uri &&
+    !compressed.uri.includes('/offline-queue/')
+  ) {
+    await deleteLocalPhoto(compressed.uri);
+  }
+  return { ...compressed, uri: durable };
 }
 
 export async function deleteQueuedPhoto(uri: string | undefined): Promise<void> {

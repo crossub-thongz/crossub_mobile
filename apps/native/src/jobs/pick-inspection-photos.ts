@@ -2,11 +2,11 @@ import * as ImagePicker from 'expo-image-picker';
 
 import {
   INSPECTION_BURST_MAX,
-  compressPhotoToFile,
   deleteLocalPhoto,
   yieldToUi,
   type LocalPhoto,
 } from '@/src/jobs/compress-photo';
+import { compressAndPersistPhoto } from '@/src/offline/queued-photo';
 
 /** Pick images from the library and compress each one before recording. */
 export async function pickInspectionPhotos(
@@ -37,7 +37,7 @@ export async function pickInspectionPhotos(
   const compressed: LocalPhoto[] = [];
   for (const photo of picked) {
     await yieldToUi();
-    const next = await compressPhotoToFile(photo);
+    const next = await compressAndPersistPhoto(photo);
     if (next.uri !== photo.uri) await deleteLocalPhoto(photo.uri);
     compressed.push(next);
   }

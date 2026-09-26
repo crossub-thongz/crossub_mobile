@@ -1,7 +1,7 @@
 import * as SQLite from 'expo-sqlite';
 
 import type { HandoverParty, KeyCondition } from '@/src/lib/handover-notes';
-import type { RoutineExecutionDraft } from '@/src/lib/types';
+import type { InspectionJob, RoutineExecutionDraft } from '@/src/lib/types';
 import { deleteQueuedPhoto, stripBase64Payload } from '@/src/offline/queued-photo';
 
 const DB_NAME = 'crossub-inspector.db';
@@ -87,6 +87,16 @@ async function migrateHandoverDrafts(db: SQLite.SQLiteDatabase): Promise<void> {
   `);
 }
 
+async function migrateJobsCache(db: SQLite.SQLiteDatabase): Promise<void> {
+  await db.execAsync(`
+    CREATE TABLE IF NOT EXISTS jobs_cache (
+      kind TEXT PRIMARY KEY NOT NULL,
+      json TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+  `);
+}
+
 async function getDb(): Promise<SQLite.SQLiteDatabase> {
   if (!dbPromise) {
     dbPromise = (async () => {
@@ -115,6 +125,7 @@ async function getDb(): Promise<SQLite.SQLiteDatabase> {
       `);
       await migrateQueue(db);
       await migrateHandoverDrafts(db);
+      await migrateJobsCache(db);
       return db;
     })().catch((err) => {
       dbPromise = null;
@@ -229,6 +240,55 @@ export async function deleteHandoverDraft(
 ): Promise<void> {
   const db = await getDb();
   await db.runAsync(`DELETE FROM handover_drafts WHERE job_id = ? AND phase = ?`, jobId, phase);
+}
+
+export async function loadAllHandoverDrafts(): Promise<
+  Array<{ jobId: string; phase: 'collect' | 'return'; draft: HandoverFormDraft }>
+> {
+  const db = await getDb();
+  const rows = await db.getAllAsync<{ job_id: string; phase: string; json: string }>(
+    `SELECT job_id, phase, json FROM handover_drafts`,
+  );
+  const next: Array<{ jobId: string; phase: 'collect' | 'return'; draft: HandoverFormDraft }> = [];
+  for (const row of rows) {
+    if (row.phase !== 'collect' && row.phase !== 'return') continue;
+    try {
+      const parsed = JSON.parse(row.json) as HandoverFormDraft;
+      if (!parsed || !Array.isArray(parsed.photoUrls)) continue;
+      next.push({ jobId: row.job_id, phase: row.phase, draft: parsed });
+    } catch {
+      // Skip a corrupt row.
+    }
+  }
+  return next;
+}
+
+export async function saveJobsCache(
+  kind: 'assigned' | 'pool',
+  jobs: InspectionJob[],
+): Promise<void> {
+  const db = await getDb();
+  await db.runAsync(
+    `INSERT OR REPLACE INTO jobs_cache (kind, json, updated_at) VALUES (?, ?, ?)`,
+    kind,
+    JSON.stringify(jobs),
+    new Date().toISOString(),
+  );
+}
+
+export async function loadJobsCache(kind: 'assigned' | 'pool'): Promise<InspectionJob[]> {
+  const db = await getDb();
+  const row = await db.getFirstAsync<{ json: string }>(
+    `SELECT json FROM jobs_cache WHERE kind = ?`,
+    kind,
+  );
+  if (!row?.json) return [];
+  try {
+    const parsed = JSON.parse(row.json) as InspectionJob[];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
 }
 
 async function parsePayload(raw: string): Promise<Record<string, unknown> | null> {

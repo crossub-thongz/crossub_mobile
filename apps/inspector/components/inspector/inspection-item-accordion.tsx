@@ -10,10 +10,11 @@ import {
   ITEM_CONDITION_KEYS,
   ITEM_CONDITION_LABEL,
   cycleItemMark,
+  emptyItemMarks,
   itemMarkStatus,
+  marksHaveAnswer,
   type ItemConditionKey,
   type ItemConditionMarks,
-  emptyItemMarks,
 } from '@/lib/item-condition-marks';
 import { stripEmojis } from '@/lib/strip-emojis';
 import { cn } from '@/lib/utils';
@@ -158,8 +159,16 @@ export function InspectionItemAccordion({
               Condition
               <Info
                 className="text-muted-foreground size-3.5"
-                aria-label="Mark Clean, Undamaged and Working. Use Details if something failed."
+                aria-label="Mark Clean, Undamaged and Working. Unmark a section that does not apply. Use Details if something failed."
               />
+              <button
+                type="button"
+                disabled={busy || !marksHaveAnswer(current)}
+                className="text-muted-foreground ml-auto text-xs font-medium disabled:opacity-45"
+                onClick={() => onChangeMarks(emptyItemMarks())}
+              >
+                Unmark
+              </button>
             </p>
             <div className="grid grid-cols-3 gap-1.5">
               {ITEM_CONDITION_KEYS.map((key) => {

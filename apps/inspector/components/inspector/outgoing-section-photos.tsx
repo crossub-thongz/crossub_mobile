@@ -116,7 +116,7 @@ export function OutgoingSectionPhotos({
 
       {activeSections.length === 0 ? (
         <p className="text-muted-foreground text-xs">
-          No items yet. Add one below, then mark Clean / Undamaged / Working.
+          No items yet. Add one below. Condition marks are optional on sections that do not apply.
         </p>
       ) : (
         <>

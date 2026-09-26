@@ -14,6 +14,7 @@ import {
   ITEM_CONDITION_KEYS,
   ITEM_CONDITION_LABEL,
   itemMarkStatus,
+  marksHaveAnswer,
   type ItemConditionKey,
   type ItemConditionMarks,
 } from '@/src/lib/item-condition-marks';
@@ -147,6 +148,15 @@ export function InspectionItemAccordion({
                 size={14}
                 color={colors.muted}
               />
+              <Pressable
+                disabled={busy || !marksHaveAnswer(current)}
+                onPress={() => onChangeMarks(emptyItemMarks())}
+                style={[styles.unmarkItem, !marksHaveAnswer(current) && styles.unmarkItemOff]}
+                accessibilityRole="button"
+                accessibilityLabel="Unmark this section"
+              >
+                <Text style={styles.unmarkItemText}>Unmark</Text>
+              </Pressable>
             </View>
             <View style={styles.chips}>
               {ITEM_CONDITION_KEYS.map((key) => {
@@ -296,6 +306,9 @@ const styles = StyleSheet.create({
   deleteBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   delete: { color: colors.muted, fontSize: 11 },
   conditionHead: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 },
+  unmarkItem: { marginLeft: 'auto' },
+  unmarkItemOff: { opacity: 0.45 },
+  unmarkItemText: { color: colors.muted, fontSize: 12, fontWeight: '600' },
   sectionTitle: { color: colors.text, fontSize: 14, fontWeight: '600', marginBottom: 6 },
   chips: { flexDirection: 'row', gap: 6 },
   chip: {

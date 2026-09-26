@@ -104,6 +104,11 @@ export function marksHaveAnswer(marks: ItemConditionMarks | undefined): boolean 
   return ITEM_CONDITION_KEYS.some((key) => typeof marks[key] === 'boolean');
 }
 
+/** Started but not finished — must finish the chips or unmark the section. */
+export function marksArePartial(marks: ItemConditionMarks | undefined): boolean {
+  return marksHaveAnswer(marks) && !marksAreComplete(marks);
+}
+
 export function itemMarkStatus(marks: ItemConditionMarks | undefined): {
   label: string;
   tone: 'issue' | 'good' | 'partial' | 'unmarked';
@@ -176,7 +181,7 @@ export function firstIncompleteSection(
   marksBySection: Record<string, ItemConditionMarks> | undefined,
 ): string | null {
   for (const section of sections) {
-    if (!marksAreComplete(marksBySection?.[section])) return section;
+    if (marksArePartial(marksBySection?.[section])) return section;
   }
   return null;
 }

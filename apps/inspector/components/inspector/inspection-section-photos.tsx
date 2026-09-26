@@ -14,6 +14,7 @@ import {
   allGoodMarks,
   emptyItemMarks,
   marksAreAllGood,
+  marksHaveAnswer,
   marksHaveNo,
   type ItemConditionKey,
   type ItemConditionMarks,
@@ -63,28 +64,44 @@ export function MarkAllItemsControl({
   const allMarkedGood =
     activeSections.length > 0 &&
     activeSections.every((section) => marksAreAllGood(itemMarks?.[section]));
-  const canUnmark = allMarkedGood && Boolean(onUnmarkAll);
+  const canUnmark =
+    Boolean(onUnmarkAll) &&
+    activeSections.some((section) => marksHaveAnswer(itemMarks?.[section]));
 
   return (
     <>
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-sm font-medium">Mark all items</p>
+          <p className="text-sm font-medium">Mark items</p>
           <p className="text-muted-foreground text-[11px]">
-            Quickly mark all items in this room. Tap again to unmark.
+            Mark items that apply. Unmark a section that does not need a condition.
           </p>
         </div>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="text-emerald-400 h-8 px-2 text-xs"
-          disabled={busy}
-          onClick={() => setConfirm(canUnmark ? 'unmark' : 'mark')}
-        >
-          <Check className="size-3.5" />
-          {canUnmark ? 'Unmark all' : 'All good'}
-        </Button>
+        <div className="flex flex-col items-end gap-0.5">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="text-emerald-400 h-8 px-2 text-xs"
+            disabled={busy || allMarkedGood}
+            onClick={() => setConfirm('mark')}
+          >
+            <Check className="size-3.5" />
+            All good
+          </Button>
+          {onUnmarkAll ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="text-muted-foreground h-8 px-2 text-xs"
+              disabled={busy || !canUnmark}
+              onClick={() => setConfirm('unmark')}
+            >
+              Unmark
+            </Button>
+          ) : null}
+        </div>
       </div>
       <ResetInspectionDialog
         open={confirm === 'mark'}
@@ -102,7 +119,7 @@ export function MarkAllItemsControl({
       <ResetInspectionDialog
         open={confirm === 'unmark'}
         title="Unmark all items?"
-        description="This clears Clean, Undamaged, and Working for every item in this room."
+        description="This clears Clean, Undamaged, and Working. Sections that do not need a mark can stay unmarked."
         confirmLabel="Unmark all"
         cancelLabel="Cancel"
         confirmVariant="destructive"
@@ -174,7 +191,7 @@ export function InspectionSectionPhotos({
 
       {activeSections.length === 0 ? (
         <p className="text-muted-foreground text-xs">
-          No items yet. Add one below, then mark Clean / Undamaged / Working.
+          No items yet. Add one below. Condition marks are optional on sections that do not apply.
         </p>
       ) : (
         <>

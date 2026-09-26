@@ -316,7 +316,7 @@ export function ChecklistWalk({
     }
     const incomplete = firstIncompleteSection(sections, rec.itemMarks);
     if (incomplete) {
-      setError(`Mark Clean, Undamaged and Working for "${incomplete}"`);
+      setError(`Finish marking or unmark "${incomplete}"`);
       return;
     }
     const photographed =

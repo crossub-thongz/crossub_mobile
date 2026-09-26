@@ -11,7 +11,7 @@ import {
 import { AppState } from 'react-native';
 
 import { pendingSyncCount, subscribeQueueChanged } from '@/src/offline/db';
-import { syncOfflineQueue } from '@/src/offline/sync';
+import { flushOfflineWork } from '@/src/offline/sync';
 
 type OfflineContextValue = {
   pendingSync: number;
@@ -36,7 +36,7 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
     setSyncing(true);
     setLastError(null);
     try {
-      const result = await syncOfflineQueue();
+      const result = await flushOfflineWork();
       setPendingSync(result.remaining);
       return result;
     } catch (err) {

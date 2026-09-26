@@ -57,7 +57,7 @@ const FAQS: Faq[] = [
   },
   {
     q: 'What if I am offline?',
-    a: 'Photos and job changes queue on this device. Settings shows how many are waiting. Tap Sync now on Home or the in-job banner when you have a connection.',
+    a: 'Photos are saved on this phone as soon as you take them, even before they upload. Login and logout both sync the queue. Settings shows how many changes are waiting. Tap Sync now when you have a connection.',
     links: [{ label: 'Open Settings', href: settingsPath }],
   },
 ];

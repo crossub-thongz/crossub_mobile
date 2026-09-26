@@ -14,6 +14,7 @@ import { buildSectionPickerOptions } from '@/src/lib/inspection-section-utils';
 import {
   emptyItemMarks,
   marksAreAllGood,
+  marksHaveAnswer,
   marksHaveNo,
   type ItemConditionMarks,
 } from '@/src/lib/item-condition-marks';
@@ -38,38 +39,56 @@ export function MarkAllItemsControl({
   const allMarkedGood =
     activeSections.length > 0 &&
     activeSections.every((section) => marksAreAllGood(itemMarks?.[section]));
-  const canUnmark = allMarkedGood && Boolean(onUnmarkAll);
+  const canUnmark =
+    Boolean(onUnmarkAll) &&
+    activeSections.some((section) => marksHaveAnswer(itemMarks?.[section]));
 
   return (
     <View style={styles.markAll}>
       <View style={styles.markAllCopy}>
-        <Text style={styles.markAllTitle}>Mark all items</Text>
-        <Text style={styles.hint}>Quickly mark all items in this room. Tap again to unmark.</Text>
+        <Text style={styles.markAllTitle}>Mark items</Text>
+        <Text style={styles.hint}>
+          Mark items that apply. Unmark a section that does not need a condition.
+        </Text>
       </View>
-      <Pressable
-        disabled={busy}
-        onPress={() => {
-          if (canUnmark) {
-            Alert.alert('Unmark all items?', 'This clears Clean, Undamaged, and Working for every item in this room.', [
-              { text: 'Cancel', style: 'cancel' },
-              { text: 'Unmark all', style: 'destructive', onPress: onUnmarkAll },
-            ]);
-            return;
-          }
-          Alert.alert(
-            'Mark all items as good?',
-            'This marks Clean, Undamaged, and Working as yes for every item in this room.',
-            [
-              { text: 'Cancel', style: 'cancel' },
-              { text: 'Mark all good', onPress: onMarkAllGood },
-            ],
-          );
-        }}
-        style={styles.markAllBtn}
-      >
-        <Ionicons name="checkmark" size={14} color="#34d399" />
-        <Text style={styles.markAllBtnText}>{canUnmark ? 'Unmark all' : 'All good'}</Text>
-      </Pressable>
+      <View style={styles.markAllActions}>
+        <Pressable
+          disabled={busy || allMarkedGood}
+          onPress={() => {
+            Alert.alert(
+              'Mark all items as good?',
+              'This marks Clean, Undamaged, and Working as yes for every item in this room.',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Mark all good', onPress: onMarkAllGood },
+              ],
+            );
+          }}
+          style={[styles.markAllBtn, (busy || allMarkedGood) && styles.markAllBtnOff]}
+        >
+          <Ionicons name="checkmark" size={14} color="#34d399" />
+          <Text style={styles.markAllBtnText}>All good</Text>
+        </Pressable>
+        {onUnmarkAll ? (
+          <Pressable
+            disabled={busy || !canUnmark}
+            onPress={() => {
+              Alert.alert(
+                'Unmark all items?',
+                'This clears Clean, Undamaged, and Working. Sections that do not need a mark can stay unmarked.',
+                [
+                  { text: 'Cancel', style: 'cancel' },
+                  { text: 'Unmark all', style: 'destructive', onPress: onUnmarkAll },
+                ],
+              );
+            }}
+            style={[styles.markAllBtn, (busy || !canUnmark) && styles.markAllBtnOff]}
+          >
+            <Ionicons name="close-circle-outline" size={14} color={colors.muted} />
+            <Text style={styles.unmarkBtnText}>Unmark</Text>
+          </Pressable>
+        ) : null}
+      </View>
     </View>
   );
 }
@@ -149,7 +168,7 @@ export function InspectionSectionPhotos({
       ) : null}
 
       {activeSections.length === 0 ? (
-        <Text style={styles.hint}>No items yet. Add one below, then mark Clean / Undamaged / Working.</Text>
+        <Text style={styles.hint}>No items yet. Add one below. Condition marks are optional on sections that do not apply.</Text>
       ) : (
         <>
           <View style={styles.itemsHead}>
@@ -294,8 +313,11 @@ const styles = StyleSheet.create({
   markAll: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 },
   markAllCopy: { flex: 1 },
   markAllTitle: { color: colors.text, fontSize: 14, fontWeight: '600' },
+  markAllActions: { alignItems: 'flex-end', gap: 2 },
   markAllBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 6, paddingHorizontal: 8 },
   markAllBtnText: { color: '#34d399', fontSize: 12, fontWeight: '600' },
+  unmarkBtnText: { color: colors.muted, fontSize: 12, fontWeight: '600' },
+  markAllBtnOff: { opacity: 0.45 },
   hint: { color: colors.muted, fontSize: 12, lineHeight: 18 },
   itemsHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   itemsTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },

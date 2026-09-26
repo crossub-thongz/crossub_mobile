@@ -34,12 +34,15 @@ import { mapAssignedJobs, mapPoolJobs, toInspectionJob } from '@/src/lib/job-map
 import { applyKeyCollection, mergeJobLocalState } from '@/src/lib/key-access';
 import {
   loadAllDrafts,
+  loadJobsCache,
   loadOfflineQueue,
   saveDraftLocal,
+  saveJobsCache,
   subscribeDraftsChanged,
   rewriteStrings,
 } from '@/src/offline/db';
 import { mergeQueuedPhotosIntoDraft } from '@/src/offline/hydrate-draft-photos';
+import { recoverUnsentPhotos } from '@/src/offline/recover-unsent-photos';
 import type { GeoPoint } from '@/src/lib/travel';
 import type { InspectionJob, RoutineExecutionDraft } from '@/src/lib/types';
 import { useDeviceLocation } from '@/src/lib/use-device-location';
@@ -128,6 +131,7 @@ export function InspectionsProvider({ children }: { children: ReactNode }) {
     let cancelled = false;
     void (async () => {
       try {
+        await recoverUnsentPhotos().catch(() => undefined);
         const loaded = await loadAllDrafts();
         const queue = await loadOfflineQueue();
         const byJob = new Map<string, typeof queue>();
@@ -188,9 +192,21 @@ export function InspectionsProvider({ children }: { children: ReactNode }) {
         enrichKeys(mapAssignedJobs(assignedDtos)),
         Promise.resolve(mapPoolJobs(poolDtos)),
       ]);
+      await saveJobsCache('assigned', assignedJobs).catch(() => undefined);
+      await saveJobsCache('pool', receiving ? poolJobs : []).catch(() => undefined);
       setJobs((previous) => mergePreservedJobState(assignedJobs, previous));
       setPool(receiving ? poolJobs : []);
     } catch (err) {
+      const cachedAssigned = await loadJobsCache('assigned').catch(() => []);
+      const cachedPool = await loadJobsCache('pool').catch(() => []);
+      if (cachedAssigned.length > 0) {
+        setJobs((previous) =>
+          mergePreservedJobState(cachedAssigned, previous.length > 0 ? previous : cachedAssigned),
+        );
+      }
+      if (cachedPool.length > 0 && (receivingOverride ?? receivingRef.current)) {
+        setPool(cachedPool);
+      }
       setError(apiErrorMessage(err, 'Could not load inspections.'));
     } finally {
       setLoading(false);
@@ -204,7 +220,14 @@ export function InspectionsProvider({ children }: { children: ReactNode }) {
       setJobsHydrated(false);
       return;
     }
-    void load('initial');
+    void (async () => {
+      const cached = await loadJobsCache('assigned').catch(() => []);
+      if (cached.length > 0) {
+        setJobs((previous) => (previous.length > 0 ? previous : cached));
+        setJobsHydrated(true);
+      }
+      await load('initial');
+    })();
   }, [status, load]);
 
   useEffect(() => {

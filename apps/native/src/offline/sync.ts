@@ -14,7 +14,6 @@ import {
 } from '@/src/api/inspector';
 import { attendanceWindowFromHours } from '@/src/lib/findings';
 import {
-  compressPhotoToFile,
   deleteLocalPhoto,
   prepareStoredPhotoUpload,
   yieldToUi,
@@ -35,11 +34,14 @@ import {
   type OfflineQueueItem,
 } from '@/src/offline/db';
 import {
+  compressAndPersistPhoto,
   deleteQueuedPhoto,
   localPhotoExists,
   persistQueuedPhoto,
+  repairQueuedPhotoUri,
   writeQueuedPhotoFromBase64,
 } from '@/src/offline/queued-photo';
+import { recoverUnsentPhotos } from '@/src/offline/recover-unsent-photos';
 
 const DRAIN_ORDER: OfflineAction[] = [
   'photo_upload',
@@ -49,7 +51,7 @@ const DRAIN_ORDER: OfflineAction[] = [
   'key_custody',
 ];
 
-const MISSING_FILE_DROP_AFTER = 3;
+const MISSING_FILE_DROP_AFTER = 8;
 
 let drainInFlight: Promise<{ synced: number; remaining: number }> | null = null;
 
@@ -109,6 +111,7 @@ async function persistPhotoPayload(localUri?: string, contentBase64?: string): P
 async function replayPhotoUpload(item: OfflineQueueItem): Promise<string | null> {
   const payload = item.payload;
   let localUri = typeof payload.localUri === 'string' ? payload.localUri : '';
+  if (localUri) localUri = (await repairQueuedPhotoUri(localUri)) ?? localUri;
   if (!localUri && typeof payload.contentBase64 === 'string' && payload.contentBase64) {
     localUri = await writeQueuedPhotoFromBase64(payload.contentBase64);
   }
@@ -129,6 +132,7 @@ async function replayKeyPhoto(item: OfflineQueueItem): Promise<string | null> {
   const payload = item.payload;
   const phase = payload.phase === 'return' ? 'return' : 'collect';
   let localUri = typeof payload.localUri === 'string' ? payload.localUri : '';
+  if (localUri) localUri = (await repairQueuedPhotoUri(localUri)) ?? localUri;
   if (!localUri && typeof payload.contentBase64 === 'string' && payload.contentBase64) {
     localUri = await writeQueuedPhotoFromBase64(payload.contentBase64);
   }
@@ -239,6 +243,16 @@ export async function syncOfflineQueue(): Promise<{ synced: number; remaining: n
   return drainInFlight;
 }
 
+/** Recover unsent local photos, then push the queue. Safe to call on login and logout. */
+export async function flushOfflineWork(): Promise<{ synced: number; remaining: number }> {
+  try {
+    await recoverUnsentPhotos();
+  } catch {
+    // Drafts stay on disk even if enqueue fails.
+  }
+  return syncOfflineQueue();
+}
+
 export async function queueExecutionDraft(
   inspectionId: string,
   body: {
@@ -299,18 +313,10 @@ export async function queueInspectionPhotoBatch(
 ): Promise<string[]> {
   const urls: string[] = [];
   for (const photo of photos) {
-    onEach?.(photo.uri, photo.uri);
-    await yieldToUi();
-    const compressed = await compressPhotoToFile(photo);
-    const durable = await persistQueuedPhoto(compressed.uri);
+    const compressed = await compressAndPersistPhoto(photo);
+    const durable = compressed.uri;
     onEach?.(photo.uri, durable);
-    if (
-      compressed.uri !== durable &&
-      compressed.uri !== photo.uri &&
-      !compressed.uri.includes('/offline-queue/')
-    ) {
-      await deleteLocalPhoto(compressed.uri);
-    }
+    await yieldToUi();
     const online = await isDeviceOnline();
     if (!online) {
       await enqueueOfflineAction(inspectionId, 'photo_upload', {
@@ -328,7 +334,9 @@ export async function queueInspectionPhotoBatch(
       durable,
       { keepLocal: true },
     );
-    urls.push(saved.url || durable);
+    const finalUrl = saved.url || durable;
+    if (finalUrl !== durable) onEach?.(durable, finalUrl);
+    urls.push(finalUrl);
     if (prepared.localUri !== durable) await deleteLocalPhoto(prepared.localUri);
     await yieldToUi();
   }

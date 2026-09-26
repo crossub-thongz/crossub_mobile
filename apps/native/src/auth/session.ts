@@ -6,6 +6,7 @@ const ACCESS_KEY = 'csb_access_token';
 const REFRESH_KEY = 'csb_refresh_token';
 const USER_KEY = 'csb_auth_user';
 const DEVICE_KEY = 'csb_device_id';
+const SESSION_STARTED_KEY = 'csb_session_started_at';
 
 const memory = new Map<string, string>();
 
@@ -75,7 +76,23 @@ export async function saveSession(
 }
 
 export async function clearSession(): Promise<void> {
-  await Promise.all([remove(ACCESS_KEY), remove(REFRESH_KEY), remove(USER_KEY)]);
+  await Promise.all([
+    remove(ACCESS_KEY),
+    remove(REFRESH_KEY),
+    remove(USER_KEY),
+    remove(SESSION_STARTED_KEY),
+  ]);
+}
+
+export async function markSessionStarted(at = Date.now()): Promise<void> {
+  await write(SESSION_STARTED_KEY, String(at));
+}
+
+export async function getSessionStartedAt(): Promise<number | null> {
+  const raw = await read(SESSION_STARTED_KEY);
+  if (!raw) return null;
+  const value = Number(raw);
+  return Number.isFinite(value) && value > 0 ? value : null;
 }
 
 /** Stable per-install id for execution-draft overlays. Survives logout. */

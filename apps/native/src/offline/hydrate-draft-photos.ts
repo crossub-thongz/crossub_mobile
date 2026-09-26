@@ -2,7 +2,7 @@ import { parseSectionAreaName } from '@/src/constants/inspection-areas';
 import { emptyRoutineIssue } from '@/src/lib/inspection-layout';
 import type { RoutineAreaIssueDraft, RoutineExecutionDraft } from '@/src/lib/types';
 import type { OfflineQueueItem } from '@/src/offline/db';
-import { isRemotePhotoUrl, localPhotoExists } from '@/src/offline/queued-photo';
+import { isRemotePhotoUrl, localPhotoExists, repairQueuedPhotoUri } from '@/src/offline/queued-photo';
 
 const INGOING_SUFFIX = /\s*\(ingoing\)\s*$/i;
 const OUTGOING_SUFFIX = /\s*\(outgoing\)\s*$/i;
@@ -32,6 +32,11 @@ async function keepReachableUrls(urls: string[] | undefined): Promise<string[]> 
     if (!url) continue;
     if (isRemotePhotoUrl(url)) {
       next.push(url);
+      continue;
+    }
+    const repaired = await repairQueuedPhotoUri(url);
+    if (repaired) {
+      next.push(repaired);
       continue;
     }
     if (await localPhotoExists(url)) next.push(url);

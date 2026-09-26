@@ -16,11 +16,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { apiErrorMessage } from '@/src/api/client';
 import {
   INSPECTION_BURST_MAX,
-  compressPhotoToFile,
   deleteLocalPhoto,
   yieldToUi,
   type LocalPhoto,
 } from '@/src/jobs/compress-photo';
+import { compressAndPersistPhoto } from '@/src/offline/queued-photo';
 import { pickInspectionPhotos } from '@/src/jobs/pick-inspection-photos';
 
 type Lens = 0.5 | 1 | 2;
@@ -111,7 +111,7 @@ export function JobCamera({
   };
 
   const queueCompress = (captured: LocalPhoto) => {
-    const job = compressPhotoToFile(captured)
+    const job = compressAndPersistPhoto(captured)
       .then((photo) => {
         if (cancelledRef.current || handedOffRef.current) {
           if (photo.uri !== captured.uri) void deleteLocalPhoto(photo.uri);
@@ -138,7 +138,7 @@ export function JobCamera({
       const compressed: LocalPhoto[] = [];
       for (const shot of shotsRef.current) {
         await yieldToUi();
-        const photo = await compressPhotoToFile(shot);
+        const photo = await compressAndPersistPhoto(shot);
         if (photo.uri !== shot.uri) await deleteLocalPhoto(shot.uri);
         compressed.push(photo);
       }
@@ -173,7 +173,7 @@ export function JobCamera({
         height: picture.height,
       };
       if (!burst) {
-        const photo = await compressPhotoToFile(captured);
+        const photo = await compressAndPersistPhoto(captured);
         if (photo.uri !== captured.uri) await deleteLocalPhoto(captured.uri);
         handedOffRef.current = true;
         onCapture?.(photo);

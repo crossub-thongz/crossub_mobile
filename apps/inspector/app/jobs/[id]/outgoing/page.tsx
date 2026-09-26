@@ -974,7 +974,7 @@ export default function OutgoingInspectionPage() {
       issue.itemMarks,
     );
     if (incomplete) {
-      toast.error(`Mark Clean, Undamaged and Working for “${incomplete}”`);
+      toast.error(`Finish marking or unmark “${incomplete}”`);
       return;
     }
     const hasAreaPhotos = (issue.areaPhotos?.length ?? 0) > 0;
