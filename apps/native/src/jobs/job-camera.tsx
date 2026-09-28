@@ -20,8 +20,11 @@ import {
   yieldToUi,
   type LocalPhoto,
 } from '@/src/jobs/compress-photo';
-import { compressAndPersistPhoto } from '@/src/offline/queued-photo';
 import { pickInspectionPhotos } from '@/src/jobs/pick-inspection-photos';
+import { compressAndPersistPhoto, isDurableLocalPhoto, localPhotoExists } from '@/src/offline/queued-photo';
+import { applyPhotoUriRewrites, deleteQueueItemsByLocalUri } from '@/src/offline/db';
+import { enqueuePhotoUpload } from '@/src/offline/sync';
+import { isRemotePhotoUrl } from '@/src/lib/local-file';
 
 type Lens = 0.5 | 1 | 2;
 
@@ -32,6 +35,9 @@ type JobCameraProps = {
   onBurstComplete?: (photos: LocalPhoto[]) => void;
   mode?: 'single' | 'burst';
   maxPhotos?: number;
+  /** When set, each snapped JPEG is queued for upload immediately. */
+  jobId?: string;
+  uploadAreaName?: string;
 };
 
 function zoomForLens(lens: Lens): number {
@@ -47,6 +53,8 @@ export function JobCamera({
   onBurstComplete,
   mode = 'single',
   maxPhotos = INSPECTION_BURST_MAX,
+  jobId,
+  uploadAreaName,
 }: JobCameraProps) {
   const insets = useSafeAreaInsets();
   const cameraRef = useRef<CameraView>(null);
@@ -63,6 +71,10 @@ export function JobCamera({
   const [lens, setLens] = useState<Lens>(1);
   const [shots, setShots] = useState<LocalPhoto[]>([]);
   const burst = mode === 'burst';
+  const jobIdRef = useRef(jobId);
+  const uploadAreaNameRef = useRef(uploadAreaName);
+  jobIdRef.current = jobId;
+  uploadAreaNameRef.current = uploadAreaName;
   const room = Math.max(0, maxPhotos - shots.length);
   const canAskAgain = permission?.canAskAgain !== false;
   const noRoom = burst && maxPhotos < 1;
@@ -97,13 +109,44 @@ export function JobCamera({
     );
   };
 
-  const discardShots = (photos: LocalPhoto[]) => {
-    void Promise.all(photos.map((photo) => deleteLocalPhoto(photo.uri)));
+  const persistAndQueue = async (captured: LocalPhoto): Promise<LocalPhoto> => {
+    const alreadyUploaded = applyPhotoUriRewrites(captured.uri);
+    if (isRemotePhotoUrl(alreadyUploaded)) {
+      return { ...captured, uri: alreadyUploaded };
+    }
+    let photo = captured;
+    try {
+      const keepLocal =
+        isDurableLocalPhoto(captured.uri) && (await localPhotoExists(captured.uri));
+      photo = keepLocal ? captured : await compressAndPersistPhoto(captured);
+    } catch (err) {
+      const uploaded = applyPhotoUriRewrites(captured.uri);
+      if (isRemotePhotoUrl(uploaded)) return { ...captured, uri: uploaded };
+      throw err;
+    }
+    const inspectionId = jobIdRef.current;
+    const areaName = uploadAreaNameRef.current;
+    if (inspectionId) {
+      try {
+        const queued = await enqueuePhotoUpload(inspectionId, photo.uri, areaName);
+        photo = { ...photo, uri: queued };
+      } catch {
+        // The JPEG is already on disk; upload continues when the queue drains.
+      }
+    }
+    return photo;
+  };
+
+  const dropQueuedShot = async (uri: string) => {
+    if (jobIdRef.current) await deleteQueueItemsByLocalUri(uri);
+    await deleteLocalPhoto(uri);
   };
 
   const closeWithoutSaving = () => {
     cancelledRef.current = true;
-    if (!handedOffRef.current) discardShots(shotsRef.current);
+    if (!handedOffRef.current) {
+      void Promise.all(shotsRef.current.map((photo) => dropQueuedShot(photo.uri)));
+    }
     handedOffRef.current = false;
     pendingRef.current.clear();
     setShotList([]);
@@ -111,10 +154,11 @@ export function JobCamera({
   };
 
   const queueCompress = (captured: LocalPhoto) => {
-    const job = compressAndPersistPhoto(captured)
+    const job = persistAndQueue(captured)
       .then((photo) => {
         if (cancelledRef.current || handedOffRef.current) {
-          if (photo.uri !== captured.uri) void deleteLocalPhoto(photo.uri);
+          if (cancelledRef.current) void dropQueuedShot(photo.uri);
+          else if (photo.uri !== captured.uri) void deleteLocalPhoto(captured.uri);
           return photo;
         }
         if (photo.uri !== captured.uri) {
@@ -134,15 +178,23 @@ export function JobCamera({
     setBusy(true);
     setError(null);
     try {
-      await Promise.all([...pendingRef.current.values()]);
+      await Promise.allSettled([...pendingRef.current.values()]);
       const compressed: LocalPhoto[] = [];
       for (const shot of shotsRef.current) {
         await yieldToUi();
-        const photo = await compressAndPersistPhoto(shot);
-        if (photo.uri !== shot.uri) await deleteLocalPhoto(shot.uri);
-        compressed.push(photo);
+        try {
+          const photo = await persistAndQueue(shot);
+          if (photo.uri !== shot.uri) await deleteLocalPhoto(shot.uri);
+          compressed.push(photo);
+        } catch {
+          if (isRemotePhotoUrl(shot.uri) || (await localPhotoExists(shot.uri))) {
+            compressed.push(shot);
+          }
+        }
       }
-      if (compressed.length === 0) return;
+      if (compressed.length === 0) {
+        throw new Error('Could not save the photo on this device.');
+      }
       handedOffRef.current = true;
       pendingRef.current.clear();
       setShotList([]);
@@ -173,7 +225,7 @@ export function JobCamera({
         height: picture.height,
       };
       if (!burst) {
-        const photo = await compressAndPersistPhoto(captured);
+        const photo = await persistAndQueue(captured);
         if (photo.uri !== captured.uri) await deleteLocalPhoto(captured.uri);
         handedOffRef.current = true;
         onCapture?.(photo);
@@ -201,13 +253,15 @@ export function JobCamera({
       const picked = await pickInspectionPhotos(remaining);
       if (picked.length === 0) return;
       if (!burst) {
+        const photo = await persistAndQueue(picked[0]);
         handedOffRef.current = true;
         setShotList([]);
-        onCapture?.(picked[0]);
+        onCapture?.(photo);
         onClose();
         return;
       }
       setShotList([...shotsRef.current, ...picked]);
+      for (const photo of picked) queueCompress(photo);
     } catch (err) {
       setError(apiErrorMessage(err, 'Could not open the photo library.'));
     }

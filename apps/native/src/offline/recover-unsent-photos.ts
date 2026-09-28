@@ -6,10 +6,9 @@ import {
   loadAllDrafts,
   loadAllHandoverDrafts,
   loadOfflineQueue,
-  saveDraftLocal,
+  applyPhotoUriRewrites,
   type OfflineQueueItem,
 } from '@/src/offline/db';
-import { mergeQueuedPhotosIntoDraft } from '@/src/offline/hydrate-draft-photos';
 import {
   isRemotePhotoUrl,
   persistQueuedPhoto,
@@ -42,6 +41,7 @@ async function enqueueLocalPhoto(
   uris: Set<string>,
 ): Promise<number> {
   if (!url || isRemotePhotoUrl(url)) return 0;
+  if (isRemotePhotoUrl(applyPhotoUriRewrites(url))) return 0;
   let durable = '';
   try {
     durable = (await repairQueuedPhotoUri(url)) ?? (await persistQueuedPhoto(url));
@@ -49,6 +49,7 @@ async function enqueueLocalPhoto(
     return 0;
   }
   if (!durable || isRemotePhotoUrl(durable) || alreadyQueued(uris, durable)) return 0;
+  if (isRemotePhotoUrl(applyPhotoUriRewrites(durable))) return 0;
   await enqueueOfflineAction(jobId, action, { localUri: durable, ...extra });
   uris.add(durable);
   return 1;
@@ -91,8 +92,7 @@ async function recoverDraftPhotos(
 let recoverInFlight: Promise<number> | null = null;
 
 /**
- * Walk local drafts and the photo folder. Queue any file that is still on the
- * phone but not on the server, then put those URIs back onto the draft.
+ * Walk local drafts. Queue any file that is still on the phone but not on the server.
  */
 export async function recoverUnsentPhotos(): Promise<number> {
   if (recoverInFlight) return recoverInFlight;
@@ -116,21 +116,6 @@ export async function recoverUnsentPhotos(): Promise<number> {
         { phase: row.phase },
         uris,
       );
-    }
-  }
-
-  const refreshed = await loadOfflineQueue();
-  const byJob = new Map<string, OfflineQueueItem[]>();
-  for (const item of refreshed) {
-    if (item.action !== 'photo_upload') continue;
-    const list = byJob.get(item.jobId) ?? [];
-    list.push(item);
-    byJob.set(item.jobId, list);
-  }
-  for (const [jobId, draft] of Object.entries(drafts)) {
-    const merged = await mergeQueuedPhotosIntoDraft(draft, byJob.get(jobId) ?? []);
-    if (JSON.stringify(merged) !== JSON.stringify(draft)) {
-      await saveDraftLocal(jobId, merged);
     }
   }
 

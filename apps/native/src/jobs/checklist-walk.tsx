@@ -644,6 +644,12 @@ export function ChecklistWalk({
         visible={cameraTarget != null}
         mode="burst"
         maxPhotos={INSPECTION_BURST_MAX}
+        jobId={inspectionId}
+        uploadAreaName={
+          cameraTarget?.kind === 'section' && currentName
+            ? photoAreaName(currentName, cameraTarget.section, cameraTarget.side)
+            : currentName
+        }
         onClose={() => {
           cameraTargetRef.current = null;
           setCameraTarget(null);

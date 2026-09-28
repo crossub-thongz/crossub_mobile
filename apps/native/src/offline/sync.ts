@@ -27,15 +27,20 @@ import {
   isRetryableNetworkError,
   loadOfflineQueue,
   pendingSyncCount,
+  queueHasLocalUri,
   removeQueueItem,
   replaceOfflineAction,
+  rewriteDraftPhotoUris,
   rewriteQueuedUris,
+  applyPhotoUriRewrites,
   type OfflineAction,
   type OfflineQueueItem,
 } from '@/src/offline/db';
 import {
   compressAndPersistPhoto,
   deleteQueuedPhoto,
+  isDurableLocalPhoto,
+  isRemotePhotoUrl,
   localPhotoExists,
   persistQueuedPhoto,
   repairQueuedPhotoUri,
@@ -54,6 +59,7 @@ const DRAIN_ORDER: OfflineAction[] = [
 const MISSING_FILE_DROP_AFTER = 8;
 
 let drainInFlight: Promise<{ synced: number; remaining: number }> | null = null;
+let drainAgain = false;
 
 function sortForDrain(items: OfflineQueueItem[]): OfflineQueueItem[] {
   return [...items].sort((a, b) => {
@@ -208,7 +214,10 @@ async function drainQueue(): Promise<{ synced: number; remaining: number }> {
       const remoteUrl = await replayItem(item);
       const localUri =
         typeof item.payload.localUri === 'string' ? item.payload.localUri : '';
-      if (remoteUrl && localUri) await rewriteQueuedUris(localUri, remoteUrl);
+      if (remoteUrl && localUri) {
+        await rewriteQueuedUris(localUri, remoteUrl);
+        await rewriteDraftPhotoUris(localUri, remoteUrl);
+      }
       await removeQueueItem(item.id);
       synced += 1;
       await yieldToUi();
@@ -236,8 +245,22 @@ async function drainQueue(): Promise<{ synced: number; remaining: number }> {
 }
 
 export async function syncOfflineQueue(): Promise<{ synced: number; remaining: number }> {
-  if (drainInFlight) return drainInFlight;
-  drainInFlight = drainQueue().finally(() => {
+  if (drainInFlight) {
+    drainAgain = true;
+    return drainInFlight;
+  }
+  drainInFlight = (async () => {
+    let synced = 0;
+    let remaining = await pendingSyncCount();
+    do {
+      drainAgain = false;
+      const pass = await drainQueue();
+      synced += pass.synced;
+      remaining = pass.remaining;
+      if (pass.synced === 0) break;
+    } while (drainAgain || remaining > 0);
+    return { synced, remaining };
+  })().finally(() => {
     drainInFlight = null;
   });
   return drainInFlight;
@@ -251,6 +274,29 @@ export async function flushOfflineWork(): Promise<{ synced: number; remaining: n
     // Drafts stay on disk even if enqueue fails.
   }
   return syncOfflineQueue();
+}
+
+/** Persist the JPEG, record it in the SQLite queue, then let drain upload. */
+export async function enqueuePhotoUpload(
+  inspectionId: string,
+  localUri: string,
+  areaName?: string,
+): Promise<string> {
+  if (!localUri) throw new Error('Photo is missing from this device.');
+  const rewritten = applyPhotoUriRewrites(localUri);
+  if (isRemotePhotoUrl(rewritten)) return rewritten;
+  if (await queueHasLocalUri(localUri, inspectionId)) return localUri;
+  const durable =
+    isDurableLocalPhoto(localUri) && (await localPhotoExists(localUri))
+      ? localUri
+      : await persistPhotoPayload(localUri);
+  if (isRemotePhotoUrl(applyPhotoUriRewrites(durable))) return applyPhotoUriRewrites(durable);
+  if (await queueHasLocalUri(durable, inspectionId)) return durable;
+  await enqueueOfflineAction(inspectionId, 'photo_upload', {
+    localUri: durable,
+    areaName,
+  });
+  return durable;
 }
 
 export async function queueExecutionDraft(
@@ -313,33 +359,21 @@ export async function queueInspectionPhotoBatch(
 ): Promise<string[]> {
   const urls: string[] = [];
   for (const photo of photos) {
-    const compressed = await compressAndPersistPhoto(photo);
-    const durable = compressed.uri;
-    onEach?.(photo.uri, durable);
-    await yieldToUi();
-    const online = await isDeviceOnline();
-    if (!online) {
-      await enqueueOfflineAction(inspectionId, 'photo_upload', {
-        localUri: durable,
-        areaName,
-      });
-      urls.push(durable);
+    if (isRemotePhotoUrl(photo.uri)) {
+      onEach?.(photo.uri, photo.uri);
+      urls.push(photo.uri);
       await yieldToUi();
       continue;
     }
-    const prepared = await prepareStoredPhotoUpload(durable);
-    const saved = await queueInspectionPhoto(
-      inspectionId,
-      { ...prepared.body, areaName },
-      durable,
-      { keepLocal: true },
-    );
-    const finalUrl = saved.url || durable;
-    if (finalUrl !== durable) onEach?.(durable, finalUrl);
-    urls.push(finalUrl);
-    if (prepared.localUri !== durable) await deleteLocalPhoto(prepared.localUri);
+    const compressed = isDurableLocalPhoto(photo.uri)
+      ? photo
+      : await compressAndPersistPhoto(photo);
+    const durable = await enqueuePhotoUpload(inspectionId, compressed.uri, areaName);
+    onEach?.(photo.uri, durable);
+    urls.push(durable);
     await yieldToUi();
   }
+  void syncOfflineQueue();
   return urls;
 }
 

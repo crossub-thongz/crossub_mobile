@@ -33,6 +33,7 @@ import {
 import { mapAssignedJobs, mapPoolJobs, toInspectionJob } from '@/src/lib/job-map';
 import { applyKeyCollection, mergeJobLocalState } from '@/src/lib/key-access';
 import {
+  applyPhotoUriRewrites,
   loadAllDrafts,
   loadJobsCache,
   loadOfflineQueue,
@@ -43,6 +44,7 @@ import {
 } from '@/src/offline/db';
 import { mergeQueuedPhotosIntoDraft } from '@/src/offline/hydrate-draft-photos';
 import { recoverUnsentPhotos } from '@/src/offline/recover-unsent-photos';
+import { dedupeDraftPhotoLists } from '@/src/offline/queued-photo';
 import type { GeoPoint } from '@/src/lib/travel';
 import type { InspectionJob, RoutineExecutionDraft } from '@/src/lib/types';
 import { useDeviceLocation } from '@/src/lib/use-device-location';
@@ -144,9 +146,10 @@ export function InspectionsProvider({ children }: { children: ReactNode }) {
         const next: Record<string, RoutineExecutionDraft> = {};
         for (const [jobId, draft] of Object.entries(loaded)) {
           const merged = await mergeQueuedPhotosIntoDraft(draft, byJob.get(jobId) ?? []);
-          next[jobId] = merged;
-          if (JSON.stringify(merged) !== JSON.stringify(draft)) {
-            await saveDraftLocal(jobId, merged);
+          const normalized = dedupeDraftPhotoLists(applyPhotoUriRewrites(merged));
+          next[jobId] = normalized;
+          if (JSON.stringify(normalized) !== JSON.stringify(draft)) {
+            await saveDraftLocal(jobId, normalized);
           }
         }
         if (!cancelled) setDrafts(next);
@@ -165,7 +168,11 @@ export function InspectionsProvider({ children }: { children: ReactNode }) {
       setDrafts((current) => {
         const next: Record<string, RoutineExecutionDraft> = {};
         for (const [id, draft] of Object.entries(current)) {
-          next[id] = rewriteStrings(draft, rewrite.from, rewrite.to) as RoutineExecutionDraft;
+          next[id] = dedupeDraftPhotoLists(
+            applyPhotoUriRewrites(
+              rewriteStrings(draft, rewrite.from, rewrite.to) as RoutineExecutionDraft,
+            ),
+          );
         }
         return next;
       });
@@ -295,9 +302,13 @@ export function InspectionsProvider({ children }: { children: ReactNode }) {
     [drafts],
   );
 
+  const draftSaveTail = useRef(Promise.resolve());
   const setDraft = useCallback((id: string, draft: RoutineExecutionDraft) => {
-    setDrafts((current) => ({ ...current, [id]: draft }));
-    void saveDraftLocal(id, draft);
+    const next = dedupeDraftPhotoLists(applyPhotoUriRewrites(draft));
+    setDrafts((current) => ({ ...current, [id]: next }));
+    draftSaveTail.current = draftSaveTail.current
+      .then(() => saveDraftLocal(id, next))
+      .catch(() => undefined);
   }, []);
 
   const toggleReceivingJobs = useCallback(async () => {

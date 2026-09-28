@@ -1,8 +1,14 @@
 import { parseSectionAreaName } from '@/src/constants/inspection-areas';
 import { emptyRoutineIssue } from '@/src/lib/inspection-layout';
 import type { RoutineAreaIssueDraft, RoutineExecutionDraft } from '@/src/lib/types';
-import type { OfflineQueueItem } from '@/src/offline/db';
-import { isRemotePhotoUrl, localPhotoExists, repairQueuedPhotoUri } from '@/src/offline/queued-photo';
+import { applyPhotoUriRewrites, type OfflineQueueItem } from '@/src/offline/db';
+import {
+  dedupePhotoUrls,
+  isRemotePhotoUrl,
+  localPhotoExists,
+  photoUrlInList,
+  repairQueuedPhotoUri,
+} from '@/src/offline/queued-photo';
 
 const INGOING_SUFFIX = /\s*\(ingoing\)\s*$/i;
 const OUTGOING_SUFFIX = /\s*\(outgoing\)\s*$/i;
@@ -30,18 +36,17 @@ async function keepReachableUrls(urls: string[] | undefined): Promise<string[]> 
   const next: string[] = [];
   for (const url of urls ?? []) {
     if (!url) continue;
-    if (isRemotePhotoUrl(url)) {
-      next.push(url);
+    const rewritten = applyPhotoUriRewrites(url);
+    if (isRemotePhotoUrl(rewritten)) {
+      if (!photoUrlInList(next, rewritten)) next.push(rewritten);
       continue;
     }
-    const repaired = await repairQueuedPhotoUri(url);
-    if (repaired) {
-      next.push(repaired);
-      continue;
-    }
-    if (await localPhotoExists(url)) next.push(url);
+    const repaired = await repairQueuedPhotoUri(rewritten);
+    const candidate = repaired ?? ((await localPhotoExists(rewritten)) ? rewritten : '');
+    if (!candidate || photoUrlInList(next, candidate)) continue;
+    next.push(candidate);
   }
-  return next;
+  return dedupePhotoUrls(next);
 }
 
 async function pruneIssuePhotos(issue: RoutineAreaIssueDraft): Promise<RoutineAreaIssueDraft> {
@@ -60,16 +65,28 @@ async function pruneIssuePhotos(issue: RoutineAreaIssueDraft): Promise<RoutineAr
   };
 }
 
-function collectUrls(draft: RoutineExecutionDraft): Set<string> {
-  const urls = new Set<string>();
+function collectUrls(draft: RoutineExecutionDraft): string[] {
+  const urls: string[] = [];
   for (const issue of Object.values(draft.issues ?? {})) {
-    for (const url of issue.areaPhotos ?? []) urls.add(url);
+    for (const url of issue.areaPhotos ?? []) {
+      if (!photoUrlInList(urls, url)) urls.push(url);
+    }
     for (const photos of Object.values(issue.photosBySection ?? {})) {
-      for (const url of photos.ingoingPhotoUrls) urls.add(url);
-      for (const url of photos.outgoingPhotoUrls) urls.add(url);
+      for (const url of photos.ingoingPhotoUrls) {
+        if (!photoUrlInList(urls, url)) urls.push(url);
+      }
+      for (const url of photos.outgoingPhotoUrls) {
+        if (!photoUrlInList(urls, url)) urls.push(url);
+      }
     }
   }
   return urls;
+}
+
+function alreadyShown(present: string[], uri: string): boolean {
+  if (!uri) return true;
+  const resolved = applyPhotoUriRewrites(uri);
+  return photoUrlInList(present, uri) || photoUrlInList(present, resolved);
 }
 
 function ensureIssue(
@@ -103,7 +120,9 @@ export async function mergeQueuedPhotosIntoDraft(
   for (const item of items) {
     if (item.action !== 'photo_upload') continue;
     const localUri = typeof item.payload.localUri === 'string' ? item.payload.localUri : '';
-    if (!localUri || present.has(localUri)) continue;
+    if (!localUri || alreadyShown(present, localUri)) continue;
+    const resolved = applyPhotoUriRewrites(localUri);
+    if (isRemotePhotoUrl(resolved)) continue;
     if (!(await localPhotoExists(localUri))) continue;
     const areaName = typeof item.payload.areaName === 'string' ? item.payload.areaName : '';
     if (!areaName) continue;
@@ -116,7 +135,7 @@ export async function mergeQueuedPhotosIntoDraft(
         outgoingPhotoUrls: [],
       };
       const key = parsed.side === 'outgoing' ? 'outgoingPhotoUrls' : 'ingoingPhotoUrls';
-      if (current[key].includes(localUri)) continue;
+      if (alreadyShown(current[key], localUri) || alreadyShown(present, localUri)) continue;
       next = {
         ...next,
         issues: {
@@ -131,7 +150,7 @@ export async function mergeQueuedPhotosIntoDraft(
           },
         },
       };
-    } else if (!issue.areaPhotos.includes(localUri)) {
+    } else if (!alreadyShown(issue.areaPhotos, localUri) && !alreadyShown(present, localUri)) {
       next = {
         ...next,
         issues: {
@@ -143,8 +162,10 @@ export async function mergeQueuedPhotosIntoDraft(
           },
         },
       };
+    } else {
+      continue;
     }
-    present.add(localUri);
+    present.push(localUri);
   }
 
   return next;

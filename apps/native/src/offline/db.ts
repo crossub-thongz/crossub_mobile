@@ -1,8 +1,9 @@
 import * as SQLite from 'expo-sqlite';
 
+import { sameLocalPhotoUri } from '@/src/lib/local-file';
 import type { HandoverParty, KeyCondition } from '@/src/lib/handover-notes';
 import type { InspectionJob, RoutineExecutionDraft } from '@/src/lib/types';
-import { deleteQueuedPhoto, stripBase64Payload } from '@/src/offline/queued-photo';
+import { deleteQueuedPhoto, dedupeDraftPhotoLists, stripBase64Payload } from '@/src/offline/queued-photo';
 
 const DB_NAME = 'crossub-inspector.db';
 
@@ -67,6 +68,7 @@ function notifyDraftsChanged(rewrite?: DraftUriRewrite): void {
 }
 
 let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
+const appliedPhotoUriRewrites: Array<{ from: string; to: string }> = [];
 
 async function migrateQueue(db: SQLite.SQLiteDatabase): Promise<void> {
   const cols = await db.getAllAsync<{ name: string }>(`PRAGMA table_info(queue)`);
@@ -95,6 +97,23 @@ async function migrateJobsCache(db: SQLite.SQLiteDatabase): Promise<void> {
       updated_at TEXT NOT NULL
     );
   `);
+}
+
+async function migratePhotoUriRewrites(db: SQLite.SQLiteDatabase): Promise<void> {
+  await db.execAsync(`
+    CREATE TABLE IF NOT EXISTS photo_uri_rewrites (
+      from_uri TEXT PRIMARY KEY NOT NULL,
+      to_uri TEXT NOT NULL
+    );
+  `);
+  const rows = await db.getAllAsync<{ from_uri: string; to_uri: string }>(
+    `SELECT from_uri, to_uri FROM photo_uri_rewrites`,
+  );
+  appliedPhotoUriRewrites.length = 0;
+  for (const row of rows) {
+    if (!row.from_uri || !row.to_uri || row.from_uri === row.to_uri) continue;
+    appliedPhotoUriRewrites.push({ from: row.from_uri, to: row.to_uri });
+  }
 }
 
 async function getDb(): Promise<SQLite.SQLiteDatabase> {
@@ -126,6 +145,7 @@ async function getDb(): Promise<SQLite.SQLiteDatabase> {
       await migrateQueue(db);
       await migrateHandoverDrafts(db);
       await migrateJobsCache(db);
+      await migratePhotoUriRewrites(db);
       return db;
     })().catch((err) => {
       dbPromise = null;
@@ -164,16 +184,49 @@ export function isPermanentPhotoError(err: unknown): boolean {
   return message.includes('too large') || message.includes('could not encode');
 }
 
+function rememberPhotoUriRewrite(from: string, to: string): void {
+  if (!from || from === to) return;
+  if (appliedPhotoUriRewrites.some((item) => item.from === from && item.to === to)) return;
+  appliedPhotoUriRewrites.push({ from, to });
+  if (appliedPhotoUriRewrites.length > 4000) {
+    appliedPhotoUriRewrites.splice(0, appliedPhotoUriRewrites.length - 3000);
+  }
+  void persistPhotoUriRewrite(from, to);
+}
+
+async function persistPhotoUriRewrite(from: string, to: string): Promise<void> {
+  try {
+    const db = await getDb();
+    await db.runAsync(
+      `INSERT OR REPLACE INTO photo_uri_rewrites (from_uri, to_uri) VALUES (?, ?)`,
+      from,
+      to,
+    );
+  } catch {
+    // In-memory map still blocks a duplicate show until the next launch.
+  }
+}
+
+/** Re-apply uploads that already reached the server so a later draft save cannot undo them. */
+export function applyPhotoUriRewrites<T>(value: T): T {
+  let next: unknown = value;
+  for (const rewrite of appliedPhotoUriRewrites) {
+    next = rewriteStrings(next, rewrite.from, rewrite.to);
+  }
+  return next as T;
+}
+
 export async function saveDraftLocal(
   inspectionId: string,
   draft: RoutineExecutionDraft,
 ): Promise<void> {
   const db = await getDb();
-  const updatedAt = draft.updatedAt ?? new Date().toISOString();
+  const rewritten = dedupeDraftPhotoLists(applyPhotoUriRewrites(draft));
+  const updatedAt = rewritten.updatedAt ?? new Date().toISOString();
   await db.runAsync(
     `INSERT OR REPLACE INTO drafts (inspection_id, json, updated_at) VALUES (?, ?, ?)`,
     inspectionId,
-    JSON.stringify(draft),
+    JSON.stringify(rewritten),
     updatedAt,
   );
 }
@@ -466,4 +519,46 @@ export async function rewriteQueuedUris(from: string, to: string): Promise<void>
       await updateQueuePayload(item.id, next);
     }
   }
+}
+
+export async function rewriteDraftPhotoUris(from: string, to: string): Promise<void> {
+  if (!from || from === to) return;
+  rememberPhotoUriRewrite(from, to);
+  const drafts = await loadAllDrafts();
+  for (const [id, draft] of Object.entries(drafts)) {
+    const next = rewriteStrings(draft, from, to) as RoutineExecutionDraft;
+    if (JSON.stringify(next) !== JSON.stringify(draft)) {
+      await saveDraftLocal(id, next);
+    }
+  }
+  const handovers = await loadAllHandoverDrafts();
+  for (const row of handovers) {
+    const next = rewriteStrings(row.draft, from, to) as HandoverFormDraft;
+    if (JSON.stringify(next) !== JSON.stringify(row.draft)) {
+      await saveHandoverDraft(row.jobId, row.phase, next);
+    }
+  }
+  notifyDraftsChanged({ from, to });
+}
+
+export async function deleteQueueItemsByLocalUri(uri: string): Promise<void> {
+  if (!uri) return;
+  const items = await loadOfflineQueue();
+  for (const item of items) {
+    const local = typeof item.payload.localUri === 'string' ? item.payload.localUri : '';
+    if (local && sameLocalPhotoUri(local, uri)) {
+      await removeQueueItem(item.id);
+    }
+  }
+}
+
+export async function queueHasLocalUri(uri: string, jobId?: string): Promise<boolean> {
+  if (!uri) return false;
+  const items = await loadOfflineQueue();
+  return items.some((item) => {
+    if (item.action !== 'photo_upload' && item.action !== 'key_photo') return false;
+    if (jobId && item.jobId !== jobId) return false;
+    const local = typeof item.payload.localUri === 'string' ? item.payload.localUri : '';
+    return Boolean(local && sameLocalPhotoUri(local, uri));
+  });
 }

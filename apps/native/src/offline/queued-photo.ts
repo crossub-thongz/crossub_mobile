@@ -10,6 +10,7 @@ import {
   resolveLocalFileUri,
   sameLocalPhotoUri,
 } from '@/src/lib/local-file';
+import type { RoutineExecutionDraft } from '@/src/lib/types';
 
 export {
   asFileUri,
@@ -39,6 +40,41 @@ function indexOfPhotoUrl(urls: string[], target: string): number {
   const exact = urls.indexOf(target);
   if (exact >= 0) return exact;
   return urls.findIndex((url) => sameLocalPhotoUri(url, target));
+}
+
+/** True when this URI is already in the list, including /var vs /private/var twins. */
+export function photoUrlInList(urls: readonly string[], uri: string): boolean {
+  if (!uri) return false;
+  return urls.some((existing) => existing === uri || sameLocalPhotoUri(existing, uri));
+}
+
+/** Collapse path twins so the same JPEG is not listed twice. */
+export function dedupePhotoUrls(urls: string[] | undefined): string[] {
+  const next: string[] = [];
+  for (const url of urls ?? []) {
+    if (!url || photoUrlInList(next, url)) continue;
+    next.push(url);
+  }
+  return next;
+}
+
+export function dedupeDraftPhotoLists(draft: RoutineExecutionDraft): RoutineExecutionDraft {
+  const issues = { ...draft.issues };
+  for (const [name, issue] of Object.entries(issues)) {
+    const photosBySection = { ...(issue.photosBySection ?? {}) };
+    for (const [section, photos] of Object.entries(photosBySection)) {
+      photosBySection[section] = {
+        ingoingPhotoUrls: dedupePhotoUrls(photos.ingoingPhotoUrls),
+        outgoingPhotoUrls: dedupePhotoUrls(photos.outgoingPhotoUrls),
+      };
+    }
+    issues[name] = {
+      ...issue,
+      areaPhotos: dedupePhotoUrls(issue.areaPhotos),
+      photosBySection,
+    };
+  }
+  return { ...draft, issues };
 }
 
 /** Keep a photo URL list in sync as a cache file is copied, then uploaded. */

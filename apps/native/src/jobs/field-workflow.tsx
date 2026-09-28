@@ -665,6 +665,8 @@ export function FieldWorkflowScreen({
         visible={cameraOpen}
         mode="burst"
         maxPhotos={INSPECTION_BURST_MAX}
+        jobId={id}
+        uploadAreaName={currentName}
         onClose={() => setCameraOpen(false)}
         onBurstComplete={(photos) => {
           void onBurst(photos);

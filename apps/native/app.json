@@ -11,6 +11,7 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.crossub.inspector",
+      "appleTeamId": "KQ997HDJ7H",
       "buildNumber": "1",
       "config": {
         "usesNonExemptEncryption": false
@@ -21,7 +22,18 @@
         "ITSAppUsesNonExemptEncryption": false,
         "NSCameraUsageDescription": "CROSSUB Inspector needs the camera to photograph inspection evidence.",
         "NSPhotoLibraryUsageDescription": "CROSSUB Inspector needs the photo library to attach inspection evidence.",
-        "UIBackgroundModes": ["remote-notification"]
+        "UIBackgroundModes": ["remote-notification"],
+        "UIApplicationSceneManifest": {
+          "UIApplicationSupportsMultipleScenes": false,
+          "UISceneConfigurations": {
+            "UIWindowSceneSessionRoleApplication": [
+              {
+                "UISceneConfigurationName": "Default Configuration",
+                "UISceneDelegateClassName": "SceneDelegate"
+              }
+            ]
+          }
+        }
       }
     },
     "android": {
@@ -47,6 +59,7 @@
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
+      "./plugins/with-ios-scene-lifecycle.js",
       "expo-router",
       [
         "expo-splash-screen",
