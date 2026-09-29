@@ -1,6 +1,6 @@
 import * as SQLite from 'expo-sqlite';
 
-import { sameLocalPhotoUri } from '@/src/lib/local-file';
+import { isRemotePhotoUrl, photoFileName, sameLocalPhotoUri } from '@/src/lib/local-file';
 import type { HandoverParty, KeyCondition } from '@/src/lib/handover-notes';
 import type { InspectionJob, RoutineExecutionDraft } from '@/src/lib/types';
 import { deleteQueuedPhoto, dedupeDraftPhotoLists, stripBase64Payload } from '@/src/offline/queued-photo';
@@ -500,7 +500,7 @@ export function rewriteStrings(
 ): unknown {
   if (from.length === 0 || from === to) return value;
   if (value === from) return to;
-  if (typeof value === 'string' && value.includes(from)) return value.split(from).join(to);
+  if (typeof value === 'string') return value;
   if (Array.isArray(value)) return value.map((item) => rewriteStrings(item, from, to));
   if (value && typeof value === 'object') {
     const next: Record<string, unknown> = {};
@@ -546,9 +546,16 @@ export async function rewriteDraftPhotoUris(from: string, to: string): Promise<v
 export async function deleteQueueItemsByLocalUri(uri: string): Promise<void> {
   if (!uri) return;
   const items = await loadOfflineQueue();
+  const name = photoFileName(uri);
   for (const item of items) {
     const local = typeof item.payload.localUri === 'string' ? item.payload.localUri : '';
-    if (local && sameLocalPhotoUri(local, uri)) {
+    if (!local) continue;
+    if (
+      local === uri ||
+      sameLocalPhotoUri(local, uri) ||
+      (name && photoFileName(local) === name) ||
+      (isRemotePhotoUrl(local) && applyPhotoUriRewrites(uri) === local)
+    ) {
       await removeQueueItem(item.id);
     }
   }

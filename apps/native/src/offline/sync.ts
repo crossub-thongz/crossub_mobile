@@ -32,7 +32,7 @@ import {
   removeQueueItem,
   replaceOfflineAction,
   rewriteDraftPhotoUris,
-  rewriteQueuedUris,
+  deleteQueueItemsByLocalUri,
   applyPhotoUriRewrites,
   type OfflineAction,
   type OfflineQueueItem,
@@ -135,11 +135,17 @@ async function persistPhotoPayload(localUri?: string, contentBase64?: string): P
 async function replayPhotoUpload(item: OfflineQueueItem): Promise<string | null> {
   const payload = item.payload;
   let localUri = typeof payload.localUri === 'string' ? payload.localUri : '';
+  const rewritten = localUri ? applyPhotoUriRewrites(localUri) : '';
+  if (isRemotePhotoUrl(localUri)) return localUri;
+  if (isRemotePhotoUrl(rewritten)) return rewritten;
   if (localUri) localUri = (await repairQueuedPhotoUri(localUri)) ?? localUri;
   if (!localUri && typeof payload.contentBase64 === 'string' && payload.contentBase64) {
     localUri = await writeQueuedPhotoFromBase64(payload.contentBase64);
   }
   if (!localUri) throw new Error('Photo is missing from this device.');
+  if (isRemotePhotoUrl(localUri) || isRemotePhotoUrl(applyPhotoUriRewrites(localUri))) {
+    return isRemotePhotoUrl(localUri) ? localUri : applyPhotoUriRewrites(localUri);
+  }
   if (!(await localPhotoExists(localUri))) {
     throw new Error('Photo is missing from this device.');
   }
@@ -226,7 +232,12 @@ async function replayItem(item: OfflineQueueItem): Promise<string | null> {
 
 function isMissingFileError(err: unknown): boolean {
   const message = err instanceof Error ? err.message.toLowerCase() : String(err).toLowerCase();
-  return message.includes('missing from this device') || message.includes('could not encode');
+  return (
+    message.includes('missing from this device') ||
+    message.includes('could not encode') ||
+    message.includes('no longer on this phone') ||
+    message.includes('take it again')
+  );
 }
 
 async function drainQueue(): Promise<{ synced: number; remaining: number }> {
@@ -237,37 +248,48 @@ async function drainQueue(): Promise<{ synced: number; remaining: number }> {
   let synced = 0;
   for (const item of queue) {
     try {
-      const remoteUrl = await replayItem(item);
       const localUri =
         typeof item.payload.localUri === 'string' ? item.payload.localUri : '';
-      if (remoteUrl && localUri) {
-        await rewriteQueuedUris(localUri, remoteUrl);
-        await rewriteDraftPhotoUris(localUri, remoteUrl);
+      if (
+        (item.action === 'photo_upload' || item.action === 'key_photo') &&
+        (isRemotePhotoUrl(localUri) || isRemotePhotoUrl(applyPhotoUriRewrites(localUri)))
+      ) {
+        const remote = isRemotePhotoUrl(localUri) ? localUri : applyPhotoUriRewrites(localUri);
+        if (localUri && remote && localUri !== remote) {
+          await rewriteDraftPhotoUris(localUri, remote);
+        }
+        await removeQueueItem(item.id);
+        synced += 1;
+        await yieldToUi();
+        continue;
       }
-      await removeQueueItem(item.id);
+      const remoteUrl = await replayItem(item);
+      if (remoteUrl && localUri) {
+        await rewriteDraftPhotoUris(localUri, remoteUrl);
+        await deleteQueueItemsByLocalUri(localUri);
+      } else {
+        await removeQueueItem(item.id);
+      }
       synced += 1;
       await yieldToUi();
     } catch (err) {
       if (isAuthError(err)) break;
-      if (isRetryableNetworkError(err)) {
-        if (item.action === 'photo_upload' || item.action === 'key_photo') continue;
-        break;
-      }
-      if (isMissingFileError(err)) {
-        const attempts = await bumpQueueAttempt(item.id);
-        if (attempts >= MISSING_FILE_DROP_AFTER) {
+      if (item.action === 'photo_upload' || item.action === 'key_photo') {
+        if (isMissingFileError(err)) {
+          const attempts = await bumpQueueAttempt(item.id);
+          if (attempts >= MISSING_FILE_DROP_AFTER) {
+            const uri = typeof item.payload.localUri === 'string' ? item.payload.localUri : undefined;
+            await deleteQueuedPhoto(uri);
+            await removeQueueItem(item.id);
+          }
+        } else if (isPermanentPhotoError(err)) {
           const uri = typeof item.payload.localUri === 'string' ? item.payload.localUri : undefined;
           await deleteQueuedPhoto(uri);
           await removeQueueItem(item.id);
         }
         continue;
       }
-      if (isPermanentPhotoError(err)) {
-        const uri = typeof item.payload.localUri === 'string' ? item.payload.localUri : undefined;
-        await deleteQueuedPhoto(uri);
-        await removeQueueItem(item.id);
-        continue;
-      }
+      if (isRetryableNetworkError(err)) break;
       break;
     }
   }

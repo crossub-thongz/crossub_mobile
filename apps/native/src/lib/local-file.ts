@@ -14,8 +14,9 @@ export function photoCountTone(urls: readonly string[]): PhotoCountTone {
   return 'complete';
 }
 
-export function isDurableLocalPhoto(uri: string): boolean {
-  return uri.includes('/offline-queue/');
+export function photoFileName(uri: string): string {
+  if (!uri) return '';
+  return uri.split('?')[0]?.split('/').pop() ?? '';
 }
 
 export function asFileUri(uri: string): string {

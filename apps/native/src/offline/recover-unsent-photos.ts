@@ -1,5 +1,5 @@
 import { photoAreaName } from '@/src/constants/inspection-areas';
-import { sameLocalPhotoUri } from '@/src/lib/local-file';
+import { isDurableLocalPhoto, photoFileName, sameLocalPhotoUri } from '@/src/lib/local-file';
 import { yieldToUi } from '@/src/jobs/compress-photo';
 import type { RoutineExecutionDraft } from '@/src/lib/types';
 import {
@@ -27,9 +27,12 @@ function queuedUris(items: OfflineQueueItem[]): Set<string> {
 }
 
 function alreadyQueued(uris: Set<string>, uri: string): boolean {
+  if (!uri) return false;
   if (uris.has(uri)) return true;
+  const name = photoFileName(uri);
   for (const existing of uris) {
     if (sameLocalPhotoUri(existing, uri)) return true;
+    if (name && photoFileName(existing) === name) return true;
   }
   return false;
 }
@@ -44,9 +47,16 @@ async function enqueueLocalPhoto(
   if (!url || isRemotePhotoUrl(url)) return 0;
   if (isRemotePhotoUrl(applyPhotoUriRewrites(url))) return 0;
   if (alreadyQueued(uris, url)) return 0;
-  let durable = '';
+  let durable = url;
   try {
-    durable = (await repairQueuedPhotoUri(url)) ?? (await persistQueuedPhoto(url));
+    const repaired = await repairQueuedPhotoUri(url);
+    if (repaired && alreadyQueued(uris, repaired)) return 0;
+    if (repaired && isRemotePhotoUrl(repaired)) return 0;
+    durable =
+      repaired ??
+      (isDurableLocalPhoto(url)
+        ? url
+        : await persistQueuedPhoto(url));
   } catch {
     return 0;
   }
