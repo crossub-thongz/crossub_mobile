@@ -22,6 +22,7 @@
         "ITSAppUsesNonExemptEncryption": false,
         "NSCameraUsageDescription": "CROSSUB Inspector needs the camera to photograph inspection evidence.",
         "NSPhotoLibraryUsageDescription": "CROSSUB Inspector needs the photo library to attach inspection evidence.",
+        "NSPhotoLibraryAddUsageDescription": "CROSSUB Inspector saves inspection photos in your library only when you choose to.",
         "UIBackgroundModes": ["remote-notification"],
         "UIApplicationSceneManifest": {
           "UIApplicationSupportsMultipleScenes": false,

@@ -50,7 +50,8 @@ function cameraErrorMessage(err: unknown, fallback: string): string {
     lower.includes('timed out') ||
     lower.includes('timeout') ||
     lower.includes('offline') ||
-    lower.includes('failed to fetch')
+    lower.includes('failed to fetch') ||
+    lower.includes('not a function')
   ) {
     return fallback;
   }

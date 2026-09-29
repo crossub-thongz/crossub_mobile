@@ -173,18 +173,27 @@ export async function writeQueuedPhotoFromBase64(contentBase64: string): Promise
   return dest;
 }
 
-/** Compress, then copy into Documents before recording so an update cannot drop the file. */
+/** Compress, then copy into Documents. A failed encode still keeps the original file. */
 export async function compressAndPersistPhoto(photo: LocalPhoto): Promise<LocalPhoto> {
-  const compressed = await compressPhotoToFile(photo);
-  const durable = await persistQueuedPhoto(compressed.uri);
-  if (
-    compressed.uri !== durable &&
-    compressed.uri !== photo.uri &&
-    !compressed.uri.includes('/offline-queue/')
-  ) {
-    await deleteLocalPhoto(compressed.uri);
+  try {
+    const compressed = await compressPhotoToFile(photo);
+    const durable = await persistQueuedPhoto(compressed.uri);
+    if (
+      compressed.uri !== durable &&
+      compressed.uri !== photo.uri &&
+      !compressed.uri.includes('/offline-queue/')
+    ) {
+      await deleteLocalPhoto(compressed.uri);
+    }
+    return { ...compressed, uri: durable };
+  } catch {
+    try {
+      const durable = await persistQueuedPhoto(photo.uri);
+      return { ...photo, uri: durable };
+    } catch {
+      return photo;
+    }
   }
-  return { ...compressed, uri: durable };
 }
 
 export async function deleteQueuedPhoto(uri: string | undefined): Promise<void> {

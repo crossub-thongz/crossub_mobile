@@ -29,6 +29,29 @@ function photoCachePolicy(uri: string) {
   return isRemotePhotoUrl(uri) ? ('disk' as const) : ('memory' as const);
 }
 
+function uploadAlertMessage(err: unknown): string {
+  const message = apiErrorMessage(err, 'Could not add those photos. Try again.');
+  if (
+    message.toLowerCase().includes('not a function') ||
+    message.toLowerCase().includes('could not open the photo library')
+  ) {
+    return 'Could not add those photos. Try again.';
+  }
+  return message;
+}
+
+function UploadProgress({ completed, total }: { completed: number; total: number }) {
+  const ratio = total > 0 ? Math.min(1, completed / total) : 0;
+  return (
+    <View style={styles.progressWrap}>
+      <Text style={styles.progressText}>{`Preparing ${completed} of ${total}`}</Text>
+      <View style={styles.progressTrack}>
+        <View style={[styles.progressFill, { width: `${Math.round(ratio * 100)}%` }]} />
+      </View>
+    </View>
+  );
+}
+
 function PhotoThumb({
   uri,
   onPress,
@@ -94,6 +117,7 @@ export function InspectionPhotosField({
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   const [showAll, setShowAll] = useState(false);
   const [picking, setPicking] = useState(false);
+  const [pickProgress, setPickProgress] = useState<{ completed: number; total: number } | null>(null);
   const [gridWidth, setGridWidth] = useState(0);
   const listRef = useRef<FlatList<GridItem>>(null);
   const previewUrl = previewIndex != null ? photoUrls[previewIndex] : null;
@@ -123,13 +147,17 @@ export function InspectionPhotosField({
   const uploadFromLibrary = async () => {
     if (disabled || !onAddPhotos || picking) return;
     setPicking(true);
+    setPickProgress(null);
     try {
-      const photos = await pickInspectionPhotos();
+      const photos = await pickInspectionPhotos(undefined, (completed, total) => {
+        setPickProgress({ completed, total });
+      });
       if (photos.length > 0) onAddPhotos(photos);
     } catch (err) {
-      Alert.alert('Upload photos', apiErrorMessage(err, 'Could not open the photo library.'));
+      Alert.alert('Upload photos', uploadAlertMessage(err));
     } finally {
       setPicking(false);
+      setPickProgress(null);
     }
   };
 
@@ -206,6 +234,9 @@ export function InspectionPhotosField({
             </Pressable>
           ) : null}
         </View>
+      ) : null}
+      {pickProgress ? (
+        <UploadProgress completed={pickProgress.completed} total={pickProgress.total} />
       ) : null}
 
       {photoUrls.length === 0 ? (
@@ -344,6 +375,7 @@ export function BeforeAfterPhotoColumn({
   const primaryUrl = photoUrls[0];
   const extraUrls = photoUrls.slice(1);
   const [picking, setPicking] = useState(false);
+  const [pickProgress, setPickProgress] = useState<{ completed: number; total: number } | null>(null);
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   const pickingBusy = picking;
   const canCapture = !disabled && Boolean(onTakePhotos);
@@ -352,13 +384,17 @@ export function BeforeAfterPhotoColumn({
   const uploadFromLibrary = async () => {
     if (!canCapture || !onAddPhotos || picking) return;
     setPicking(true);
+    setPickProgress(null);
     try {
-      const photos = await pickInspectionPhotos();
+      const photos = await pickInspectionPhotos(undefined, (completed, total) => {
+        setPickProgress({ completed, total });
+      });
       if (photos.length > 0) onAddPhotos(photos);
     } catch (err) {
-      Alert.alert('Upload photos', apiErrorMessage(err, 'Could not open the photo library.'));
+      Alert.alert('Upload photos', uploadAlertMessage(err));
     } finally {
       setPicking(false);
+      setPickProgress(null);
     }
   };
 
@@ -436,6 +472,9 @@ export function BeforeAfterPhotoColumn({
           ) : null}
         </View>
       ) : null}
+      {pickProgress ? (
+        <UploadProgress completed={pickProgress.completed} total={pickProgress.total} />
+      ) : null}
       {extraUrls.length > 0 ? (
         <Pressable onPress={() => openPreview(1)} style={styles.columnMoreBtn}>
           <Text style={styles.columnMore}>
@@ -499,6 +538,15 @@ export function BeforeAfterPhotoColumn({
 
 const styles = StyleSheet.create({
   wrap: { gap: 8 },
+  progressWrap: { gap: 4 },
+  progressText: { color: colors.muted, fontSize: 11, fontWeight: '600' },
+  progressTrack: {
+    height: 6,
+    borderRadius: 999,
+    backgroundColor: colors.secondary,
+    overflow: 'hidden',
+  },
+  progressFill: { height: 6, borderRadius: 999, backgroundColor: colors.primary },
   head: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   label: { color: colors.text, fontSize: 14, fontWeight: '600' },
   count: {

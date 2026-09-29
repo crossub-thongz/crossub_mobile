@@ -43,7 +43,7 @@ export default function SettingsScreen() {
           {lastError ? <Text style={styles.danger}>{lastError}</Text> : null}
           <Pressable
             onPress={() => {
-              void syncNow()
+              void syncNow(true)
                 .then((result) => {
                   if (result.synced > 0) {
                     Alert.alert('Synced', `${result.synced} change(s) uploaded.`);

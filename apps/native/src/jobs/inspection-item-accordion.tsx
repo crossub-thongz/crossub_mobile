@@ -1,5 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { type ReactNode, useEffect, useRef } from 'react';
+import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { AppTextInput } from '@/src/ui/app-text-input';
@@ -8,6 +8,7 @@ import { InspectionPhotosField } from '@/src/jobs/inspection-photos-field';
 import type { LocalPhoto } from '@/src/jobs/compress-photo';
 import { inspectionItemIcon } from '@/src/lib/inspection-item-icon';
 import { photoCountTone } from '@/src/lib/local-file';
+import { applyPhotoUriRewrites, subscribeDraftsChanged } from '@/src/offline/db';
 import {
   cycleItemMark,
   emptyItemMarks,
@@ -66,8 +67,17 @@ export function InspectionItemAccordion({
   const status = itemMarkStatus(current);
   const icon = inspectionItemIcon(name);
   const rootRef = useRef<View>(null);
-  const photoCount = photoUrls.filter(Boolean).length;
-  const tone = photoCountTone(photoUrls);
+  const [photoRevision, setPhotoRevision] = useState(0);
+  useEffect(() => subscribeDraftsChanged(() => setPhotoRevision((value) => value + 1)), []);
+  const resolvedPhotos = photoUrls
+    .filter(Boolean)
+    .map((uri) => {
+      void photoRevision;
+      const next = applyPhotoUriRewrites(uri);
+      return typeof next === 'string' ? next : uri;
+    });
+  const photoCount = resolvedPhotos.length;
+  const tone = photoCountTone(resolvedPhotos);
   const photoBadgeLabel =
     tone === 'empty'
       ? 'No photos for this item'

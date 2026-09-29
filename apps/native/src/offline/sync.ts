@@ -31,7 +31,8 @@ import {
   queueHasLocalUri,
   removeQueueItem,
   replaceOfflineAction,
-  rewriteDraftPhotoUris,
+  noteUploadedPhoto,
+  flushUploadedPhotoDrafts,
   deleteQueueItemsByLocalUri,
   applyPhotoUriRewrites,
   type OfflineAction,
@@ -58,10 +59,56 @@ const DRAIN_ORDER: OfflineAction[] = [
 ];
 
 const MISSING_FILE_DROP_AFTER = 8;
-const PHOTO_UPLOAD_TIMEOUT_MS = 45_000;
+const PHOTO_UPLOAD_TIMEOUT_MS = 30_000;
+const PHOTO_UPLOAD_CONCURRENCY = 3;
+/** Automatic sync sends the newest photos only, so a stuck backlog cannot hold the banner open. */
+const AUTO_PHOTO_BATCH = 24;
+const AUTO_PHOTO_ATTEMPT_CAP = 2;
 
 let drainInFlight: Promise<{ synced: number; remaining: number }> | null = null;
 let drainAgain = false;
+let drainForce = false;
+
+export type SyncProgress = { completed: number; total: number };
+
+const syncProgressListeners = new Set<(progress: SyncProgress | null) => void>();
+let currentSyncProgress: SyncProgress | null = null;
+
+export function subscribeSyncProgress(
+  listener: (progress: SyncProgress | null) => void,
+): () => void {
+  syncProgressListeners.add(listener);
+  listener(currentSyncProgress);
+  return () => {
+    syncProgressListeners.delete(listener);
+  };
+}
+
+function emitSyncProgress(progress: SyncProgress | null): void {
+  currentSyncProgress = progress;
+  for (const listener of syncProgressListeners) listener(progress);
+}
+
+function isPhotoQueueAction(action: string): boolean {
+  return action === 'photo_upload' || action === 'key_photo';
+}
+
+async function mapPool<T>(
+  items: T[],
+  limit: number,
+  worker: (item: T) => Promise<void>,
+): Promise<void> {
+  if (items.length === 0) return;
+  let cursor = 0;
+  const runners = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (cursor < items.length) {
+      const index = cursor;
+      cursor += 1;
+      await worker(items[index]);
+    }
+  });
+  await Promise.all(runners);
+}
 
 async function withTimeout<T>(work: Promise<T>, ms: number, label: string): Promise<T> {
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -240,63 +287,125 @@ function isMissingFileError(err: unknown): boolean {
   );
 }
 
-async function drainQueue(): Promise<{ synced: number; remaining: number }> {
+async function settlePhotoItem(item: OfflineQueueItem): Promise<boolean> {
+  const localUri = typeof item.payload.localUri === 'string' ? item.payload.localUri : '';
+  const rewritten = localUri ? applyPhotoUriRewrites(localUri) : '';
+  if (isRemotePhotoUrl(localUri) || isRemotePhotoUrl(rewritten)) {
+    const remote = isRemotePhotoUrl(localUri) ? localUri : rewritten;
+    if (localUri && remote && localUri !== remote) noteUploadedPhoto(localUri, remote);
+    await removeQueueItem(item.id);
+    return Boolean(localUri && remote && localUri !== remote);
+  }
+  const remoteUrl = await withTimeout(
+    item.action === 'key_photo' ? replayKeyPhoto(item) : replayPhotoUpload(item),
+    PHOTO_UPLOAD_TIMEOUT_MS,
+    'Photo upload',
+  );
+  if (!remoteUrl || !isRemotePhotoUrl(remoteUrl)) {
+    throw new Error('Photo upload did not return a link.');
+  }
+  if (localUri) {
+    noteUploadedPhoto(localUri, remoteUrl);
+    await deleteQueueItemsByLocalUri(localUri);
+  } else {
+    await removeQueueItem(item.id);
+  }
+  return true;
+}
+
+async function keepFailedPhoto(item: OfflineQueueItem, err: unknown): Promise<void> {
+  if (isMissingFileError(err)) {
+    const attempts = await bumpQueueAttempt(item.id);
+    if (attempts >= MISSING_FILE_DROP_AFTER) {
+      const uri = typeof item.payload.localUri === 'string' ? item.payload.localUri : undefined;
+      await deleteQueuedPhoto(uri);
+      await removeQueueItem(item.id);
+    }
+    return;
+  }
+  if (isPermanentPhotoError(err)) {
+    const uri = typeof item.payload.localUri === 'string' ? item.payload.localUri : undefined;
+    await deleteQueuedPhoto(uri);
+    await removeQueueItem(item.id);
+    return;
+  }
+  await bumpQueueAttempt(item.id);
+}
+
+async function drainQueue(force: boolean): Promise<{ synced: number; remaining: number }> {
   if (!(await getAccessToken())) {
+    emitSyncProgress(null);
     return { synced: 0, remaining: await pendingSyncCount() };
   }
-  const queue = sortForDrain(await loadOfflineQueue());
+  const queue = await loadOfflineQueue();
+  const photos = queue
+    .filter((item) => isPhotoQueueAction(item.action))
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const photoPass = force
+    ? photos
+    : photos.filter((item) => item.attempts < AUTO_PHOTO_ATTEMPT_CAP).slice(0, AUTO_PHOTO_BATCH);
+  const others = sortForDrain(queue.filter((item) => !isPhotoQueueAction(item.action)));
   let synced = 0;
-  for (const item of queue) {
-    try {
-      const localUri =
-        typeof item.payload.localUri === 'string' ? item.payload.localUri : '';
-      if (
-        (item.action === 'photo_upload' || item.action === 'key_photo') &&
-        (isRemotePhotoUrl(localUri) || isRemotePhotoUrl(applyPhotoUriRewrites(localUri)))
-      ) {
-        const remote = isRemotePhotoUrl(localUri) ? localUri : applyPhotoUriRewrites(localUri);
-        if (localUri && remote && localUri !== remote) {
-          await rewriteDraftPhotoUris(localUri, remote);
+  let notedUpload = false;
+  let stopPhotos = false;
+
+  if (photoPass.length > 0) {
+    let completed = 0;
+    emitSyncProgress({ completed: 0, total: photoPass.length });
+    await mapPool(photoPass, PHOTO_UPLOAD_CONCURRENCY, async (item) => {
+      if (stopPhotos) return;
+      try {
+        const noted = await settlePhotoItem(item);
+        if (noted) notedUpload = true;
+        synced += 1;
+      } catch (err) {
+        if (isAuthError(err)) {
+          stopPhotos = true;
+          return;
         }
+        await keepFailedPhoto(item, err);
+      } finally {
+        if (!stopPhotos) {
+          completed += 1;
+          emitSyncProgress({
+            completed: Math.min(completed, photoPass.length),
+            total: photoPass.length,
+          });
+        }
+        await yieldToUi();
+      }
+    });
+  }
+  emitSyncProgress(null);
+
+  if (notedUpload) {
+    try {
+      await flushUploadedPhotoDrafts();
+    } catch {
+      // The in-memory map still marks these photos as uploaded.
+    }
+  }
+
+  if (!stopPhotos) {
+    for (const item of others) {
+      try {
+        await withTimeout(replayItem(item), PHOTO_UPLOAD_TIMEOUT_MS, 'Upload');
         await removeQueueItem(item.id);
         synced += 1;
         await yieldToUi();
-        continue;
+      } catch (err) {
+        if (isAuthError(err) || isRetryableNetworkError(err)) break;
+        break;
       }
-      const remoteUrl = await replayItem(item);
-      if (remoteUrl && localUri) {
-        await rewriteDraftPhotoUris(localUri, remoteUrl);
-        await deleteQueueItemsByLocalUri(localUri);
-      } else {
-        await removeQueueItem(item.id);
-      }
-      synced += 1;
-      await yieldToUi();
-    } catch (err) {
-      if (isAuthError(err)) break;
-      if (item.action === 'photo_upload' || item.action === 'key_photo') {
-        if (isMissingFileError(err)) {
-          const attempts = await bumpQueueAttempt(item.id);
-          if (attempts >= MISSING_FILE_DROP_AFTER) {
-            const uri = typeof item.payload.localUri === 'string' ? item.payload.localUri : undefined;
-            await deleteQueuedPhoto(uri);
-            await removeQueueItem(item.id);
-          }
-        } else if (isPermanentPhotoError(err)) {
-          const uri = typeof item.payload.localUri === 'string' ? item.payload.localUri : undefined;
-          await deleteQueuedPhoto(uri);
-          await removeQueueItem(item.id);
-        }
-        continue;
-      }
-      if (isRetryableNetworkError(err)) break;
-      break;
     }
   }
   return { synced, remaining: await pendingSyncCount() };
 }
 
-export async function syncOfflineQueue(): Promise<{ synced: number; remaining: number }> {
+export async function syncOfflineQueue(options?: {
+  force?: boolean;
+}): Promise<{ synced: number; remaining: number }> {
+  if (options?.force) drainForce = true;
   if (drainInFlight) {
     drainAgain = true;
     return drainInFlight;
@@ -306,31 +415,39 @@ export async function syncOfflineQueue(): Promise<{ synced: number; remaining: n
     let remaining = await pendingSyncCount();
     do {
       drainAgain = false;
-      const pass = await drainQueue();
+      const force = drainForce;
+      drainForce = false;
+      const pass = await drainQueue(force);
       synced += pass.synced;
       remaining = pass.remaining;
-      if (pass.synced === 0) break;
-    } while (drainAgain || remaining > 0);
+    } while (drainAgain);
     return { synced, remaining };
   })().finally(() => {
     drainInFlight = null;
+    emitSyncProgress(null);
   });
   return drainInFlight;
 }
 
 /** Push the existing queue first so a restart does not stall behind recover. */
-export async function flushOfflineWork(): Promise<{ synced: number; remaining: number }> {
-  const first = await syncOfflineQueue();
+export async function flushOfflineWork(options?: {
+  force?: boolean;
+}): Promise<{ synced: number; remaining: number }> {
   try {
-    await recoverUnsentPhotos();
-  } catch {
-    // Drafts stay on disk even if enqueue fails.
+    const first = await syncOfflineQueue(options);
+    try {
+      await recoverUnsentPhotos();
+    } catch {
+      // Drafts stay on disk even if enqueue fails.
+    }
+    const second = await syncOfflineQueue(options);
+    return {
+      synced: first.synced + second.synced,
+      remaining: second.remaining,
+    };
+  } finally {
+    emitSyncProgress(null);
   }
-  const second = await syncOfflineQueue();
-  return {
-    synced: first.synced + second.synced,
-    remaining: second.remaining,
-  };
 }
 
 /** Persist the JPEG, record it in the SQLite queue, then let drain upload. */

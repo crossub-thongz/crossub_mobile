@@ -40,7 +40,6 @@ import {
   saveDraftLocal,
   saveJobsCache,
   subscribeDraftsChanged,
-  rewriteStrings,
 } from '@/src/offline/db';
 import { mergeQueuedPhotosIntoDraft } from '@/src/offline/hydrate-draft-photos';
 import { recoverUnsentPhotos } from '@/src/offline/recover-unsent-photos';
@@ -184,11 +183,7 @@ export function InspectionsProvider({ children }: { children: ReactNode }) {
       setDrafts((current) => {
         const next: Record<string, RoutineExecutionDraft> = {};
         for (const [id, draft] of Object.entries(current)) {
-          next[id] = dedupeDraftPhotoLists(
-            applyPhotoUriRewrites(
-              rewriteStrings(draft, rewrite.from, rewrite.to) as RoutineExecutionDraft,
-            ),
-          );
+          next[id] = dedupeDraftPhotoLists(applyPhotoUriRewrites(draft));
         }
         return next;
       });

@@ -43,6 +43,7 @@ import {
   loadOfflineQueue,
   saveHandoverDraft,
   subscribeDraftsChanged,
+  applyPhotoUriRewrites,
   type HandoverFormDraft,
 } from '@/src/offline/db';
 import {
@@ -307,7 +308,10 @@ export function JobHandoverPanel({
     return subscribeDraftsChanged((rewrite) => {
       if (!rewrite) return;
       setPhotoUrls((current) =>
-        current.map((url) => (url === rewrite.from ? rewrite.to : url)),
+        current.map((url) => {
+          const next = applyPhotoUriRewrites(url);
+          return typeof next === 'string' ? next : url;
+        }),
       );
     });
   }, []);

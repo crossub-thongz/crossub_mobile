@@ -209,13 +209,34 @@ async function persistPhotoUriRewrite(from: string, to: string): Promise<void> {
   }
 }
 
+function uploadedUrlFor(uri: string): string | null {
+  if (!uri || isRemotePhotoUrl(uri)) return null;
+  const name = photoFileName(uri);
+  for (const rewrite of appliedPhotoUriRewrites) {
+    if (!rewrite.to || !isRemotePhotoUrl(rewrite.to)) continue;
+    if (uri === rewrite.from || sameLocalPhotoUri(uri, rewrite.from)) return rewrite.to;
+    const fromName = photoFileName(rewrite.from);
+    if (name && fromName && name === fromName && name.startsWith('photo-')) return rewrite.to;
+  }
+  return null;
+}
+
+function rewritePhotoTree(value: unknown): unknown {
+  if (typeof value === 'string') return uploadedUrlFor(value) ?? value;
+  if (Array.isArray(value)) return value.map((item) => rewritePhotoTree(item));
+  if (value && typeof value === 'object') {
+    const next: Record<string, unknown> = {};
+    for (const [key, nested] of Object.entries(value as Record<string, unknown>)) {
+      next[key] = rewritePhotoTree(nested);
+    }
+    return next;
+  }
+  return value;
+}
+
 /** Re-apply uploads that already reached the server so a later draft save cannot undo them. */
 export function applyPhotoUriRewrites<T>(value: T): T {
-  let next: unknown = value;
-  for (const rewrite of appliedPhotoUriRewrites) {
-    next = rewriteStrings(next, rewrite.from, rewrite.to);
-  }
-  return next as T;
+  return rewritePhotoTree(value) as T;
 }
 
 export async function saveDraftLocal(
@@ -523,24 +544,34 @@ export async function rewriteQueuedUris(from: string, to: string): Promise<void>
   }
 }
 
-export async function rewriteDraftPhotoUris(from: string, to: string): Promise<void> {
-  if (!from || from === to) return;
+/** Remember an upload and refresh the screen. Does not rewrite every draft row. */
+export function noteUploadedPhoto(from: string, to: string): void {
+  if (!from || !to || from === to) return;
   rememberPhotoUriRewrite(from, to);
+  notifyDraftsChanged({ from, to });
+}
+
+/** Write remembered uploads into drafts once, matching /var and /private/var copies. */
+export async function flushUploadedPhotoDrafts(): Promise<void> {
   const drafts = await loadAllDrafts();
   for (const [id, draft] of Object.entries(drafts)) {
-    const next = rewriteStrings(draft, from, to) as RoutineExecutionDraft;
+    const next = applyPhotoUriRewrites(draft);
     if (JSON.stringify(next) !== JSON.stringify(draft)) {
       await saveDraftLocal(id, next);
     }
   }
   const handovers = await loadAllHandoverDrafts();
   for (const row of handovers) {
-    const next = rewriteStrings(row.draft, from, to) as HandoverFormDraft;
+    const next = applyPhotoUriRewrites(row.draft);
     if (JSON.stringify(next) !== JSON.stringify(row.draft)) {
       await saveHandoverDraft(row.jobId, row.phase, next);
     }
   }
-  notifyDraftsChanged({ from, to });
+}
+
+export async function rewriteDraftPhotoUris(from: string, to: string): Promise<void> {
+  noteUploadedPhoto(from, to);
+  await flushUploadedPhotoDrafts();
 }
 
 export async function deleteQueueItemsByLocalUri(uri: string): Promise<void> {

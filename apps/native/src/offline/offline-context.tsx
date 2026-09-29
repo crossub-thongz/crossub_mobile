@@ -13,14 +13,15 @@ import { AppState } from 'react-native';
 
 import { useAuth } from '@/src/auth/auth-context';
 import { pendingSyncCount, subscribeQueueChanged } from '@/src/offline/db';
-import { flushOfflineWork, syncOfflineQueue } from '@/src/offline/sync';
+import { flushOfflineWork, subscribeSyncProgress, syncOfflineQueue, type SyncProgress } from '@/src/offline/sync';
 
 type OfflineContextValue = {
   pendingSync: number;
   syncing: boolean;
+  syncProgress: SyncProgress | null;
   lastError: string | null;
   refreshPending: () => Promise<void>;
-  syncNow: () => Promise<{ synced: number; remaining: number }>;
+  syncNow: (force?: boolean) => Promise<{ synced: number; remaining: number }>;
 };
 
 const OfflineContext = createContext<OfflineContextValue | undefined>(undefined);
@@ -29,6 +30,7 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
   const { status } = useAuth();
   const [pendingSync, setPendingSync] = useState(0);
   const [syncing, setSyncing] = useState(false);
+  const [syncProgress, setSyncProgress] = useState<SyncProgress | null>(null);
   const [lastError, setLastError] = useState<string | null>(null);
   const syncingRef = useRef(false);
 
@@ -36,15 +38,15 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
     setPendingSync(await pendingSyncCount());
   }, []);
 
-  const syncNow = useCallback(async () => {
+  const syncNow = useCallback(async (force = false) => {
     if (syncingRef.current) {
-      return syncOfflineQueue();
+      return syncOfflineQueue(force ? { force: true } : undefined);
     }
     syncingRef.current = true;
     setSyncing(true);
     setLastError(null);
     try {
-      const result = await flushOfflineWork();
+      const result = await flushOfflineWork(force ? { force: true } : undefined);
       setPendingSync(result.remaining);
       if (result.remaining > 0 && result.synced === 0) {
         setLastError('Still waiting to reach the server. Tap Sync now to retry.');
@@ -67,6 +69,10 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
       void refreshPending();
     });
   }, [refreshPending]);
+
+  useEffect(() => {
+    return subscribeSyncProgress(setSyncProgress);
+  }, []);
 
   useEffect(() => {
     if (status !== 'authed') return;
@@ -94,8 +100,8 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
   }, [status, syncNow]);
 
   const value = useMemo(
-    () => ({ pendingSync, syncing, lastError, refreshPending, syncNow }),
-    [pendingSync, syncing, lastError, refreshPending, syncNow],
+    () => ({ pendingSync, syncing, syncProgress, lastError, refreshPending, syncNow }),
+    [pendingSync, syncing, syncProgress, lastError, refreshPending, syncNow],
   );
 
   return <OfflineContext.Provider value={value}>{children}</OfflineContext.Provider>;
