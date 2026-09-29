@@ -131,30 +131,46 @@ export function InspectionsProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let cancelled = false;
+    const applyQueueToDrafts = async () => {
+      const loaded = await loadAllDrafts();
+      const queue = await loadOfflineQueue();
+      const byJob = new Map<string, typeof queue>();
+      for (const item of queue) {
+        if (item.action !== 'photo_upload') continue;
+        const list = byJob.get(item.jobId) ?? [];
+        list.push(item);
+        byJob.set(item.jobId, list);
+      }
+      const next: Record<string, RoutineExecutionDraft> = {};
+      for (const [jobId, draft] of Object.entries(loaded)) {
+        const merged = await mergeQueuedPhotosIntoDraft(draft, byJob.get(jobId) ?? []);
+        const normalized = dedupeDraftPhotoLists(applyPhotoUriRewrites(merged));
+        next[jobId] = normalized;
+        if (JSON.stringify(normalized) !== JSON.stringify(draft)) {
+          await saveDraftLocal(jobId, normalized);
+        }
+      }
+      if (!cancelled) setDrafts(next);
+    };
+
     void (async () => {
       try {
-        await recoverUnsentPhotos().catch(() => undefined);
         const loaded = await loadAllDrafts();
-        const queue = await loadOfflineQueue();
-        const byJob = new Map<string, typeof queue>();
-        for (const item of queue) {
-          if (item.action !== 'photo_upload') continue;
-          const list = byJob.get(item.jobId) ?? [];
-          list.push(item);
-          byJob.set(item.jobId, list);
-        }
-        const next: Record<string, RoutineExecutionDraft> = {};
-        for (const [jobId, draft] of Object.entries(loaded)) {
-          const merged = await mergeQueuedPhotosIntoDraft(draft, byJob.get(jobId) ?? []);
-          const normalized = dedupeDraftPhotoLists(applyPhotoUriRewrites(merged));
-          next[jobId] = normalized;
-          if (JSON.stringify(normalized) !== JSON.stringify(draft)) {
-            await saveDraftLocal(jobId, normalized);
+        if (!cancelled) {
+          const ready: Record<string, RoutineExecutionDraft> = {};
+          for (const [jobId, draft] of Object.entries(loaded)) {
+            ready[jobId] = dedupeDraftPhotoLists(applyPhotoUriRewrites(draft));
           }
+          setDrafts(ready);
         }
-        if (!cancelled) setDrafts(next);
       } finally {
         if (!cancelled) setDraftsHydrated(true);
+      }
+      try {
+        await recoverUnsentPhotos();
+        if (!cancelled) await applyQueueToDrafts();
+      } catch {
+        // The job is already on screen from SQLite.
       }
     })();
     return () => {

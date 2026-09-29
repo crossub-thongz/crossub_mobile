@@ -1,5 +1,6 @@
 import { photoAreaName } from '@/src/constants/inspection-areas';
 import { sameLocalPhotoUri } from '@/src/lib/local-file';
+import { yieldToUi } from '@/src/jobs/compress-photo';
 import type { RoutineExecutionDraft } from '@/src/lib/types';
 import {
   enqueueOfflineAction,
@@ -42,6 +43,7 @@ async function enqueueLocalPhoto(
 ): Promise<number> {
   if (!url || isRemotePhotoUrl(url)) return 0;
   if (isRemotePhotoUrl(applyPhotoUriRewrites(url))) return 0;
+  if (alreadyQueued(uris, url)) return 0;
   let durable = '';
   try {
     durable = (await repairQueuedPhotoUri(url)) ?? (await persistQueuedPhoto(url));
@@ -64,6 +66,7 @@ async function recoverDraftPhotos(
   for (const [area, issue] of Object.entries(draft.issues ?? {})) {
     for (const url of issue.areaPhotos ?? []) {
       added += await enqueueLocalPhoto(jobId, 'photo_upload', url, { areaName: area }, uris);
+      await yieldToUi();
     }
     for (const [section, photos] of Object.entries(issue.photosBySection ?? {})) {
       for (const url of photos.ingoingPhotoUrls ?? []) {
@@ -74,6 +77,7 @@ async function recoverDraftPhotos(
           { areaName: photoAreaName(area, section, 'ingoing') },
           uris,
         );
+        await yieldToUi();
       }
       for (const url of photos.outgoingPhotoUrls ?? []) {
         added += await enqueueLocalPhoto(
@@ -83,6 +87,7 @@ async function recoverDraftPhotos(
           { areaName: photoAreaName(area, section, 'outgoing') },
           uris,
         );
+        await yieldToUi();
       }
     }
   }
