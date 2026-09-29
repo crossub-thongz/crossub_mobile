@@ -13,7 +13,6 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { apiErrorMessage } from '@/src/api/client';
 import {
   INSPECTION_BURST_MAX,
   deleteLocalPhoto,
@@ -23,7 +22,7 @@ import {
 import { pickInspectionPhotos } from '@/src/jobs/pick-inspection-photos';
 import { compressAndPersistPhoto, isDurableLocalPhoto, localPhotoExists } from '@/src/offline/queued-photo';
 import { applyPhotoUriRewrites, deleteQueueItemsByLocalUri } from '@/src/offline/db';
-import { enqueuePhotoUpload } from '@/src/offline/sync';
+import { enqueuePhotoUpload, syncOfflineQueue } from '@/src/offline/sync';
 import { isRemotePhotoUrl } from '@/src/lib/local-file';
 
 type Lens = 0.5 | 1 | 2;
@@ -39,6 +38,24 @@ type JobCameraProps = {
   jobId?: string;
   uploadAreaName?: string;
 };
+
+function cameraErrorMessage(err: unknown, fallback: string): string {
+  const raw = err instanceof Error ? err.message.trim() : '';
+  if (!raw) return fallback;
+  const lower = raw.toLowerCase();
+  if (
+    lower.includes('could not reach') ||
+    lower.includes('network') ||
+    lower.includes('internet') ||
+    lower.includes('timed out') ||
+    lower.includes('timeout') ||
+    lower.includes('offline') ||
+    lower.includes('failed to fetch')
+  ) {
+    return fallback;
+  }
+  return raw.length > 140 ? fallback : raw;
+}
 
 function zoomForLens(lens: Lens): number {
   if (lens === 0.5) return 0;
@@ -122,13 +139,16 @@ export function JobCamera({
     } catch (err) {
       const uploaded = applyPhotoUriRewrites(captured.uri);
       if (isRemotePhotoUrl(uploaded)) return { ...captured, uri: uploaded };
+      if (await localPhotoExists(captured.uri)) return captured;
       throw err;
     }
     const inspectionId = jobIdRef.current;
     const areaName = uploadAreaNameRef.current;
     if (inspectionId) {
       try {
-        const queued = await enqueuePhotoUpload(inspectionId, photo.uri, areaName);
+        const queued = await enqueuePhotoUpload(inspectionId, photo.uri, areaName, {
+          drain: false,
+        });
         photo = { ...photo, uri: queued };
       } catch {
         // The JPEG is already on disk; upload continues when the queue drains.
@@ -193,16 +213,22 @@ export function JobCamera({
         }
       }
       if (compressed.length === 0) {
-        throw new Error('Could not save the photo on this device.');
+        setError('Could not save the photo on this device.');
+        return;
       }
       handedOffRef.current = true;
       pendingRef.current.clear();
       setShotList([]);
-      if (burst && onBurstComplete) onBurstComplete(compressed);
-      else if (onCapture) onCapture(compressed[compressed.length - 1]);
+      try {
+        if (burst && onBurstComplete) onBurstComplete(compressed);
+        else if (onCapture) onCapture(compressed[compressed.length - 1]);
+      } catch {
+        // Photos are already on disk and in the queue.
+      }
       onClose();
-    } catch (err) {
-      setError(apiErrorMessage(err, 'Could not save the photo on this device.'));
+      void syncOfflineQueue();
+    } catch {
+      setError('Could not save the photo on this device.');
     } finally {
       setBusy(false);
     }
@@ -235,7 +261,7 @@ export function JobCamera({
       setShotList([...shotsRef.current, captured]);
       queueCompress(captured);
     } catch (err) {
-      setError(apiErrorMessage(err, 'Could not take photo.'));
+      setError(cameraErrorMessage(err, 'Could not take photo.'));
       setStalled(true);
     } finally {
       setBusy(false);
@@ -263,7 +289,7 @@ export function JobCamera({
       setShotList([...shotsRef.current, ...picked]);
       for (const photo of picked) queueCompress(photo);
     } catch (err) {
-      setError(apiErrorMessage(err, 'Could not open the photo library.'));
+      setError(cameraErrorMessage(err, 'Could not open the photo library.'));
     }
   };
 

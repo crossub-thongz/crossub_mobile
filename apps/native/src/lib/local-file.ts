@@ -4,6 +4,16 @@ export function isRemotePhotoUrl(uri: string): boolean {
   return uri.startsWith('http://') || uri.startsWith('https://');
 }
 
+export type PhotoCountTone = 'empty' | 'uploading' | 'complete';
+
+/** Yellow = none, blue = still on this phone, green = on the server. */
+export function photoCountTone(urls: readonly string[]): PhotoCountTone {
+  const photos = urls.filter(Boolean);
+  if (photos.length === 0) return 'empty';
+  if (photos.some((uri) => !isRemotePhotoUrl(uri))) return 'uploading';
+  return 'complete';
+}
+
 export function isDurableLocalPhoto(uri: string): boolean {
   return uri.includes('/offline-queue/');
 }

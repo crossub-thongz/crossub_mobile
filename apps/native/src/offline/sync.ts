@@ -12,6 +12,7 @@ import {
   type SaveInspectorFindings,
   type UploadInspectorPhoto,
 } from '@/src/api/inspector';
+import { getAccessToken } from '@/src/auth/session';
 import { attendanceWindowFromHours } from '@/src/lib/findings';
 import {
   deleteLocalPhoto,
@@ -57,9 +58,24 @@ const DRAIN_ORDER: OfflineAction[] = [
 ];
 
 const MISSING_FILE_DROP_AFTER = 8;
+const PHOTO_UPLOAD_TIMEOUT_MS = 45_000;
 
 let drainInFlight: Promise<{ synced: number; remaining: number }> | null = null;
 let drainAgain = false;
+
+async function withTimeout<T>(work: Promise<T>, ms: number, label: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      work,
+      new Promise<T>((_, reject) => {
+        timer = setTimeout(() => reject(new Error(`${label} timed out`)), ms);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
 
 function sortForDrain(items: OfflineQueueItem[]): OfflineQueueItem[] {
   return [...items].sort((a, b) => {
@@ -72,7 +88,9 @@ function sortForDrain(items: OfflineQueueItem[]): OfflineQueueItem[] {
 export async function isDeviceOnline(): Promise<boolean> {
   try {
     const state = await Network.getNetworkStateAsync();
-    return Boolean(state.isConnected) && state.isInternetReachable !== false;
+    // iOS often reports isInternetReachable=false on working Wi-Fi. Try anyway
+    // whenever the radio is up so queued photos can leave the device.
+    return state.isConnected !== false;
   } catch {
     return true;
   }
@@ -126,10 +144,14 @@ async function replayPhotoUpload(item: OfflineQueueItem): Promise<string | null>
     throw new Error('Photo is missing from this device.');
   }
   const prepared = await prepareStoredPhotoUpload(localUri);
-  const uploaded = await uploadInspectionPhoto(item.jobId, {
-    ...prepared.body,
-    areaName: typeof payload.areaName === 'string' ? payload.areaName : undefined,
-  });
+  const uploaded = await withTimeout(
+    uploadInspectionPhoto(item.jobId, {
+      ...prepared.body,
+      areaName: typeof payload.areaName === 'string' ? payload.areaName : undefined,
+    }),
+    PHOTO_UPLOAD_TIMEOUT_MS,
+    'Photo upload',
+  );
   if (prepared.localUri !== localUri) await deleteLocalPhoto(prepared.localUri);
   return uploaded.url ?? null;
 }
@@ -147,11 +169,15 @@ async function replayKeyPhoto(item: OfflineQueueItem): Promise<string | null> {
     throw new Error('Photo is missing from this device.');
   }
   const prepared = await prepareStoredPhotoUpload(localUri);
-  const custody = await uploadKeyCustodyPhoto(item.jobId, {
-    ...prepared.body,
-    phase,
-    fileName: typeof payload.fileName === 'string' ? payload.fileName : prepared.body.fileName,
-  });
+  const custody = await withTimeout(
+    uploadKeyCustodyPhoto(item.jobId, {
+      ...prepared.body,
+      phase,
+      fileName: typeof payload.fileName === 'string' ? payload.fileName : prepared.body.fileName,
+    }),
+    PHOTO_UPLOAD_TIMEOUT_MS,
+    'Key photo upload',
+  );
   if (prepared.localUri !== localUri) await deleteLocalPhoto(prepared.localUri);
   const urls = phase === 'return' ? custody.returnPhotos : custody.collectPhotos;
   return urls[urls.length - 1] ?? null;
@@ -204,7 +230,7 @@ function isMissingFileError(err: unknown): boolean {
 }
 
 async function drainQueue(): Promise<{ synced: number; remaining: number }> {
-  if (!(await isDeviceOnline())) {
+  if (!(await getAccessToken())) {
     return { synced: 0, remaining: await pendingSyncCount() };
   }
   const queue = sortForDrain(await loadOfflineQueue());
@@ -222,7 +248,11 @@ async function drainQueue(): Promise<{ synced: number; remaining: number }> {
       synced += 1;
       await yieldToUi();
     } catch (err) {
-      if (isAuthError(err) || isRetryableNetworkError(err)) break;
+      if (isAuthError(err)) break;
+      if (isRetryableNetworkError(err)) {
+        if (item.action === 'photo_upload' || item.action === 'key_photo') continue;
+        break;
+      }
       if (isMissingFileError(err)) {
         const attempts = await bumpQueueAttempt(item.id);
         if (attempts >= MISSING_FILE_DROP_AFTER) {
@@ -266,14 +296,19 @@ export async function syncOfflineQueue(): Promise<{ synced: number; remaining: n
   return drainInFlight;
 }
 
-/** Recover unsent local photos, then push the queue. Safe to call on login and logout. */
+/** Push the existing queue first so a restart does not stall behind recover. */
 export async function flushOfflineWork(): Promise<{ synced: number; remaining: number }> {
+  const first = await syncOfflineQueue();
   try {
     await recoverUnsentPhotos();
   } catch {
     // Drafts stay on disk even if enqueue fails.
   }
-  return syncOfflineQueue();
+  const second = await syncOfflineQueue();
+  return {
+    synced: first.synced + second.synced,
+    remaining: second.remaining,
+  };
 }
 
 /** Persist the JPEG, record it in the SQLite queue, then let drain upload. */
@@ -281,21 +316,33 @@ export async function enqueuePhotoUpload(
   inspectionId: string,
   localUri: string,
   areaName?: string,
+  options?: { drain?: boolean },
 ): Promise<string> {
   if (!localUri) throw new Error('Photo is missing from this device.');
+  const drain = options?.drain !== false;
+  const kickDrain = () => {
+    if (drain) void syncOfflineQueue();
+  };
   const rewritten = applyPhotoUriRewrites(localUri);
   if (isRemotePhotoUrl(rewritten)) return rewritten;
-  if (await queueHasLocalUri(localUri, inspectionId)) return localUri;
+  if (await queueHasLocalUri(localUri, inspectionId)) {
+    kickDrain();
+    return localUri;
+  }
   const durable =
     isDurableLocalPhoto(localUri) && (await localPhotoExists(localUri))
       ? localUri
       : await persistPhotoPayload(localUri);
   if (isRemotePhotoUrl(applyPhotoUriRewrites(durable))) return applyPhotoUriRewrites(durable);
-  if (await queueHasLocalUri(durable, inspectionId)) return durable;
+  if (await queueHasLocalUri(durable, inspectionId)) {
+    kickDrain();
+    return durable;
+  }
   await enqueueOfflineAction(inspectionId, 'photo_upload', {
     localUri: durable,
     areaName,
   });
+  kickDrain();
   return durable;
 }
 
@@ -365,12 +412,17 @@ export async function queueInspectionPhotoBatch(
       await yieldToUi();
       continue;
     }
-    const compressed = isDurableLocalPhoto(photo.uri)
-      ? photo
-      : await compressAndPersistPhoto(photo);
-    const durable = await enqueuePhotoUpload(inspectionId, compressed.uri, areaName);
-    onEach?.(photo.uri, durable);
-    urls.push(durable);
+    try {
+      const compressed = isDurableLocalPhoto(photo.uri)
+        ? photo
+        : await compressAndPersistPhoto(photo);
+      const durable = await enqueuePhotoUpload(inspectionId, compressed.uri, areaName);
+      onEach?.(photo.uri, durable);
+      urls.push(durable);
+    } catch {
+      onEach?.(photo.uri, photo.uri);
+      urls.push(photo.uri);
+    }
     await yieldToUi();
   }
   void syncOfflineQueue();

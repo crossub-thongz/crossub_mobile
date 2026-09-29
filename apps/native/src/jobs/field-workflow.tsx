@@ -4,7 +4,6 @@ import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'r
 
 import { AppTextInput } from '@/src/ui/app-text-input';
 
-import { apiErrorMessage } from '@/src/api/client';
 import {
   acceptInspection,
   clearInspectionAreaPhotos,
@@ -332,29 +331,50 @@ export function FieldWorkflowScreen({
     persist({ ...draft, areaIndex: Math.max(0, Math.min(index, names.length - 1)) });
   };
 
-  const onBurst = async (photos: LocalPhoto[]) => {
+  const onBurst = (photos: LocalPhoto[]) => {
     const areaName = currentName;
     if (!id || !areaName || photos.length === 0) return;
     setError(null);
-    try {
-      await ensureAccepted();
-      await queueInspectionPhotoBatch(id, photos, areaName, (fromUri, toUri) => {
-        const latest = draftRef.current.issues[areaName] ?? emptyRoutineIssue();
-        persist({
-          ...draftRef.current,
-          issues: {
-            ...draftRef.current.issues,
-            [areaName]: {
-              ...latest,
-              available: true as const,
-              areaPhotos: upsertPhotoUrl(latest.areaPhotos ?? [], fromUri, toUri),
+    const latest = draftRef.current.issues[areaName] ?? emptyRoutineIssue();
+    persist({
+      ...draftRef.current,
+      issues: {
+        ...draftRef.current.issues,
+        [areaName]: {
+          ...latest,
+          available: true as const,
+          areaPhotos: photos.reduce(
+            (urls, photo) => upsertPhotoUrl(urls, photo.uri, photo.uri),
+            latest.areaPhotos ?? [],
+          ),
+        },
+      },
+    });
+    void (async () => {
+      try {
+        await ensureAccepted();
+      } catch {
+        // Photos stay on the draft; accept retries when the queue drains.
+      }
+      try {
+        await queueInspectionPhotoBatch(id, photos, areaName, (fromUri, toUri) => {
+          const current = draftRef.current.issues[areaName] ?? emptyRoutineIssue();
+          persist({
+            ...draftRef.current,
+            issues: {
+              ...draftRef.current.issues,
+              [areaName]: {
+                ...current,
+                available: true as const,
+                areaPhotos: upsertPhotoUrl(current.areaPhotos ?? [], fromUri, toUri),
+              },
             },
-          },
+          });
         });
-      });
-    } catch (err) {
-      setError(apiErrorMessage(err, 'Photo upload failed - please retry'));
-    }
+      } catch {
+        // SQLite still holds the JPEGs for the next sync.
+      }
+    })();
   };
 
   const skipArea = () => {

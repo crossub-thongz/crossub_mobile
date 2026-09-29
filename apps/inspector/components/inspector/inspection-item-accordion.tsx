@@ -65,6 +65,12 @@ export function InspectionItemAccordion({
   const Icon = inspectionItemIcon(name);
   const photoCount = photoUrls.filter(Boolean).length;
   const missingPhotos = photoCount === 0;
+  const photosUploading =
+    !missingPhotos &&
+    photoUrls.some(
+      (uri) => Boolean(uri) && !uri.startsWith('http://') && !uri.startsWith('https://'),
+    );
+  const photoTone = missingPhotos ? 'empty' : photosUploading ? 'uploading' : 'complete';
 
   const toggleChip = (key: ItemConditionKey) => {
     onChangeMarks({
@@ -90,12 +96,16 @@ export function InspectionItemAccordion({
           <span
             className={cn(
               'inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-bold',
-              missingPhotos
-                ? 'bg-amber-400/15 text-amber-400'
-                : 'bg-primary/20 text-primary',
+              photoTone === 'empty' && 'bg-amber-400/15 text-amber-400',
+              photoTone === 'uploading' && 'bg-sky-400/15 text-sky-400',
+              photoTone === 'complete' && 'bg-primary/20 text-primary',
             )}
             aria-label={
-              missingPhotos ? 'No photos for this item' : `${photoCount} photos for this item`
+              photoTone === 'empty'
+                ? 'No photos for this item'
+                : photoTone === 'uploading'
+                  ? `${photoCount} photos uploading`
+                  : `${photoCount} photos uploaded`
             }
           >
             <Camera className="size-3" />

@@ -55,7 +55,6 @@ export default function SettingsScreen() {
                   Alert.alert('Sync failed', err instanceof Error ? err.message : 'Try again.'),
                 );
             }}
-            disabled={syncing}
             style={styles.outline}
           >
             <Text style={styles.outlineText}>{syncing ? 'Syncing...' : 'Sync now'}</Text>

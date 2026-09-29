@@ -8,8 +8,8 @@ import { colors } from '@/src/theme';
 
 export function PendingSyncBanner({ inset }: { inset?: boolean }) {
   const router = useRouter();
-  const { pendingSync, syncing, syncNow } = useOffline();
-  if (pendingSync <= 0) return null;
+  const { pendingSync, syncing, lastError, syncNow } = useOffline();
+  if (pendingSync <= 0 && !syncing) return null;
 
   return (
     <View style={[styles.banner, inset && styles.inset]}>
@@ -21,15 +21,19 @@ export function PendingSyncBanner({ inset }: { inset?: boolean }) {
         accessibilityLabel="Open Settings for offline sync"
       >
         <Text style={styles.text}>
-          {pendingSync} change{pendingSync === 1 ? '' : 's'} waiting to sync
+          {syncing
+            ? 'Uploading photos...'
+            : `${pendingSync} change${pendingSync === 1 ? '' : 's'} waiting to sync`}
         </Text>
+        {lastError && !syncing ? <Text style={styles.error}>{lastError}</Text> : null}
       </Pressable>
       <Pressable
         onPress={() => {
           void syncNow().catch(() => undefined);
         }}
-        disabled={syncing}
         style={styles.sync}
+        accessibilityRole="button"
+        accessibilityLabel={syncing ? 'Sync in progress, tap to keep trying' : 'Sync now'}
       >
         {syncing ? (
           <ActivityIndicator color={colors.amber} size="small" />
@@ -56,6 +60,7 @@ const styles = StyleSheet.create({
   inset: { marginHorizontal: 16, marginTop: 8 },
   copy: { flex: 1, minWidth: 0 },
   text: { color: colors.amber, fontSize: 12, fontWeight: '600' },
+  error: { color: colors.amber, fontSize: 10, fontWeight: '500', marginTop: 2 },
   sync: {
     borderWidth: 1,
     borderColor: colors.amberBorder,

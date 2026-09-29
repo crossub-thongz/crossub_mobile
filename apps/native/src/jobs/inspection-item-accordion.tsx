@@ -7,6 +7,7 @@ import { AppTextInput } from '@/src/ui/app-text-input';
 import { InspectionPhotosField } from '@/src/jobs/inspection-photos-field';
 import type { LocalPhoto } from '@/src/jobs/compress-photo';
 import { inspectionItemIcon } from '@/src/lib/inspection-item-icon';
+import { photoCountTone } from '@/src/lib/local-file';
 import {
   cycleItemMark,
   emptyItemMarks,
@@ -66,7 +67,13 @@ export function InspectionItemAccordion({
   const icon = inspectionItemIcon(name);
   const rootRef = useRef<View>(null);
   const photoCount = photoUrls.filter(Boolean).length;
-  const missingPhotos = photoCount === 0;
+  const tone = photoCountTone(photoUrls);
+  const photoBadgeLabel =
+    tone === 'empty'
+      ? 'No photos for this item'
+      : tone === 'uploading'
+        ? `${photoCount} photos uploading`
+        : `${photoCount} photos uploaded`;
 
   useEffect(() => {
     if (!open) return;
@@ -104,17 +111,25 @@ export function InspectionItemAccordion({
         <Text style={styles.name}>{name}</Text>
         <View style={styles.status}>
           <View
-            style={[styles.photoBadge, missingPhotos && styles.photoBadgeEmpty]}
-            accessibilityLabel={
-              missingPhotos ? 'No photos for this item' : `${photoCount} photos for this item`
-            }
+            style={[
+              styles.photoBadge,
+              tone === 'empty' && styles.photoBadgeEmpty,
+              tone === 'uploading' && styles.photoBadgeUploading,
+            ]}
+            accessibilityLabel={photoBadgeLabel}
           >
             <Ionicons
-              name={missingPhotos ? 'camera-outline' : 'camera'}
+              name={tone === 'empty' ? 'camera-outline' : tone === 'uploading' ? 'cloud-upload' : 'camera'}
               size={12}
-              color={missingPhotos ? '#fbbf24' : colors.primary}
+              color={tone === 'empty' ? '#fbbf24' : tone === 'uploading' ? colors.blue : colors.primary}
             />
-            <Text style={[styles.photoBadgeText, missingPhotos && styles.photoBadgeTextEmpty]}>
+            <Text
+              style={[
+                styles.photoBadgeText,
+                tone === 'empty' && styles.photoBadgeTextEmpty,
+                tone === 'uploading' && styles.photoBadgeTextUploading,
+              ]}
+            >
               {photoCount}
             </Text>
           </View>
@@ -297,8 +312,10 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,212,164,0.18)',
   },
   photoBadgeEmpty: { backgroundColor: 'rgba(251,191,36,0.16)' },
+  photoBadgeUploading: { backgroundColor: 'rgba(96,165,250,0.18)' },
   photoBadgeText: { color: colors.primary, fontSize: 10, fontWeight: '700' },
   photoBadgeTextEmpty: { color: '#fbbf24' },
+  photoBadgeTextUploading: { color: colors.blue },
   statusText: { fontSize: 11, fontWeight: '600' },
   body: { marginTop: 12, paddingLeft: 8, gap: 12 },
   actions: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },

@@ -164,6 +164,8 @@ export function isRetryableNetworkError(err: unknown): boolean {
     message.includes('could not reach') ||
     message.includes('timed out') ||
     message.includes('timeout') ||
+    message.includes('aborted') ||
+    message.includes('abort') ||
     message.includes('offline') ||
     message.includes('internet') ||
     message.includes('session expired') ||

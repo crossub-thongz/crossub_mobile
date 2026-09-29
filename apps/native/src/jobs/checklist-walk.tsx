@@ -216,25 +216,39 @@ export function ChecklistWalk({
     persist(merged);
   };
 
-  const attachAreaPhotos = async (photos: LocalPhoto[]) => {
+  const attachAreaPhotos = (photos: LocalPhoto[]) => {
     const areaName = currentName;
     if (!areaName || photos.length === 0) return;
     setError(null);
-    try {
-      await ensureAccepted();
-      await queueInspectionPhotoBatch(inspectionId, photos, areaName, (fromUri, toUri) => {
-        patchIssue(areaName, (rec) => ({
-          ...rec,
-          available: true,
-          areaPhotos: upsertPhotoUrl(rec.areaPhotos ?? [], fromUri, toUri),
-        }));
-      });
-    } catch (err) {
-      setError(apiErrorMessage(err, 'Photo upload failed - please retry'));
-    }
+    patchIssue(areaName, (rec) => ({
+      ...rec,
+      available: true,
+      areaPhotos: photos.reduce(
+        (urls, photo) => upsertPhotoUrl(urls, photo.uri, photo.uri),
+        rec.areaPhotos ?? [],
+      ),
+    }));
+    void (async () => {
+      try {
+        await ensureAccepted();
+      } catch {
+        // Photos stay on the draft; accept retries when the queue drains.
+      }
+      try {
+        await queueInspectionPhotoBatch(inspectionId, photos, areaName, (fromUri, toUri) => {
+          patchIssue(areaName, (rec) => ({
+            ...rec,
+            available: true,
+            areaPhotos: upsertPhotoUrl(rec.areaPhotos ?? [], fromUri, toUri),
+          }));
+        });
+      } catch {
+        // SQLite still holds the JPEGs for the next sync.
+      }
+    })();
   };
 
-  const attachSectionPhotos = async (
+  const attachSectionPhotos = (
     section: string,
     photos: LocalPhoto[],
     side?: 'ingoing' | 'outgoing',
@@ -246,51 +260,60 @@ export function ChecklistWalk({
     const slot: 'ingoing' | 'outgoing' =
       resolvedSide === 'outgoing' || type === 'outgoing' ? 'outgoing' : 'ingoing';
 
-    setError(null);
-    try {
-      await ensureAccepted();
-      await queueInspectionPhotoBatch(
-        inspectionId,
-        photos,
-        photoAreaName(areaName, section, resolvedSide),
-        (fromUri, toUri) => {
-          patchIssue(areaName, (rec) => {
-            const photosForSection = rec.photosBySection?.[section];
-            if (resolvedSide === 'ingoing') {
-              return {
-                ...rec,
-                available: true,
-                photosBySection: {
-                  ...(rec.photosBySection ?? {}),
-                  [section]: {
-                    ...(photosForSection ?? emptySectionPhotos()),
-                    ingoingPhotoUrls: upsertPhotoUrl(
-                      photosForSection?.ingoingPhotoUrls ?? [],
-                      fromUri,
-                      toUri,
-                    ),
-                  },
-                },
-              };
-            }
-            return {
-              ...rec,
-              available: true,
-              photosBySection: {
-                ...(rec.photosBySection ?? {}),
-                [section]: withCurrentUrls(
-                  slot,
-                  photosForSection,
-                  upsertPhotoUrl(currentUrls(slot, photosForSection), fromUri, toUri),
+    const applyUrls = (fromUri: string, toUri: string) => {
+      patchIssue(areaName, (rec) => {
+        const photosForSection = rec.photosBySection?.[section];
+        if (resolvedSide === 'ingoing') {
+          return {
+            ...rec,
+            available: true,
+            photosBySection: {
+              ...(rec.photosBySection ?? {}),
+              [section]: {
+                ...(photosForSection ?? emptySectionPhotos()),
+                ingoingPhotoUrls: upsertPhotoUrl(
+                  photosForSection?.ingoingPhotoUrls ?? [],
+                  fromUri,
+                  toUri,
                 ),
               },
-            };
-          });
-        },
-      );
-    } catch (err) {
-      setError(apiErrorMessage(err, 'Photo upload failed - please retry'));
-    }
+            },
+          };
+        }
+        return {
+          ...rec,
+          available: true,
+          photosBySection: {
+            ...(rec.photosBySection ?? {}),
+            [section]: withCurrentUrls(
+              slot,
+              photosForSection,
+              upsertPhotoUrl(currentUrls(slot, photosForSection), fromUri, toUri),
+            ),
+          },
+        };
+      });
+    };
+
+    setError(null);
+    for (const photo of photos) applyUrls(photo.uri, photo.uri);
+    void (async () => {
+      try {
+        await ensureAccepted();
+      } catch {
+        // Photos stay on the draft; accept retries when the queue drains.
+      }
+      try {
+        await queueInspectionPhotoBatch(
+          inspectionId,
+          photos,
+          photoAreaName(areaName, section, resolvedSide),
+          applyUrls,
+        );
+      } catch {
+        // SQLite still holds the JPEGs for the next sync.
+      }
+    })();
   };
 
   const goSpecial = () => {
