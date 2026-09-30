@@ -21,14 +21,32 @@ export {
 };
 
 const QUEUE_DIR = `${FileSystem.documentDirectory ?? ''}offline-queue/`;
+let queueDirReady: Promise<string> | null = null;
+
+async function fileExists(uri: string): Promise<boolean> {
+  try {
+    const info = await FileSystem.getInfoAsync(uri);
+    return info.exists;
+  } catch {
+    return false;
+  }
+}
 
 async function ensureQueueDir(): Promise<string> {
   if (!QUEUE_DIR) throw new Error('Photo storage is not available on this device.');
-  const info = await FileSystem.getInfoAsync(QUEUE_DIR);
-  if (!info.exists) {
-    await FileSystem.makeDirectoryAsync(QUEUE_DIR, { intermediates: true });
+  if (!queueDirReady) {
+    queueDirReady = (async () => {
+      const info = await FileSystem.getInfoAsync(QUEUE_DIR);
+      if (!info.exists) {
+        await FileSystem.makeDirectoryAsync(QUEUE_DIR, { intermediates: true });
+      }
+      return QUEUE_DIR;
+    })().catch((err: unknown) => {
+      queueDirReady = null;
+      throw err;
+    });
   }
-  return QUEUE_DIR;
+  return queueDirReady;
 }
 
 function newQueuePhotoPath(): string {
@@ -115,20 +133,17 @@ export async function repairQueuedPhotoUri(uri: string): Promise<string | null> 
 export async function persistQueuedPhoto(uri: string): Promise<string> {
   if (!uri) throw new Error('Photo is missing from this device.');
   if (isRemotePhotoUrl(uri)) return uri;
-  const repaired = await repairQueuedPhotoUri(uri);
-  if (repaired && isDurableLocalPhoto(repaired)) return repaired;
-  const resolved = repaired ?? (await resolveLocalFileUri(uri)) ?? asFileUri(uri);
-  const durable = isDurableLocalPhoto(resolved)
-    ? await resolveLocalFileUri(resolved)
-    : null;
-  if (durable) return durable;
+  const source = asFileUri(uri);
+  if (isDurableLocalPhoto(source) && (await fileExists(source))) return source;
+  const resolved = (await fileExists(source)) ? source : ((await resolveLocalFileUri(uri)) ?? source);
+  if (isDurableLocalPhoto(resolved) && (await fileExists(resolved))) return resolved;
 
   await ensureQueueDir();
   const dest = newQueuePhotoPath();
   let copied = false;
   try {
     await copyToQueue(resolved, dest);
-    copied = Boolean(await resolveLocalFileUri(dest));
+    copied = await fileExists(dest);
   } catch {
     copied = false;
   }
@@ -158,9 +173,8 @@ export async function persistQueuedPhoto(uri: string): Promise<string> {
       }
     }
   }
-  const saved = await resolveLocalFileUri(dest);
-  if (!saved) throw new Error('Could not save the photo on this device.');
-  return saved;
+  if (!(await fileExists(dest))) throw new Error('Could not save the photo on this device.');
+  return dest;
 }
 
 export async function writeQueuedPhotoFromBase64(contentBase64: string): Promise<string> {

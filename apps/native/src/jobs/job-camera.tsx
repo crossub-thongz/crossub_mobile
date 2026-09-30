@@ -16,7 +16,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   INSPECTION_BURST_MAX,
   deleteLocalPhoto,
-  yieldToUi,
   type LocalPhoto,
 } from '@/src/jobs/compress-photo';
 import { pickInspectionPhotos } from '@/src/jobs/pick-inspection-photos';
@@ -42,6 +41,12 @@ type JobCameraProps = {
   jobId?: string;
   uploadAreaName?: string;
 };
+
+function cameraIsBusy(err: unknown): boolean {
+  const raw = err instanceof Error ? err.message : String(err);
+  const lower = raw.toLowerCase();
+  return lower.includes('not ready yet') || lower.includes('cameranotready');
+}
 
 function cameraErrorMessage(err: unknown, fallback: string): string {
   const raw = err instanceof Error ? err.message.trim() : '';
@@ -85,6 +90,7 @@ export function JobCamera({
   const handedOffRef = useRef(false);
   const cancelledRef = useRef(false);
   const readyRef = useRef(false);
+  const snappingRef = useRef(false);
   const [permission, requestPermission] = useCameraPermissions();
   const [busy, setBusy] = useState(false);
   const [ready, setReady] = useState(false);
@@ -153,9 +159,7 @@ export function JobCamera({
     const areaName = uploadAreaNameRef.current;
     if (inspectionId) {
       try {
-        const queued = await enqueuePhotoUpload(inspectionId, photo.uri, areaName, {
-          drain: false,
-        });
+        const queued = await enqueuePhotoUpload(inspectionId, photo.uri, areaName);
         photo = { ...photo, uri: queued };
       } catch {
         // The JPEG is already on disk; upload continues when the queue drains.
@@ -206,19 +210,29 @@ export function JobCamera({
     setError(null);
     try {
       await Promise.allSettled([...pendingRef.current.values()]);
-      const compressed: LocalPhoto[] = [];
-      for (const shot of shotsRef.current) {
-        await yieldToUi();
-        try {
-          const photo = await persistAndQueue(shot);
-          if (photo.uri !== shot.uri) await deleteLocalPhoto(shot.uri);
-          compressed.push(photo);
-        } catch {
-          if (isRemotePhotoUrl(shot.uri) || (await localPhotoExists(shot.uri))) {
-            compressed.push(shot);
+      const shots = [...shotsRef.current];
+      const savedShots: Array<LocalPhoto | undefined> = new Array(shots.length);
+      let cursor = 0;
+      const workers = Math.min(4, shots.length);
+      await Promise.all(
+        Array.from({ length: workers }, async () => {
+          while (cursor < shots.length) {
+            const index = cursor;
+            cursor += 1;
+            const shot = shots[index];
+            try {
+              const photo = await persistAndQueue(shot);
+              if (photo.uri !== shot.uri) await deleteLocalPhoto(shot.uri);
+              savedShots[index] = photo;
+            } catch {
+              if (isRemotePhotoUrl(shot.uri) || (await localPhotoExists(shot.uri))) {
+                savedShots[index] = shot;
+              }
+            }
           }
-        }
-      }
+        }),
+      );
+      const compressed = savedShots.filter((photo): photo is LocalPhoto => Boolean(photo));
       if (compressed.length === 0) {
         setError('Could not save the photo on this device.');
         return;
@@ -242,20 +256,34 @@ export function JobCamera({
   };
 
   const snap = async () => {
-    if (!cameraRef.current || busy || !ready || room < 1) return;
+    if (snappingRef.current || !cameraRef.current || busy || !ready || room < 1) return;
+    snappingRef.current = true;
     setBusy(true);
     setError(null);
     try {
-      const picture = await cameraRef.current.takePictureAsync({
-        quality: 0.72,
-        exif: false,
-        skipProcessing: true,
-      });
+      let picture: { uri?: string; width?: number; height?: number } | undefined;
+      let lastError: unknown;
+      for (let attempt = 0; attempt < 4; attempt += 1) {
+        try {
+          picture = await cameraRef.current.takePictureAsync({
+            quality: 0.72,
+            exif: false,
+            skipProcessing: true,
+          });
+          lastError = undefined;
+          break;
+        } catch (err) {
+          lastError = err;
+          if (!cameraIsBusy(err) || attempt === 3) throw err;
+          await new Promise((resolve) => setTimeout(resolve, 150));
+        }
+      }
+      if (lastError) throw lastError;
       if (!picture?.uri) throw new Error('Camera did not return a photo.');
       const captured: LocalPhoto = {
         uri: picture.uri,
-        width: picture.width,
-        height: picture.height,
+        width: picture.width ?? 0,
+        height: picture.height ?? 0,
       };
       if (!burst) {
         const photo = await persistAndQueue(captured);
@@ -268,9 +296,13 @@ export function JobCamera({
       setShotList([...shotsRef.current, captured]);
       queueCompress(captured);
     } catch (err) {
-      setError(cameraErrorMessage(err, 'Could not take photo.'));
-      setStalled(true);
+      if (cameraIsBusy(err)) {
+        setError('The camera is still finishing the last photo. Tap the shutter again.');
+      } else {
+        setError(cameraErrorMessage(err, 'Could not take photo.'));
+      }
     } finally {
+      snappingRef.current = false;
       setBusy(false);
     }
   };

@@ -100,26 +100,36 @@ export function FieldWorkflowScreen({
   };
   const draftRef = useRef(draft);
 
+  const draftUploadTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const draftUploadBody = useRef<RoutineExecutionDraft | null>(null);
   const persist = useCallback(
     (next: RoutineExecutionDraft) => {
       if (!id || !draftsHydrated) return;
       const stamped = { ...next, updatedAt: new Date().toISOString() };
       draftRef.current = stamped;
       setDraft(id, stamped);
-      void (async () => {
-        try {
-          const deviceId = await getDeviceId();
-          await queueExecutionDraft(id, {
-            deviceId,
-            kind,
-            updatedAt: stamped.updatedAt,
-            draft: stamped as unknown as Record<string, unknown>,
-          });
-          void refreshPending();
-        } catch {
-          // SQLite still holds the draft.
-        }
-      })();
+      draftUploadBody.current = stamped;
+      if (draftUploadTimer.current) clearTimeout(draftUploadTimer.current);
+      draftUploadTimer.current = setTimeout(() => {
+        draftUploadTimer.current = null;
+        const body = draftUploadBody.current;
+        draftUploadBody.current = null;
+        if (!body) return;
+        void (async () => {
+          try {
+            const deviceId = await getDeviceId();
+            await queueExecutionDraft(id, {
+              deviceId,
+              kind,
+              updatedAt: body.updatedAt,
+              draft: body as unknown as Record<string, unknown>,
+            });
+            void refreshPending();
+          } catch {
+            // SQLite still holds the draft.
+          }
+        })();
+      }, 750);
     },
     [id, kind, setDraft, refreshPending, draftsHydrated],
   );

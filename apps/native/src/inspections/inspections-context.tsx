@@ -376,7 +376,10 @@ export function InspectionsProvider({ children }: { children: ReactNode }) {
   );
 
   const pendingJobs = useMemo(
-    () => assignedCore.filter((job) => job.status !== 'completed'),
+    () =>
+      assignedCore.filter(
+        (job) => job.status !== 'completed' && job.status !== 'awaiting_approval',
+      ),
     [assignedCore],
   );
   const todaysJobs = useMemo(
@@ -394,7 +397,9 @@ export function InspectionsProvider({ children }: { children: ReactNode }) {
   const completedJobs = useMemo(
     () =>
       assignedCore
-        .filter((job) => job.status === 'completed')
+        .filter(
+          (job) => job.status === 'completed' || job.status === 'awaiting_approval',
+        )
         .sort(
           (a, b) =>
             new Date(b.scheduledTime || b.scheduledDate).getTime() -

@@ -1,6 +1,6 @@
 import * as SQLite from 'expo-sqlite';
 
-import { isRemotePhotoUrl, photoFileName, sameLocalPhotoUri } from '@/src/lib/local-file';
+import { isRemotePhotoUrl, sameLocalPhotoUri } from '@/src/lib/local-file';
 import type { HandoverParty, KeyCondition } from '@/src/lib/handover-notes';
 import type { InspectionJob, RoutineExecutionDraft } from '@/src/lib/types';
 import { deleteQueuedPhoto, dedupeDraftPhotoLists, stripBase64Payload } from '@/src/offline/queued-photo';
@@ -231,12 +231,9 @@ async function persistPhotoUriRewrite(from: string, to: string): Promise<void> {
 
 function uploadedUrlFor(uri: string): string | null {
   if (!uri || isRemotePhotoUrl(uri)) return null;
-  const name = photoFileName(uri);
   for (const rewrite of appliedPhotoUriRewrites) {
     if (!rewrite.to || !isRemotePhotoUrl(rewrite.to)) continue;
     if (uri === rewrite.from || sameLocalPhotoUri(uri, rewrite.from)) return rewrite.to;
-    const fromName = photoFileName(rewrite.from);
-    if (name && fromName && name === fromName && name.startsWith('photo-')) return rewrite.to;
   }
   return null;
 }
@@ -564,11 +561,19 @@ export async function rewriteQueuedUris(from: string, to: string): Promise<void>
   }
 }
 
-/** Remember an upload and refresh the screen. Does not rewrite every draft row. */
-export function noteUploadedPhoto(from: string, to: string): void {
+let draftFlushTimer: ReturnType<typeof setTimeout> | null = null;
+
+/** Remember an upload, store it, and write it into the local draft before the queue row is removed. */
+export async function commitUploadedPhoto(from: string, to: string): Promise<void> {
   if (!from || !to || from === to) return;
   rememberPhotoUriRewrite(from, to);
+  await persistPhotoUriRewrite(from, to);
   notifyDraftsChanged({ from, to });
+  if (draftFlushTimer) clearTimeout(draftFlushTimer);
+  draftFlushTimer = setTimeout(() => {
+    draftFlushTimer = null;
+    void flushUploadedPhotoDrafts();
+  }, 1200);
 }
 
 /** Write remembered uploads into drafts once, matching /var and /private/var copies. */
@@ -590,35 +595,47 @@ export async function flushUploadedPhotoDrafts(): Promise<void> {
 }
 
 export async function rewriteDraftPhotoUris(from: string, to: string): Promise<void> {
-  noteUploadedPhoto(from, to);
-  await flushUploadedPhotoDrafts();
+  await commitUploadedPhoto(from, to);
 }
 
 export async function deleteQueueItemsByLocalUri(uri: string): Promise<void> {
   if (!uri) return;
-  const items = await loadOfflineQueue();
-  const name = photoFileName(uri);
-  for (const item of items) {
-    const local = typeof item.payload.localUri === 'string' ? item.payload.localUri : '';
-    if (!local) continue;
-    if (
-      local === uri ||
-      sameLocalPhotoUri(local, uri) ||
-      (name && photoFileName(local) === name) ||
-      (isRemotePhotoUrl(local) && applyPhotoUriRewrites(uri) === local)
-    ) {
-      await removeQueueItem(item.id);
-    }
-  }
+  const db = await getDb();
+  const alt = uri.includes('file:///private/var/')
+    ? uri.replace('file:///private/var/', 'file:///var/')
+    : uri.replace('file:///var/', 'file:///private/var/');
+  await db.runAsync(
+    `DELETE FROM queue
+     WHERE action IN ('photo_upload', 'key_photo')
+       AND (
+         json_extract(payload, '$.localUri') = ?
+         OR json_extract(payload, '$.localUri') = ?
+       )`,
+    uri,
+    alt,
+  );
+  notifyQueueChanged();
 }
 
 export async function queueHasLocalUri(uri: string, jobId?: string): Promise<boolean> {
   if (!uri) return false;
-  const items = await loadOfflineQueue();
-  return items.some((item) => {
-    if (item.action !== 'photo_upload' && item.action !== 'key_photo') return false;
-    if (jobId && item.jobId !== jobId) return false;
-    const local = typeof item.payload.localUri === 'string' ? item.payload.localUri : '';
-    return Boolean(local && sameLocalPhotoUri(local, uri));
-  });
+  const db = await getDb();
+  const alt = uri.includes('file:///private/var/')
+    ? uri.replace('file:///private/var/', 'file:///var/')
+    : uri.replace('file:///var/', 'file:///private/var/');
+  const row = await db.getFirstAsync<{ hit: number }>(
+    `SELECT 1 as hit FROM queue
+     WHERE action IN ('photo_upload', 'key_photo')
+       AND (? = '' OR job_id = ?)
+       AND (
+         json_extract(payload, '$.localUri') = ?
+         OR json_extract(payload, '$.localUri') = ?
+       )
+     LIMIT 1`,
+    jobId ?? '',
+    jobId ?? '',
+    uri,
+    alt,
+  );
+  return Boolean(row);
 }

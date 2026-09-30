@@ -24,6 +24,12 @@ export function asFileUri(uri: string): string {
   return uri;
 }
 
+/** True when the file is already in app Documents, where iOS will not purge it. */
+export function isDurableLocalPhoto(uri: string): boolean {
+  if (!uri || isRemotePhotoUrl(uri)) return false;
+  return uri.includes('/offline-queue/');
+}
+
 /** True when two local file URIs point at the same path (/var vs /private/var). */
 export function sameLocalPhotoUri(a: string, b: string): boolean {
   if (!a || !b) return false;
@@ -70,16 +76,6 @@ export async function resolveLocalFileUri(uri: string): Promise<string | null> {
     try {
       const info = await FileSystem.getInfoAsync(candidate);
       if (info.exists) return candidate;
-    } catch {
-      // Try the next URI shape.
-    }
-  }
-  for (const candidate of localFileCandidates(uri)) {
-    try {
-      const data = await FileSystem.readAsStringAsync(candidate, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
-      if (data) return candidate;
     } catch {
       // Try the next URI shape.
     }

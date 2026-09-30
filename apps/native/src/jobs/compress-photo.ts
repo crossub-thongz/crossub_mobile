@@ -6,8 +6,8 @@ import { readLocalFileBase64, resolveLocalFileUri } from '@/src/lib/local-file';
 
 /**
  * Longest edge for inspection evidence.
- * 1600px at quality 0.72 keeps close-up damage readable. A second pass only
- * eases quality a little if a file is still over the byte cap.
+ * 1600px at quality 0.72 keeps close-up damage readable. One pass only:
+ * a second encode makes a large batch much slower.
  */
 export const INSPECTION_PHOTO_MAX_EDGE = 1600;
 /** Cap each JPEG at 220 KB so detail is not crushed to hit a tiny file. */
@@ -88,7 +88,7 @@ export async function compressPhotoToFile(photo: LocalPhoto): Promise<LocalPhoto
   let edge = INSPECTION_PHOTO_MAX_EDGE;
   let current = sourcePhoto.uri;
 
-  for (let attempt = 0; attempt < 2; attempt += 1) {
+  for (let attempt = 0; attempt < 1; attempt += 1) {
     await yieldToUi();
     let result: { uri: string; width: number; height: number };
     try {

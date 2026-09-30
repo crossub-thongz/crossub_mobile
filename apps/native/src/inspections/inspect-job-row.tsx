@@ -47,12 +47,14 @@ export function InspectJobRow({
           <Text style={[styles.time, { color: visual.text }]}>
             {formatInspectTime(job.scheduledTime || job.scheduledDate)}
           </Text>
+          <View style={styles.typeRow}>
+            <Ionicons name={TYPE_ICON[job.type]} size={12} color={visual.text} />
+            <Text style={[styles.typeLabel, { color: visual.text }]} numberOfLines={1}>
+              {typeLabel}
+            </Text>
+          </View>
         </View>
         <View style={[styles.bar, { backgroundColor: visual.bar }]} />
-        <View style={styles.typeCol}>
-          <Ionicons name={TYPE_ICON[job.type]} size={16} color={visual.text} />
-          <Text style={[styles.typeLabel, { color: visual.text }]}>{typeLabel}</Text>
-        </View>
         <View style={styles.body}>
           <Text style={styles.street} numberOfLines={1}>
             {street}
@@ -97,11 +99,11 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   row: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, minWidth: 0 },
-  timeCol: { width: 56 },
+  timeCol: { flexShrink: 0, gap: 2 },
   time: { fontSize: 13, fontWeight: '700' },
+  typeRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   bar: { width: 2, alignSelf: 'stretch', borderRadius: 99 },
-  typeCol: { width: 40, alignItems: 'center', gap: 2 },
-  typeLabel: { fontSize: 8, fontWeight: '700', letterSpacing: 0.3 },
+  typeLabel: { fontSize: 9, fontWeight: '700', letterSpacing: 0.3 },
   body: { flex: 1, minWidth: 0 },
   street: { color: colors.text, fontSize: 14, fontWeight: '600' },
   locality: { color: colors.muted, fontSize: 11, marginTop: 2 },

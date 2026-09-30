@@ -34,7 +34,7 @@ import {
   queueHasLocalUri,
   removeQueueItem,
   replaceOfflineAction,
-  noteUploadedPhoto,
+  commitUploadedPhoto,
   flushDraftNotifications,
   flushUploadedPhotoDrafts,
   deleteQueueItemsByLocalUri,
@@ -64,7 +64,8 @@ const DRAIN_ORDER: OfflineAction[] = [
 
 const MISSING_FILE_DROP_AFTER = 8;
 const PHOTO_UPLOAD_TIMEOUT_MS = 90_000;
-const PHOTO_UPLOAD_CONCURRENCY = 3;
+const PHOTO_UPLOAD_CONCURRENCY = 4;
+const PHOTO_COMPRESS_CONCURRENCY = 3;
 const AUTO_PHOTO_ATTEMPT_CAP = 2;
 
 let drainInFlight: Promise<{ synced: number; remaining: number }> | null = null;
@@ -169,21 +170,39 @@ function isPhotoQueueAction(action: string): boolean {
   return action === 'photo_upload' || action === 'key_photo';
 }
 
-async function mapPool<T>(
-  items: T[],
-  limit: number,
-  worker: (item: T) => Promise<void>,
-): Promise<void> {
-  if (items.length === 0) return;
-  let cursor = 0;
-  const runners = Array.from({ length: Math.min(limit, items.length) }, async () => {
-    while (cursor < items.length) {
-      const index = cursor;
-      cursor += 1;
-      await worker(items[index]);
+function createLimiter(limit: number) {
+  let active = 0;
+  const waiters: Array<() => void> = [];
+  const acquire = () => {
+    if (active < limit) {
+      active += 1;
+      return Promise.resolve();
     }
-  });
-  await Promise.all(runners);
+    return new Promise<void>((resolve) => {
+      waiters.push(() => {
+        active += 1;
+        resolve();
+      });
+    });
+  };
+  const release = () => {
+    active -= 1;
+    waiters.shift()?.();
+  };
+  return async function run<T>(work: () => Promise<T>): Promise<T> {
+    await acquire();
+    try {
+      return await work();
+    } finally {
+      release();
+    }
+  };
+}
+
+const compressPhoto = createLimiter(PHOTO_COMPRESS_CONCURRENCY);
+
+function scheduleSyncOfflineQueue() {
+  void syncOfflineQueue().catch(() => undefined);
 }
 
 async function withTimeout<T>(work: Promise<T>, ms: number, label: string): Promise<T> {
@@ -274,11 +293,13 @@ async function replayPhotoUpload(item: OfflineQueueItem, runId: number): Promise
   }
   let tempUri: string | null = null;
   try {
-    ensureCurrentRun(runId);
-    const compressed = await compressPhotoToFile({ uri: localUri, width: 0, height: 0 });
-    ensureCurrentRun(runId);
-    if (!sameLocalPhotoUri(compressed.uri, localUri)) tempUri = compressed.uri;
-    const prepared = await prepareStoredPhotoUpload(tempUri ?? localUri);
+    const prepared = await compressPhoto(async () => {
+      ensureCurrentRun(runId);
+      const compressed = await compressPhotoToFile({ uri: localUri, width: 0, height: 0 });
+      ensureCurrentRun(runId);
+      if (!sameLocalPhotoUri(compressed.uri, localUri)) tempUri = compressed.uri;
+      return prepareStoredPhotoUpload(tempUri ?? localUri);
+    });
     ensureCurrentRun(runId);
     const uploaded = await uploadPhotoBody(item.jobId, {
       ...prepared.body,
@@ -434,7 +455,7 @@ async function settlePhotoItem(item: OfflineQueueItem, runId: number): Promise<b
   const rewritten = localUri ? applyPhotoUriRewrites(localUri) : '';
   if (isRemotePhotoUrl(localUri) || isRemotePhotoUrl(rewritten)) {
     const remote = isRemotePhotoUrl(localUri) ? localUri : rewritten;
-    if (localUri && remote && localUri !== remote) noteUploadedPhoto(localUri, remote);
+    if (localUri && remote && localUri !== remote) await commitUploadedPhoto(localUri, remote);
     await removeQueueItem(item.id);
     return Boolean(localUri && remote && localUri !== remote);
   }
@@ -447,7 +468,7 @@ async function settlePhotoItem(item: OfflineQueueItem, runId: number): Promise<b
     throw new Error('Photo upload did not return a link.');
   }
   if (localUri) {
-    noteUploadedPhoto(localUri, remoteUrl);
+    await commitUploadedPhoto(localUri, remoteUrl);
     await deleteQueueItemsByLocalUri(localUri);
   } else {
     await removeQueueItem(item.id);
@@ -494,41 +515,65 @@ async function drainQueue(force: boolean): Promise<{ synced: number; remaining: 
 
   const runId = uploadRunId;
   if (photoPass.length > 0) {
+    const started = new Set(photoPass.map((item) => item.id));
+    const pending = [...photoPass].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
     let completed = 0;
-    emitSyncProgress({ completed: 0, total: photoPass.length });
-    await writeUploadActivity(0, photoPass.length);
-    await mapPool(photoPass, PHOTO_UPLOAD_CONCURRENCY, async (item) => {
-      if (stopPhotos) return;
-      try {
-        ensureCurrentRun(runId);
-      } catch (err) {
-        if (err instanceof UploadSupersededError) return;
-        throw err;
+    let total = pending.length;
+    const publish = () => {
+      emitSyncProgress({ completed: Math.min(completed, total), total });
+      void writeUploadActivity(Math.min(completed, total), total);
+    };
+    publish();
+
+    const pullNew = async () => {
+      if (runId !== uploadRunId) return;
+      const latest = await loadOfflineQueue();
+      const fresh = latest
+        .filter((item) => isPhotoQueueAction(item.action))
+        .filter((item) => force || item.attempts < AUTO_PHOTO_ATTEMPT_CAP)
+        .filter((item) => !started.has(item.id))
+        .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+      for (const item of fresh) {
+        started.add(item.id);
+        pending.push(item);
+        total += 1;
       }
-      try {
-        const noted = await settlePhotoItem(item, runId);
-        if (noted) notedUpload = true;
-        synced += 1;
-        photosSettled += 1;
-      } catch (err) {
-        if (err instanceof UploadSupersededError) return;
-        if (isAuthError(err)) {
-          stopPhotos = true;
-          return;
+      if (fresh.length > 0) publish();
+    };
+
+    await Promise.all(
+      Array.from({ length: PHOTO_UPLOAD_CONCURRENCY }, async () => {
+        while (!stopPhotos && runId === uploadRunId) {
+          await pullNew();
+          const item = pending.shift();
+          if (!item) {
+            await new Promise((resolve) => setTimeout(resolve, 350));
+            await pullNew();
+            if (pending.length === 0) return;
+            continue;
+          }
+          try {
+            ensureCurrentRun(runId);
+            const noted = await settlePhotoItem(item, runId);
+            if (noted) notedUpload = true;
+            synced += 1;
+            photosSettled += 1;
+          } catch (err) {
+            if (err instanceof UploadSupersededError) return;
+            if (isAuthError(err)) {
+              stopPhotos = true;
+              return;
+            }
+            await keepFailedPhoto(item, err);
+          } finally {
+            if (!stopPhotos && runId === uploadRunId) {
+              completed += 1;
+              publish();
+            }
+          }
         }
-        await keepFailedPhoto(item, err);
-      } finally {
-        if (!stopPhotos && runId === uploadRunId) {
-          completed += 1;
-          emitSyncProgress({
-            completed: Math.min(completed, photoPass.length),
-            total: photoPass.length,
-          });
-          void writeUploadActivity(completed, photoPass.length);
-        }
-        await yieldToUi();
-      }
-    });
+      }),
+    );
   }
   flushDraftNotifications();
   emitSyncProgress(null);
@@ -622,7 +667,7 @@ export async function enqueuePhotoUpload(
   if (!localUri) throw new Error('Photo is missing from this device.');
   const drain = options?.drain !== false;
   const kickDrain = () => {
-    if (drain) void syncOfflineQueue();
+    if (drain) scheduleSyncOfflineQueue();
   };
   const rewritten = applyPhotoUriRewrites(localUri);
   if (isRemotePhotoUrl(rewritten)) return rewritten;
@@ -721,9 +766,8 @@ export async function queueInspectionPhotoBatch(
       onEach?.(photo.uri, photo.uri);
       urls.push(photo.uri);
     }
-    await yieldToUi();
   }
-  void syncOfflineQueue();
+  scheduleSyncOfflineQueue();
   return urls;
 }
 

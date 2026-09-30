@@ -41,6 +41,14 @@ async function keepReachableUrls(urls: string[] | undefined): Promise<string[]> 
       if (!photoUrlInList(next, rewritten)) next.push(rewritten);
       continue;
     }
+    // A copy in Documents is the photo we will upload. Keep it even if a
+    // stat fails right after a crash, so the count cannot shrink to the
+    // handful that already reached the server.
+    if (rewritten.includes('/offline-queue/') || url.includes('/offline-queue/')) {
+      const repaired = (await repairQueuedPhotoUri(rewritten)) ?? rewritten;
+      if (!photoUrlInList(next, repaired)) next.push(repaired);
+      continue;
+    }
     const repaired = await repairQueuedPhotoUri(rewritten);
     const candidate = repaired ?? ((await localPhotoExists(rewritten)) ? rewritten : '');
     if (!candidate || photoUrlInList(next, candidate)) continue;

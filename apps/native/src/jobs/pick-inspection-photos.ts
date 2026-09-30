@@ -77,13 +77,13 @@ async function pickFromFiles(limit: number): Promise<LocalPhoto[]> {
   return assetsToPhotos(result.assets, limit);
 }
 
-async function keepPhoto(photo: LocalPhoto): Promise<LocalPhoto> {
+async function keepPhoto(photo: LocalPhoto): Promise<LocalPhoto | null> {
   try {
     const uri = await persistQueuedPhoto(photo.uri);
     if (uri !== photo.uri) await deleteLocalPhoto(photo.uri);
     return { ...photo, uri };
   } catch {
-    return photo;
+    return null;
   }
 }
 
@@ -110,12 +110,27 @@ export async function pickInspectionPhotos(
   if (picked.length === 0) return [];
   onProgress?.(0, picked.length);
   const saved: LocalPhoto[] = [];
-  for (let index = 0; index < picked.length; index += 1) {
-    await yieldToUi();
-    const savedPhoto = await keepPhoto(picked[index]);
-    saved.push(savedPhoto);
-    onEach?.(savedPhoto);
-    onProgress?.(index + 1, picked.length);
-  }
+  let completed = 0;
+  const saveCount = Math.min(4, picked.length);
+  let cursor = 0;
+  await Promise.all(
+    Array.from({ length: saveCount }, async () => {
+      while (cursor < picked.length) {
+        const photo = picked[cursor];
+        cursor += 1;
+        const savedPhoto = await keepPhoto(photo);
+        if (!savedPhoto) {
+          completed += 1;
+          onProgress?.(completed, picked.length);
+          continue;
+        }
+        saved.push(savedPhoto);
+        onEach?.(savedPhoto);
+        completed += 1;
+        onProgress?.(completed, picked.length);
+        await yieldToUi();
+      }
+    }),
+  );
   return saved;
 }
