@@ -86,7 +86,6 @@ function InspectPage({
             <InspectJobRow
               key={job.id}
               job={job}
-              origin={origin}
               completed={completed}
               onOpen={() => onOpen(job.id)}
               onAction={onAction}

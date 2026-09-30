@@ -43,7 +43,6 @@ export function DraggableNamedList({
   const overRef = useRef(0);
   const fromHeightRef = useRef(DEFAULT_ROW_H);
   const dragY = useRef(new Animated.Value(0)).current;
-  const lift = useRef(new Animated.Value(0)).current;
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const [overIndex, setOverIndex] = useState<number | null>(null);
   const [hintVisible, setHintVisible] = useState(false);
@@ -95,12 +94,6 @@ export function DraggableNamedList({
     setActiveIndex(index);
     setOverIndex(index);
     setHintVisible(true);
-    Animated.spring(lift, {
-      toValue: 1,
-      useNativeDriver: true,
-      friction: 6,
-      tension: 80,
-    }).start();
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => undefined);
   };
 
@@ -112,7 +105,6 @@ export function DraggableNamedList({
     armedRef.current = false;
     draggingRef.current = false;
     dragY.setValue(0);
-    lift.setValue(0);
     onDraggingChangeRef.current?.(false);
     setActiveIndex(null);
     setOverIndex(null);
@@ -164,7 +156,7 @@ export function DraggableNamedList({
           onPanResponderTerminate: () => endDrag(false),
         }),
       ),
-    [items.length, lift, dragY],
+    [items.length, dragY],
   );
 
   const shiftFor = (index: number): number => {
@@ -194,30 +186,21 @@ export function DraggableNamedList({
             onLayout={(event) => {
               heights.current[index] = event.nativeEvent.layout.height;
             }}
+            style={{
+              zIndex: dragging ? 40 : 1,
+              elevation: dragging ? 18 : 0,
+              overflow: 'visible',
+              transform: dragging ? undefined : [{ translateY: shift }],
+            }}
+          >
+          <Animated.View
             style={[
               variant === 'card' ? styles.cardRow : styles.row,
               variant === 'row' && index === 0 && styles.rowFirst,
               variant === 'row' && index === items.length - 1 && styles.rowLast,
               activeIndex != null && !dragging && styles.rowDim,
               dropTarget && styles.rowOver,
-              dragging
-                ? {
-                    zIndex: 40,
-                    elevation: 18,
-                    transform: [
-                      { translateY: dragY },
-                      {
-                        scale: lift.interpolate({
-                          inputRange: [0, 1],
-                          outputRange: [1, 1.05],
-                        }),
-                      },
-                    ],
-                  }
-                : {
-                    zIndex: 1,
-                    transform: [{ translateY: shift }],
-                  },
+              dragging && { transform: [{ translateY: dragY }] },
               dragging && styles.rowFloating,
             ]}
           >
@@ -234,7 +217,6 @@ export function DraggableNamedList({
               style={[
                 styles.grip,
                 variant === 'card' && styles.gripCard,
-                dragging && styles.gripArmed,
                 disabled && styles.gripDisabled,
               ]}
               accessibilityRole="button"
@@ -242,20 +224,21 @@ export function DraggableNamedList({
               accessibilityHint="Hold for half a second, then drag up or down to rearrange"
             >
               <View style={styles.gripCol}>
-                <View style={[styles.gripDot, dragging && styles.gripDotArmed]} />
-                <View style={[styles.gripDot, dragging && styles.gripDotArmed]} />
-                <View style={[styles.gripDot, dragging && styles.gripDotArmed]} />
+                <View style={styles.gripDot} />
+                <View style={styles.gripDot} />
+                <View style={styles.gripDot} />
               </View>
               <View style={styles.gripCol}>
-                <View style={[styles.gripDot, dragging && styles.gripDotArmed]} />
-                <View style={[styles.gripDot, dragging && styles.gripDotArmed]} />
-                <View style={[styles.gripDot, dragging && styles.gripDotArmed]} />
+                <View style={styles.gripDot} />
+                <View style={styles.gripDot} />
+                <View style={styles.gripDot} />
               </View>
             </View>
             {renderItem(name, index)}
             {dropTarget && activeIndex != null && overIndex > activeIndex ? (
               <View style={styles.slotBottom} pointerEvents="none" />
             ) : null}
+          </Animated.View>
           </Animated.View>
         );
       })}
@@ -309,7 +292,9 @@ const styles = StyleSheet.create({
   rowFloating: {
     backgroundColor: colors.card,
     borderWidth: 1,
+    borderBottomWidth: 1,
     borderColor: colors.primary,
+    borderBottomColor: colors.primary,
     borderRadius: 12,
     shadowColor: '#000',
     shadowOpacity: 0.45,
@@ -348,32 +333,23 @@ const styles = StyleSheet.create({
     zIndex: 20,
   },
   grip: {
-    width: 40,
+    width: 28,
     height: 36,
-    marginLeft: 8,
+    marginLeft: 6,
     marginRight: 4,
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
-    gap: 4,
+    gap: 3,
     flexShrink: 0,
-    borderRadius: 8,
-    backgroundColor: 'rgba(0,212,164,0.16)',
-    borderWidth: 1,
-    borderColor: 'rgba(0,212,164,0.55)',
   },
   gripCard: { marginLeft: 0, marginRight: 8, marginVertical: 0 },
-  gripArmed: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
   gripDisabled: { opacity: 0.3 },
   gripCol: { gap: 3 },
   gripDot: {
-    width: 5,
-    height: 5,
-    borderRadius: 2.5,
-    backgroundColor: colors.primary,
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.muted,
   },
-  gripDotArmed: { backgroundColor: colors.primaryFg },
 });

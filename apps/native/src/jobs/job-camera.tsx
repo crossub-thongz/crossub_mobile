@@ -20,7 +20,11 @@ import {
   type LocalPhoto,
 } from '@/src/jobs/compress-photo';
 import { pickInspectionPhotos } from '@/src/jobs/pick-inspection-photos';
-import { compressAndPersistPhoto, isDurableLocalPhoto, localPhotoExists } from '@/src/offline/queued-photo';
+import {
+  isDurableLocalPhoto,
+  localPhotoExists,
+  persistQueuedPhoto,
+} from '@/src/offline/queued-photo';
 import { applyPhotoUriRewrites, deleteQueueItemsByLocalUri } from '@/src/offline/db';
 import { enqueuePhotoUpload, syncOfflineQueue } from '@/src/offline/sync';
 import { isRemotePhotoUrl } from '@/src/lib/local-file';
@@ -136,7 +140,9 @@ export function JobCamera({
     try {
       const keepLocal =
         isDurableLocalPhoto(captured.uri) && (await localPhotoExists(captured.uri));
-      photo = keepLocal ? captured : await compressAndPersistPhoto(captured);
+      photo = keepLocal
+        ? captured
+        : { ...captured, uri: await persistQueuedPhoto(captured.uri) };
     } catch (err) {
       const uploaded = applyPhotoUriRewrites(captured.uri);
       if (isRemotePhotoUrl(uploaded)) return { ...captured, uri: uploaded };
@@ -241,7 +247,7 @@ export function JobCamera({
     setError(null);
     try {
       const picture = await cameraRef.current.takePictureAsync({
-        quality: 0.45,
+        quality: 0.72,
         exif: false,
         skipProcessing: true,
       });

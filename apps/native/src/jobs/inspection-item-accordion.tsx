@@ -1,13 +1,13 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { AppTextInput } from '@/src/ui/app-text-input';
 
 import { InspectionPhotosField } from '@/src/jobs/inspection-photos-field';
 import type { LocalPhoto } from '@/src/jobs/compress-photo';
 import { inspectionItemIcon } from '@/src/lib/inspection-item-icon';
-import { photoCountTone } from '@/src/lib/local-file';
+import { isRemotePhotoUrl, photoCountTone } from '@/src/lib/local-file';
 import { applyPhotoUriRewrites, subscribeDraftsChanged } from '@/src/offline/db';
 import {
   cycleItemMark,
@@ -23,6 +23,32 @@ import {
 import { colors } from '@/src/theme';
 
 const COMMENT_MAX = 200;
+
+function confirmDeleteSection(name: string, onRemove: () => void) {
+  Alert.alert(
+    `Delete ${name}?`,
+    'Photos, comments, and marks for this section will be removed.',
+    [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Continue',
+        style: 'destructive',
+        onPress: () => {
+          setTimeout(() => {
+            Alert.alert(
+              `Delete ${name} permanently?`,
+              'Confirm again to delete this section.',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Delete section', style: 'destructive', onPress: onRemove },
+              ],
+            );
+          }, 350);
+        },
+      },
+    ],
+  );
+}
 
 export function InspectionItemAccordion({
   name,
@@ -77,12 +103,15 @@ export function InspectionItemAccordion({
       return typeof next === 'string' ? next : uri;
     });
   const photoCount = resolvedPhotos.length;
+  const uploadedCount = resolvedPhotos.filter((uri) => isRemotePhotoUrl(uri)).length;
   const tone = photoCountTone(resolvedPhotos);
+  const photoBadgeText =
+    tone === 'uploading' ? `${uploadedCount}/${photoCount}` : String(photoCount);
   const photoBadgeLabel =
     tone === 'empty'
       ? 'No photos for this item'
       : tone === 'uploading'
-        ? `${photoCount} photos uploading`
+        ? `${uploadedCount} of ${photoCount} photos uploaded`
         : `${photoCount} photos uploaded`;
 
   useEffect(() => {
@@ -140,7 +169,7 @@ export function InspectionItemAccordion({
                 tone === 'uploading' && styles.photoBadgeTextUploading,
               ]}
             >
-              {photoCount}
+              {photoBadgeText}
             </Text>
           </View>
           <Text style={[styles.statusText, { color: statusColor }]}>{statusLabel}</Text>
@@ -159,7 +188,11 @@ export function InspectionItemAccordion({
             <Pressable onPress={onRename} disabled={busy}>
               <Text style={styles.rename}>Rename item</Text>
             </Pressable>
-            <Pressable onPress={onRemove} disabled={busy} style={styles.deleteBtn}>
+            <Pressable
+              onPress={() => confirmDeleteSection(name, onRemove)}
+              disabled={busy}
+              style={styles.deleteBtn}
+            >
               <Ionicons name="trash-outline" size={14} color={colors.muted} />
               <Text style={styles.delete}>Delete</Text>
             </Pressable>
@@ -276,6 +309,7 @@ export function InspectionItemAccordion({
           {showItemPhotos && onTakePhotos ? (
             <InspectionPhotosField
               label="Item photos"
+              saveLabel={name}
               photoUrls={photoUrls}
               uploading={photoUploading}
               disabled={busy}

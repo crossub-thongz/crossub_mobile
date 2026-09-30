@@ -1,5 +1,6 @@
+import { File, Paths, UploadType } from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as Network from 'expo-network';
-
 import {
   completeInspection,
   recordKeyCustody,
@@ -13,8 +14,10 @@ import {
   type UploadInspectorPhoto,
 } from '@/src/api/inspector';
 import { getAccessToken } from '@/src/auth/session';
+import { getV1BaseUrl } from '@/src/config/api-url';
 import { attendanceWindowFromHours } from '@/src/lib/findings';
 import {
+  compressPhotoToFile,
   deleteLocalPhoto,
   prepareStoredPhotoUpload,
   yieldToUi,
@@ -32,6 +35,7 @@ import {
   removeQueueItem,
   replaceOfflineAction,
   noteUploadedPhoto,
+  flushDraftNotifications,
   flushUploadedPhotoDrafts,
   deleteQueueItemsByLocalUri,
   applyPhotoUriRewrites,
@@ -39,7 +43,6 @@ import {
   type OfflineQueueItem,
 } from '@/src/offline/db';
 import {
-  compressAndPersistPhoto,
   deleteQueuedPhoto,
   isDurableLocalPhoto,
   isRemotePhotoUrl,
@@ -49,6 +52,7 @@ import {
   writeQueuedPhotoFromBase64,
 } from '@/src/offline/queued-photo';
 import { recoverUnsentPhotos } from '@/src/offline/recover-unsent-photos';
+import { sameLocalPhotoUri } from '@/src/lib/local-file';
 
 const DRAIN_ORDER: OfflineAction[] = [
   'photo_upload',
@@ -59,15 +63,71 @@ const DRAIN_ORDER: OfflineAction[] = [
 ];
 
 const MISSING_FILE_DROP_AFTER = 8;
-const PHOTO_UPLOAD_TIMEOUT_MS = 30_000;
+const PHOTO_UPLOAD_TIMEOUT_MS = 90_000;
 const PHOTO_UPLOAD_CONCURRENCY = 3;
-/** Automatic sync sends the newest photos only, so a stuck backlog cannot hold the banner open. */
-const AUTO_PHOTO_BATCH = 24;
 const AUTO_PHOTO_ATTEMPT_CAP = 2;
 
 let drainInFlight: Promise<{ synced: number; remaining: number }> | null = null;
 let drainAgain = false;
 let drainForce = false;
+let uploadRunId = 0;
+let photosSettled = 0;
+let settledWhenBackgrounded = 0;
+let backgroundedAt = 0;
+
+class UploadSupersededError extends Error {
+  constructor() {
+    super('Upload restarted.');
+    this.name = 'UploadSupersededError';
+  }
+}
+
+function ensureCurrentRun(runId: number) {
+  if (runId !== uploadRunId) throw new UploadSupersededError();
+}
+
+const uploadActivityFile = `${FileSystem.documentDirectory ?? ''}crossub-upload-active`;
+
+async function writeUploadActivity(completed: number, total: number) {
+  if (!FileSystem.documentDirectory || total <= 0) return;
+  try {
+    await FileSystem.writeAsStringAsync(uploadActivityFile, `${completed}/${total}`);
+  } catch {
+    // The background task still runs if the marker cannot be written.
+  }
+}
+
+async function clearUploadActivity() {
+  if (!FileSystem.documentDirectory) return;
+  try {
+    await FileSystem.deleteAsync(uploadActivityFile, { idempotent: true });
+  } catch {
+    // Marker is already gone.
+  }
+}
+
+/** Remember how far uploads had gotten before iOS suspends the app. */
+export function noteAppBackgrounded() {
+  backgroundedAt = Date.now();
+  settledWhenBackgrounded = photosSettled;
+}
+
+/**
+ * Coming back after a few minutes with the same count means the in-flight
+ * photo never finished. Drop that attempt and start the queue again.
+ */
+export function noteAppForegrounded() {
+  const awayFor = backgroundedAt ? Date.now() - backgroundedAt : 0;
+  backgroundedAt = 0;
+  const stalled = awayFor > 3_000 && photosSettled === settledWhenBackgrounded;
+  if (stalled) {
+    uploadRunId += 1;
+    drainInFlight = null;
+    drainAgain = false;
+    emitSyncProgress(null);
+  }
+  void syncOfflineQueue({ force: true }).catch(() => undefined);
+}
 
 export type SyncProgress = { completed: number; total: number };
 
@@ -84,9 +144,25 @@ export function subscribeSyncProgress(
   };
 }
 
+let progressNotifyTimer: ReturnType<typeof setTimeout> | null = null;
+
 function emitSyncProgress(progress: SyncProgress | null): void {
   currentSyncProgress = progress;
-  for (const listener of syncProgressListeners) listener(progress);
+  if (progress === null) {
+    if (progressNotifyTimer) {
+      clearTimeout(progressNotifyTimer);
+      progressNotifyTimer = null;
+    }
+    for (const listener of syncProgressListeners) listener(null);
+    return;
+  }
+  if (progressNotifyTimer) return;
+  for (const listener of syncProgressListeners) listener(currentSyncProgress);
+  progressNotifyTimer = setTimeout(() => {
+    progressNotifyTimer = null;
+    if (!currentSyncProgress) return;
+    for (const listener of syncProgressListeners) listener(currentSyncProgress);
+  }, 800);
 }
 
 function isPhotoQueueAction(action: string): boolean {
@@ -179,7 +255,7 @@ async function persistPhotoPayload(localUri?: string, contentBase64?: string): P
   throw new Error('Photo is missing from this device.');
 }
 
-async function replayPhotoUpload(item: OfflineQueueItem): Promise<string | null> {
+async function replayPhotoUpload(item: OfflineQueueItem, runId: number): Promise<string | null> {
   const payload = item.payload;
   let localUri = typeof payload.localUri === 'string' ? payload.localUri : '';
   const rewritten = localUri ? applyPhotoUriRewrites(localUri) : '';
@@ -196,17 +272,83 @@ async function replayPhotoUpload(item: OfflineQueueItem): Promise<string | null>
   if (!(await localPhotoExists(localUri))) {
     throw new Error('Photo is missing from this device.');
   }
-  const prepared = await prepareStoredPhotoUpload(localUri);
-  const uploaded = await withTimeout(
-    uploadInspectionPhoto(item.jobId, {
+  let tempUri: string | null = null;
+  try {
+    ensureCurrentRun(runId);
+    const compressed = await compressPhotoToFile({ uri: localUri, width: 0, height: 0 });
+    ensureCurrentRun(runId);
+    if (!sameLocalPhotoUri(compressed.uri, localUri)) tempUri = compressed.uri;
+    const prepared = await prepareStoredPhotoUpload(tempUri ?? localUri);
+    ensureCurrentRun(runId);
+    const uploaded = await uploadPhotoBody(item.jobId, {
       ...prepared.body,
       areaName: typeof payload.areaName === 'string' ? payload.areaName : undefined,
-    }),
-    PHOTO_UPLOAD_TIMEOUT_MS,
-    'Photo upload',
+    });
+    if (
+      prepared.localUri !== localUri &&
+      prepared.localUri !== tempUri &&
+      !sameLocalPhotoUri(prepared.localUri, localUri)
+    ) {
+      await deleteLocalPhoto(prepared.localUri);
+    }
+    return uploaded.url ?? null;
+  } finally {
+    if (tempUri) await deleteLocalPhoto(tempUri);
+  }
+}
+
+async function uploadPhotoBody(
+  inspectionId: string,
+  body: UploadInspectorPhoto,
+): Promise<{ url?: string | null }> {
+  const token = await getAccessToken();
+  if (!token) throw new Error('Sign in again to upload photos.');
+  const file = new File(
+    Paths.document,
+    'photo-uploads',
+    `photo-upload-${Date.now()}-${Math.random().toString(36).slice(2)}.json`,
   );
-  if (prepared.localUri !== localUri) await deleteLocalPhoto(prepared.localUri);
-  return uploaded.url ?? null;
+  try {
+    file.create({ intermediates: true });
+    file.write(JSON.stringify(body));
+    const result = await file.upload(
+      `${getV1BaseUrl()}/inspector/inspections/${inspectionId}/photos/upload`,
+      {
+        httpMethod: 'POST',
+        uploadType: UploadType.BINARY_CONTENT,
+        sessionType: 'background',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+        },
+      },
+    );
+    if (result.status === 401) return await uploadInspectionPhoto(inspectionId, body);
+    if (result.status === 413) throw new Error('Photo is too large. Try snapping again.');
+    if (result.status === 429 || result.status >= 500) {
+      throw new Error(`Could not reach the server (${result.status}).`);
+    }
+    if (result.status < 200 || result.status >= 300) {
+      throw new Error(`Photo upload failed (${result.status}).`);
+    }
+    let parsed: { url?: string } = {};
+    try {
+      parsed = JSON.parse(result.body) as { url?: string };
+    } catch {
+      throw new Error('Photo upload did not return a link.');
+    }
+    return { url: parsed.url ?? null };
+  } catch (err) {
+    if (err instanceof Error) throw err;
+    throw new Error('Could not reach the server.');
+  } finally {
+    try {
+      file.delete();
+    } catch {
+      // The cache file is already gone.
+    }
+  }
 }
 
 async function replayKeyPhoto(item: OfflineQueueItem): Promise<string | null> {
@@ -251,7 +393,7 @@ async function replayItem(item: OfflineQueueItem): Promise<string | null> {
       await saveInspectionFindings(item.jobId, payload as SaveInspectorFindings);
       return null;
     case 'photo_upload':
-      return replayPhotoUpload(item);
+      return replayPhotoUpload(item, uploadRunId);
     case 'key_custody': {
       const phase = payload.phase === 'return' ? 'return' : 'collect';
       const notes = typeof payload.notes === 'string' ? payload.notes : undefined;
@@ -287,7 +429,7 @@ function isMissingFileError(err: unknown): boolean {
   );
 }
 
-async function settlePhotoItem(item: OfflineQueueItem): Promise<boolean> {
+async function settlePhotoItem(item: OfflineQueueItem, runId: number): Promise<boolean> {
   const localUri = typeof item.payload.localUri === 'string' ? item.payload.localUri : '';
   const rewritten = localUri ? applyPhotoUriRewrites(localUri) : '';
   if (isRemotePhotoUrl(localUri) || isRemotePhotoUrl(rewritten)) {
@@ -297,7 +439,7 @@ async function settlePhotoItem(item: OfflineQueueItem): Promise<boolean> {
     return Boolean(localUri && remote && localUri !== remote);
   }
   const remoteUrl = await withTimeout(
-    item.action === 'key_photo' ? replayKeyPhoto(item) : replayPhotoUpload(item),
+    item.action === 'key_photo' ? replayKeyPhoto(item) : replayPhotoUpload(item, runId),
     PHOTO_UPLOAD_TIMEOUT_MS,
     'Photo upload',
   );
@@ -314,6 +456,7 @@ async function settlePhotoItem(item: OfflineQueueItem): Promise<boolean> {
 }
 
 async function keepFailedPhoto(item: OfflineQueueItem, err: unknown): Promise<void> {
+  if (err instanceof UploadSupersededError) return;
   if (isMissingFileError(err)) {
     const attempts = await bumpQueueAttempt(item.id);
     if (attempts >= MISSING_FILE_DROP_AFTER) {
@@ -343,39 +486,51 @@ async function drainQueue(force: boolean): Promise<{ synced: number; remaining: 
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   const photoPass = force
     ? photos
-    : photos.filter((item) => item.attempts < AUTO_PHOTO_ATTEMPT_CAP).slice(0, AUTO_PHOTO_BATCH);
+    : photos.filter((item) => item.attempts < AUTO_PHOTO_ATTEMPT_CAP);
   const others = sortForDrain(queue.filter((item) => !isPhotoQueueAction(item.action)));
   let synced = 0;
   let notedUpload = false;
   let stopPhotos = false;
 
+  const runId = uploadRunId;
   if (photoPass.length > 0) {
     let completed = 0;
     emitSyncProgress({ completed: 0, total: photoPass.length });
+    await writeUploadActivity(0, photoPass.length);
     await mapPool(photoPass, PHOTO_UPLOAD_CONCURRENCY, async (item) => {
       if (stopPhotos) return;
       try {
-        const noted = await settlePhotoItem(item);
+        ensureCurrentRun(runId);
+      } catch (err) {
+        if (err instanceof UploadSupersededError) return;
+        throw err;
+      }
+      try {
+        const noted = await settlePhotoItem(item, runId);
         if (noted) notedUpload = true;
         synced += 1;
+        photosSettled += 1;
       } catch (err) {
+        if (err instanceof UploadSupersededError) return;
         if (isAuthError(err)) {
           stopPhotos = true;
           return;
         }
         await keepFailedPhoto(item, err);
       } finally {
-        if (!stopPhotos) {
+        if (!stopPhotos && runId === uploadRunId) {
           completed += 1;
           emitSyncProgress({
             completed: Math.min(completed, photoPass.length),
             total: photoPass.length,
           });
+          void writeUploadActivity(completed, photoPass.length);
         }
         await yieldToUi();
       }
     });
   }
+  flushDraftNotifications();
   emitSyncProgress(null);
 
   if (notedUpload) {
@@ -410,23 +565,30 @@ export async function syncOfflineQueue(options?: {
     drainAgain = true;
     return drainInFlight;
   }
-  drainInFlight = (async () => {
+  let run!: Promise<{ synced: number; remaining: number }>;
+  run = (async () => {
     let synced = 0;
     let remaining = await pendingSyncCount();
-    do {
-      drainAgain = false;
-      const force = drainForce;
-      drainForce = false;
-      const pass = await drainQueue(force);
-      synced += pass.synced;
-      remaining = pass.remaining;
-    } while (drainAgain);
-    return { synced, remaining };
-  })().finally(() => {
-    drainInFlight = null;
-    emitSyncProgress(null);
-  });
-  return drainInFlight;
+    try {
+      do {
+        drainAgain = false;
+        const force = drainForce;
+        drainForce = false;
+        const pass = await drainQueue(force);
+        synced += pass.synced;
+        remaining = pass.remaining;
+      } while (drainAgain && run === drainInFlight);
+      return { synced, remaining };
+    } finally {
+      if (drainInFlight === run) {
+        drainInFlight = null;
+        await clearUploadActivity();
+        emitSyncProgress(null);
+      }
+    }
+  })();
+  drainInFlight = run;
+  return run;
 }
 
 /** Push the existing queue first so a restart does not stall behind recover. */
@@ -552,10 +714,7 @@ export async function queueInspectionPhotoBatch(
       continue;
     }
     try {
-      const compressed = isDurableLocalPhoto(photo.uri)
-        ? photo
-        : await compressAndPersistPhoto(photo);
-      const durable = await enqueuePhotoUpload(inspectionId, compressed.uri, areaName);
+      const durable = await enqueuePhotoUpload(inspectionId, photo.uri, areaName);
       onEach?.(photo.uri, durable);
       urls.push(durable);
     } catch {

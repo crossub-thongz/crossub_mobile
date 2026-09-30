@@ -63,8 +63,28 @@ function notifyQueueChanged(): void {
   for (const listener of queueListeners) listener();
 }
 
+let draftNotifyTimer: ReturnType<typeof setTimeout> | null = null;
+let draftNotifyQueued = false;
+
 function notifyDraftsChanged(rewrite?: DraftUriRewrite): void {
-  for (const listener of draftListeners) listener(rewrite);
+  if (!rewrite) {
+    flushDraftNotifications();
+    return;
+  }
+  draftNotifyQueued = true;
+  if (draftNotifyTimer) return;
+  draftNotifyTimer = setTimeout(() => flushDraftNotifications(), 1200);
+}
+
+/** Apply queued photo-upload updates on the next frame instead of after every file. */
+export function flushDraftNotifications(): void {
+  if (draftNotifyTimer) {
+    clearTimeout(draftNotifyTimer);
+    draftNotifyTimer = null;
+  }
+  if (!draftNotifyQueued) return;
+  draftNotifyQueued = false;
+  for (const listener of draftListeners) listener({ from: 'batch', to: 'batch' });
 }
 
 let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;

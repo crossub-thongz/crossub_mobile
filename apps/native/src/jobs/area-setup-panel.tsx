@@ -91,8 +91,8 @@ export function AreaSetupPanel({
       </View>
       <Text style={styles.hint}>
         {continuing
-          ? 'Hold the green handle for a moment until the row pops up, then drag to rearrange. You can also add, remove, or rename areas after the inspection has started.'
-          : 'Hold the green handle for a moment until the row pops up, then drag to rearrange.'}
+          ? 'Hold the handle for a moment until the row pops up, then drag to rearrange. You can also add, remove, or rename areas after the inspection has started.'
+          : 'Hold the handle for a moment until the row pops up, then drag to rearrange.'}
       </Text>
 
       {selectedAreaNames.length === 0 ? (

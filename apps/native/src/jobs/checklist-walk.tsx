@@ -12,7 +12,12 @@ import { photoAreaName } from '@/src/constants/inspection-areas';
 import { INSPECTION_BURST_MAX, type LocalPhoto } from '@/src/jobs/compress-photo';
 import { InspectionAreaActionBar } from '@/src/jobs/inspection-area-action-bar';
 import { InspectionAreaNav } from '@/src/jobs/inspection-area-nav';
-import { InspectionPhotosField } from '@/src/jobs/inspection-photos-field';
+import {
+  InspectionPhotosField,
+  LibrarySaveBanner,
+  LibrarySaveProvider,
+  type LibrarySave,
+} from '@/src/jobs/inspection-photos-field';
 import { InspectionSectionPhotos } from '@/src/jobs/inspection-section-photos';
 import { JobCamera } from '@/src/jobs/job-camera';
 import { SpecialReportingForm } from '@/src/jobs/special-reporting-form';
@@ -134,7 +139,9 @@ export function ChecklistWalk({
   customAreas?: CustomAreaDefinition[];
 }) {
   const [cameraTarget, setCameraTarget] = useState<CameraTarget | null>(null);
+  const [librarySave, setLibrarySave] = useState<LibrarySave | null>(null);
   const cameraTargetRef = useRef<CameraTarget | null>(null);
+  const cameraAreaRef = useRef<string | null>(null);
   const listScrollRef = useRef<ScrollView>(null);
   const listWrapRef = useRef<View>(null);
   const listScrollY = useRef(0);
@@ -149,7 +156,11 @@ export function ChecklistWalk({
     ? ensureIssue(currentName, draft.issues[currentName], customAreas)
     : ensureIssue('', undefined, customAreas);
   const draftRef = useRef(draft);
-  draftRef.current = draft;
+  const seenDraft = useRef(draft);
+  if (draft !== seenDraft.current) {
+    seenDraft.current = draft;
+    draftRef.current = draft;
+  }
   const sections = issue.activeSections ?? [];
   const isLast = names.length > 0 && areaIndex >= names.length - 1;
 
@@ -197,9 +208,11 @@ export function ChecklistWalk({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [inspectionId, type, draftsHydrated]);
 
-  const updateIssue = (next: RoutineAreaIssueDraft) => {
+  const updateIssue = (
+    updater: (current: RoutineAreaIssueDraft) => RoutineAreaIssueDraft,
+  ) => {
     if (!currentName) return;
-    patchIssue(currentName, () => next);
+    patchIssue(currentName, updater);
   };
 
   const patchIssue = (
@@ -216,8 +229,7 @@ export function ChecklistWalk({
     persist(merged);
   };
 
-  const attachAreaPhotos = (photos: LocalPhoto[]) => {
-    const areaName = currentName;
+  const attachAreaPhotos = (areaName: string | null, photos: LocalPhoto[]) => {
     if (!areaName || photos.length === 0) return;
     setError(null);
     patchIssue(areaName, (rec) => ({
@@ -249,11 +261,11 @@ export function ChecklistWalk({
   };
 
   const attachSectionPhotos = (
+    areaName: string | null,
     section: string,
     photos: LocalPhoto[],
     side?: 'ingoing' | 'outgoing',
   ) => {
-    const areaName = currentName;
     if (!areaName || photos.length === 0) return;
     if (type === 'outgoing' && side === 'ingoing') return;
     const resolvedSide = side ?? (type === 'outgoing' ? 'outgoing' : undefined);
@@ -467,12 +479,24 @@ export function ChecklistWalk({
     );
   };
 
+  const openCamera = (target: CameraTarget) => {
+    cameraAreaRef.current = currentName ?? null;
+    cameraTargetRef.current = target;
+    setCameraTarget(target);
+  };
+
   return (
+    <LibrarySaveProvider onChange={setLibrarySave}>
     <View style={styles.screen}>
       {names.length > 0 ? (
         <InspectionAreaNav names={names} areaIndex={areaIndex} isComplete={areaComplete} onGoToArea={goArea} />
       ) : null}
       {error ? <Text style={styles.error}>{error}</Text> : null}
+      {librarySave && librarySave.completed < librarySave.total ? (
+        <View style={styles.librarySave}>
+          <LibrarySaveBanner save={librarySave} />
+        </View>
+      ) : null}
       <View
         ref={listWrapRef}
         style={styles.flex}
@@ -502,7 +526,7 @@ export function ChecklistWalk({
             <Text style={styles.body}>
               This area was marked unavailable. You can change that and photograph it, or continue.
             </Text>
-            <Pressable onPress={() => updateIssue({ ...issue, available: true })} style={styles.secondary}>
+            <Pressable onPress={() => updateIssue((current) => ({ ...current, available: true }))} style={styles.secondary}>
               <Text style={styles.secondaryText}>Mark available and photograph</Text>
             </Pressable>
           </>
@@ -513,18 +537,15 @@ export function ChecklistWalk({
               photoUrls={issue.areaPhotos ?? []}
               disabled={formBusy}
               emptyLabel="Snap or upload several photos of this room, then attach them here."
-              onTakePhotos={() => {
-                cameraTargetRef.current = { kind: 'area' };
-                setCameraTarget({ kind: 'area' });
-              }}
+              onTakePhotos={() => openCamera({ kind: 'area' })}
               onAddPhotos={(photos) => {
-                void attachAreaPhotos(photos);
+                void attachAreaPhotos(currentName ?? null, photos);
               }}
               onRemove={(index) =>
-                updateIssue({
-                  ...issue,
-                  areaPhotos: (issue.areaPhotos ?? []).filter((_, i) => i !== index),
-                })
+                updateIssue((current) => ({
+                  ...current,
+                  areaPhotos: (current.areaPhotos ?? []).filter((_, i) => i !== index),
+                }))
               }
             />
 
@@ -539,74 +560,95 @@ export function ChecklistWalk({
               onDraggingChange={setItemsDragging}
               onOpenedItemVisible={keepOpenedItemInView}
               onAddSection={(section) => {
-                if (sections.some((item) => item.toLowerCase() === section.toLowerCase())) return;
-                updateIssue({ ...issue, activeSections: [...sections, section] });
+                updateIssue((current) => {
+                  const existing = current.activeSections ?? [];
+                  if (existing.some((item) => item.toLowerCase() === section.toLowerCase())) {
+                    return current;
+                  }
+                  return { ...current, activeSections: [...existing, section] };
+                });
               }}
               onRemoveSection={(section) =>
-                updateIssue({
-                  ...issue,
-                  activeSections: sections.filter((item) => item !== section),
-                  photosBySection: omitKey(issue.photosBySection, section),
-                  itemMarks: omitKey(issue.itemMarks, section),
-                  itemComments: omitKey(issue.itemComments, section),
-                })
+                updateIssue((current) => ({
+                  ...current,
+                  activeSections: (current.activeSections ?? []).filter((item) => item !== section),
+                  photosBySection: omitKey(current.photosBySection, section),
+                  itemMarks: omitKey(current.itemMarks, section),
+                  itemComments: omitKey(current.itemComments, section),
+                }))
               }
               onRenameSection={(from, to) => {
                 if (from === to) return;
-                updateIssue({
-                  ...issue,
-                  activeSections: sections.map((name) => (name === from ? to : name)),
-                  photosBySection: rekeyRecord(issue.photosBySection ?? {}, from, to),
-                  itemMarks: rekeyRecord(issue.itemMarks ?? {}, from, to),
-                  itemComments: rekeyRecord(issue.itemComments ?? {}, from, to),
-                });
+                updateIssue((current) => ({
+                  ...current,
+                  activeSections: (current.activeSections ?? []).map((name) =>
+                    name === from ? to : name,
+                  ),
+                  photosBySection: rekeyRecord(current.photosBySection ?? {}, from, to),
+                  itemMarks: rekeyRecord(current.itemMarks ?? {}, from, to),
+                  itemComments: rekeyRecord(current.itemComments ?? {}, from, to),
+                }));
               }}
               onMoveSection={(from, to) =>
-                updateIssue({ ...issue, activeSections: moveIndex(sections, from, to) })
+                updateIssue((current) => ({
+                  ...current,
+                  activeSections: moveIndex(current.activeSections ?? [], from, to),
+                }))
               }
               onChangeMarks={(section, marks) =>
-                updateIssue({
-                  ...issue,
-                  itemMarks: { ...(issue.itemMarks ?? {}), [section]: marks },
-                })
+                updateIssue((current) => ({
+                  ...current,
+                  itemMarks: { ...(current.itemMarks ?? {}), [section]: marks },
+                }))
               }
-              onMarkAllGood={() => updateIssue({ ...issue, itemMarks: markAll(sections, true) })}
-              onUnmarkAll={() => updateIssue({ ...issue, itemMarks: markAll(sections, false) })}
+              onMarkAllGood={() =>
+                updateIssue((current) => ({
+                  ...current,
+                  itemMarks: markAll(current.activeSections ?? [], true),
+                }))
+              }
+              onUnmarkAll={() =>
+                updateIssue((current) => ({
+                  ...current,
+                  itemMarks: markAll(current.activeSections ?? [], false),
+                }))
+              }
               onChangeComment={(section, comment) =>
-                updateIssue({
-                  ...issue,
-                  itemComments: { ...(issue.itemComments ?? {}), [section]: comment },
-                })
+                updateIssue((current) => ({
+                  ...current,
+                  itemComments: { ...(current.itemComments ?? {}), [section]: comment },
+                }))
               }
               onTakePhotos={(section, side) => {
                 if (type === 'outgoing' && side === 'ingoing') return;
-                const target = { kind: 'section' as const, section, side };
-                cameraTargetRef.current = target;
-                setCameraTarget(target);
+                openCamera({ kind: 'section', section, side });
               }}
               onAddPhotos={(section, photos, side) => {
+                const room = currentName ?? null;
                 if (type === 'outgoing' && side === 'ingoing') return;
-                void attachSectionPhotos(section, photos, side);
+                void attachSectionPhotos(room, section, photos, side);
               }}
               onRemovePhoto={(section, index, side) => {
                 if (type === 'outgoing' && side === 'ingoing') return;
-                const existing = issue.photosBySection?.[section] ?? emptySectionPhotos();
                 const resolved = side ?? (type === 'outgoing' ? 'outgoing' : 'ingoing');
-                updateIssue({
-                  ...issue,
-                  photosBySection: {
-                    ...(issue.photosBySection ?? {}),
-                    [section]:
-                      resolved === 'outgoing'
-                        ? {
-                            ...existing,
-                            outgoingPhotoUrls: existing.outgoingPhotoUrls.filter((_, i) => i !== index),
-                          }
-                        : {
-                            ...existing,
-                            ingoingPhotoUrls: existing.ingoingPhotoUrls.filter((_, i) => i !== index),
-                          },
-                  },
+                updateIssue((current) => {
+                  const existing = current.photosBySection?.[section] ?? emptySectionPhotos();
+                  return {
+                    ...current,
+                    photosBySection: {
+                      ...(current.photosBySection ?? {}),
+                      [section]:
+                        resolved === 'outgoing'
+                          ? {
+                              ...existing,
+                              outgoingPhotoUrls: existing.outgoingPhotoUrls.filter((_, i) => i !== index),
+                            }
+                          : {
+                              ...existing,
+                              ingoingPhotoUrls: existing.ingoingPhotoUrls.filter((_, i) => i !== index),
+                            },
+                    },
+                  };
                 });
               }}
             />
@@ -615,7 +657,9 @@ export function ChecklistWalk({
               <Text style={styles.label}>{type === 'outgoing' ? 'Issue notes' : 'Comments'}</Text>
               <AppTextInput
                 value={issue.notes}
-                onChangeText={(notes) => updateIssue({ ...issue, notes, available: true })}
+                onChangeText={(notes) =>
+                  updateIssue((current) => ({ ...current, notes, available: true }))
+                }
                 placeholder={
                   type === 'outgoing'
                     ? 'Damage, cleaning, missing items...'
@@ -634,7 +678,9 @@ export function ChecklistWalk({
                   {RESPONSIBILITY.map((item) => (
                     <Pressable
                       key={item}
-                      onPress={() => updateIssue({ ...issue, responsibility: item })}
+                      onPress={() =>
+                        updateIssue((current) => ({ ...current, responsibility: item }))
+                      }
                       style={[styles.chip, issue.responsibility === item && styles.chipOn]}
                     >
                       <Text style={[styles.chipText, issue.responsibility === item && styles.chipTextOn]}>
@@ -646,7 +692,10 @@ export function ChecklistWalk({
               </View>
             ) : null}
 
-            <Pressable onPress={() => updateIssue({ ...issue, available: false })} style={styles.skip}>
+            <Pressable
+              onPress={() => updateIssue((current) => ({ ...current, available: false }))}
+              style={styles.skip}
+            >
               <Text style={styles.skipText}>Skip this area instead</Text>
             </Pressable>
           </>
@@ -675,26 +724,31 @@ export function ChecklistWalk({
         }
         onClose={() => {
           cameraTargetRef.current = null;
+          cameraAreaRef.current = null;
           setCameraTarget(null);
         }}
         onBurstComplete={(photos) => {
           const target = cameraTargetRef.current;
+          const room = cameraAreaRef.current ?? currentName ?? null;
           cameraTargetRef.current = null;
+          cameraAreaRef.current = null;
           setCameraTarget(null);
           if (!target || photos.length === 0) return;
           if (target.kind === 'area') {
-            void attachAreaPhotos(photos);
+            void attachAreaPhotos(room, photos);
             return;
           }
-          void attachSectionPhotos(target.section, photos, target.side);
+          void attachSectionPhotos(room, target.section, photos, target.side);
         }}
       />
     </View>
+    </LibrarySaveProvider>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
+  librarySave: { paddingHorizontal: 16, paddingTop: 8 },
   flex: { flex: 1 },
   inner: { padding: 16, paddingBottom: 32, gap: 16 },
   body: { color: colors.muted, fontSize: 14, lineHeight: 20 },

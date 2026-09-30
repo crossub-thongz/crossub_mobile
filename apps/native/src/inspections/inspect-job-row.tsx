@@ -8,14 +8,8 @@ import {
   jobInspectionStarted,
   jobPrimaryAction,
 } from '@/src/lib/inspection-job-cta';
-import { formatInspectDuration, formatInspectTime } from '@/src/lib/datetime';
+import { formatInspectTime } from '@/src/lib/datetime';
 import { propertyAddressLines } from '@/src/lib/property-address';
-import {
-  computeTravelEstimate,
-  formatDistanceKm,
-  jobDestination,
-  type GeoPoint,
-} from '@/src/lib/travel';
 import type { InspectionJob } from '@/src/lib/types';
 import { colors, typeAccent } from '@/src/theme';
 
@@ -30,13 +24,11 @@ const TYPE_ICON: Record<InspectionJob['type'], keyof typeof Ionicons.glyphMap> =
 export function InspectJobRow({
   job,
   completed,
-  origin,
   onOpen,
   onAction,
 }: {
   job: InspectionJob;
   completed?: boolean;
-  origin?: GeoPoint | null;
   onOpen: () => void;
   onAction: (href: string) => void;
 }) {
@@ -48,8 +40,6 @@ export function InspectJobRow({
   const typeLabel = isCoreInspectionType(job.type)
     ? INSPECTION_TYPE_LABEL[job.type]
     : job.type.toUpperCase();
-  const travel = computeTravelEstimate(origin, jobDestination(job));
-
   return (
     <View style={styles.card}>
       <Pressable onPress={onOpen} style={styles.row}>
@@ -72,16 +62,6 @@ export function InspectJobRow({
               {locality}
             </Text>
           ) : null}
-        </View>
-        <View style={styles.metaCol}>
-          <View style={styles.metaItem}>
-            <Ionicons name="time-outline" size={12} color={colors.muted} />
-            <Text style={styles.meta}>{formatInspectDuration(job.estimatedHours)}</Text>
-          </View>
-          <View style={styles.metaItem}>
-            <Ionicons name="location-outline" size={12} color={colors.muted} />
-            <Text style={styles.meta}>{travel ? formatDistanceKm(travel.distanceKm) : '—'}</Text>
-          </View>
         </View>
       </Pressable>
       {completed && job.status === 'completed' ? (
@@ -125,9 +105,6 @@ const styles = StyleSheet.create({
   body: { flex: 1, minWidth: 0 },
   street: { color: colors.text, fontSize: 14, fontWeight: '600' },
   locality: { color: colors.muted, fontSize: 11, marginTop: 2 },
-  metaCol: { alignItems: 'flex-end', gap: 4 },
-  metaItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  meta: { color: colors.muted, fontSize: 11 },
   cta: {
     backgroundColor: colors.primary,
     borderRadius: 8,

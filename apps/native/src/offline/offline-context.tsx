@@ -13,7 +13,14 @@ import { AppState } from 'react-native';
 
 import { useAuth } from '@/src/auth/auth-context';
 import { pendingSyncCount, subscribeQueueChanged } from '@/src/offline/db';
-import { flushOfflineWork, subscribeSyncProgress, syncOfflineQueue, type SyncProgress } from '@/src/offline/sync';
+import {
+  flushOfflineWork,
+  noteAppBackgrounded,
+  noteAppForegrounded,
+  subscribeSyncProgress,
+  syncOfflineQueue,
+  type SyncProgress,
+} from '@/src/offline/sync';
 
 type OfflineContextValue = {
   pendingSync: number;
@@ -93,7 +100,12 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
     if (status !== 'authed') return;
     const sub = AppState.addEventListener('change', (state) => {
       if (state === 'active') {
-        void syncNow().catch(() => undefined);
+        noteAppForegrounded();
+        return;
+      }
+      if (state === 'inactive' || state === 'background') {
+        noteAppBackgrounded();
+        void syncOfflineQueue().catch(() => undefined);
       }
     });
     return () => sub.remove();

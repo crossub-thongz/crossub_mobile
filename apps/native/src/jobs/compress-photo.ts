@@ -6,17 +6,17 @@ import { readLocalFileBase64, resolveLocalFileUri } from '@/src/lib/local-file';
 
 /**
  * Longest edge for inspection evidence.
- * Downloaded Exit packs land at ~40-50 KB per file (~16.4 MB / 403 photos). 1024px JPEG
- * at moderate quality matches that ratio so 2000 photos stay around 100 MB on device.
+ * 1600px at quality 0.72 keeps close-up damage readable. A second pass only
+ * eases quality a little if a file is still over the byte cap.
  */
-export const INSPECTION_PHOTO_MAX_EDGE = 1024;
-/** Cap each JPEG at 50 KB. Compression runs on the phone before recording, not on Nest. */
-export const INSPECTION_PHOTO_MAX_BYTES = 50_000;
+export const INSPECTION_PHOTO_MAX_EDGE = 1600;
+/** Cap each JPEG at 220 KB so detail is not crushed to hit a tiny file. */
+export const INSPECTION_PHOTO_MAX_BYTES = 220_000;
 export const INSPECTION_BURST_MAX = 80;
 
-const START_QUALITY = 0.5;
-const MIN_QUALITY = 0.32;
-const MIN_EDGE = 640;
+const START_QUALITY = 0.72;
+const MIN_QUALITY = 0.65;
+const MIN_EDGE = 1280;
 const QUALITY_STEP = 0.1;
 const EDGE_SCALE = 0.78;
 
@@ -54,7 +54,7 @@ function resizeActions(
   height: number,
   edge: number,
 ): { resize: { width: number } }[] | { resize: { height: number } }[] | [] {
-  if (width <= 0 || height <= 0) return [];
+  if (width <= 0 || height <= 0) return [{ resize: { width: edge } }];
   if (width <= edge && height <= edge) return [];
   return width >= height ? [{ resize: { width: edge } }] : [{ resize: { height: edge } }];
 }
@@ -88,7 +88,8 @@ export async function compressPhotoToFile(photo: LocalPhoto): Promise<LocalPhoto
   let edge = INSPECTION_PHOTO_MAX_EDGE;
   let current = sourcePhoto.uri;
 
-  for (let attempt = 0; attempt < 8; attempt += 1) {
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    await yieldToUi();
     let result: { uri: string; width: number; height: number };
     try {
       result = await manipulateAsync(current, resizeActions(width, height, edge), {

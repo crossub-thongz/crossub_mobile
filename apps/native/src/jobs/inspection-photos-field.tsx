@@ -1,6 +1,15 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  createContext,
+  useContext,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -40,11 +49,60 @@ function uploadAlertMessage(err: unknown): string {
   return message;
 }
 
+export type LibrarySave = { label: string; completed: number; total: number };
+
+type LibrarySaveReporter = (next: LibrarySave | null, token: number) => void;
+
+function reportLibrarySaveNowhere(_next: LibrarySave | null, _token: number) {}
+
+const LibrarySaveContext = createContext<LibrarySaveReporter>(reportLibrarySaveNowhere);
+
+let librarySaveSerial = 0;
+
+export function LibrarySaveProvider({
+  children,
+  onChange,
+}: {
+  children: ReactNode;
+  onChange: (next: LibrarySave | null) => void;
+}) {
+  const activeToken = useRef(0);
+  const report = useCallback<LibrarySaveReporter>(
+    (next, token) => {
+      if (next) {
+        if (token < activeToken.current) return;
+        activeToken.current = token;
+        onChange(next);
+        return;
+      }
+      if (token !== activeToken.current) return;
+      onChange(null);
+    },
+    [onChange],
+  );
+  return <LibrarySaveContext.Provider value={report}>{children}</LibrarySaveContext.Provider>;
+}
+
+export function LibrarySaveBanner({ save }: { save: LibrarySave | null }) {
+  if (!save || save.total <= 0 || save.completed >= save.total) return null;
+  const ratio = Math.min(1, save.completed / save.total);
+  return (
+    <View style={styles.progressWrap}>
+      <Text style={styles.progressText}>
+        {`Saving ${save.label} ${save.completed} of ${save.total}`}
+      </Text>
+      <View style={styles.progressTrack}>
+        <View style={[styles.progressFill, { width: `${Math.round(ratio * 100)}%` }]} />
+      </View>
+    </View>
+  );
+}
+
 function UploadProgress({ completed, total }: { completed: number; total: number }) {
   const ratio = total > 0 ? Math.min(1, completed / total) : 0;
   return (
     <View style={styles.progressWrap}>
-      <Text style={styles.progressText}>{`Preparing ${completed} of ${total}`}</Text>
+      <Text style={styles.progressText}>{`Saving ${completed} of ${total}`}</Text>
       <View style={styles.progressTrack}>
         <View style={[styles.progressFill, { width: `${Math.round(ratio * 100)}%` }]} />
       </View>
@@ -91,6 +149,7 @@ function PhotoThumb({
 
 export function InspectionPhotosField({
   label = 'Photos',
+  saveLabel,
   photoUrls,
   uploading: _uploading = false,
   disabled = false,
@@ -103,6 +162,7 @@ export function InspectionPhotosField({
   onEmptyPress,
 }: {
   label?: string;
+  saveLabel?: string;
   photoUrls: string[];
   uploading?: boolean;
   disabled?: boolean;
@@ -144,20 +204,41 @@ export function InspectionPhotosField({
     }
   }, [photoUrls.length, scrollable]);
 
+  const reportLibrarySave = useContext(LibrarySaveContext);
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
   const uploadFromLibrary = async () => {
     if (disabled || !onAddPhotos || picking) return;
+    const addPhotos = onAddPhotos;
+    const progressLabel = saveLabel || label;
+    const token = ++librarySaveSerial;
+    const reportsHere = reportLibrarySave === reportLibrarySaveNowhere;
     setPicking(true);
     setPickProgress(null);
     try {
-      const photos = await pickInspectionPhotos(undefined, (completed, total) => {
-        setPickProgress({ completed, total });
-      });
-      if (photos.length > 0) onAddPhotos(photos);
+      await pickInspectionPhotos(
+        maxPhotos != null ? Math.max(1, maxPhotos - photoUrls.length) : undefined,
+        (completed, total) => {
+          reportLibrarySave({ label: progressLabel, completed, total }, token);
+          if (!mountedRef.current) return;
+          setPicking(false);
+          if (reportsHere) setPickProgress({ completed, total });
+        },
+        (photo) => addPhotos([photo]),
+      );
     } catch (err) {
       Alert.alert('Upload photos', uploadAlertMessage(err));
     } finally {
-      setPicking(false);
-      setPickProgress(null);
+      reportLibrarySave(null, token);
+      if (mountedRef.current) {
+        setPicking(false);
+        setPickProgress(null);
+      }
     }
   };
 
@@ -381,20 +462,40 @@ export function BeforeAfterPhotoColumn({
   const canCapture = !disabled && Boolean(onTakePhotos);
   const previewUrl = previewIndex != null ? photoUrls[previewIndex] : null;
 
+  const reportLibrarySave = useContext(LibrarySaveContext);
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
   const uploadFromLibrary = async () => {
     if (!canCapture || !onAddPhotos || picking) return;
+    const addPhotos = onAddPhotos;
+    const token = ++librarySaveSerial;
+    const reportsHere = reportLibrarySave === reportLibrarySaveNowhere;
     setPicking(true);
     setPickProgress(null);
     try {
-      const photos = await pickInspectionPhotos(undefined, (completed, total) => {
-        setPickProgress({ completed, total });
-      });
-      if (photos.length > 0) onAddPhotos(photos);
+      await pickInspectionPhotos(
+        undefined,
+        (completed, total) => {
+          reportLibrarySave({ label: title, completed, total }, token);
+          if (!mountedRef.current) return;
+          setPicking(false);
+          if (reportsHere) setPickProgress({ completed, total });
+        },
+        (photo) => addPhotos([photo]),
+      );
     } catch (err) {
       Alert.alert('Upload photos', uploadAlertMessage(err));
     } finally {
-      setPicking(false);
-      setPickProgress(null);
+      reportLibrarySave(null, token);
+      if (mountedRef.current) {
+        setPicking(false);
+        setPickProgress(null);
+      }
     }
   };
 

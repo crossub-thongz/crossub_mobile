@@ -7,7 +7,7 @@ import {
   yieldToUi,
   type LocalPhoto,
 } from '@/src/jobs/compress-photo';
-import { compressAndPersistPhoto, persistQueuedPhoto } from '@/src/offline/queued-photo';
+import { persistQueuedPhoto } from '@/src/offline/queued-photo';
 
 type PickedAsset = {
   uri?: string | null;
@@ -46,13 +46,13 @@ async function openLibrary(limit: number): Promise<LibraryOutcome> {
       mediaTypes: ['images'] as const,
       allowsMultipleSelection: limit > 1,
       selectionLimit: limit,
-      quality: 0.5,
+      quality: 0.8,
       preferredAssetRepresentationMode: 'compatible' as const,
     },
     {
       mediaTypes: ['images'] as const,
       allowsMultipleSelection: false,
-      quality: 0.5,
+      quality: 0.8,
     },
   ];
   for (const options of attempts) {
@@ -79,24 +79,22 @@ async function pickFromFiles(limit: number): Promise<LocalPhoto[]> {
 
 async function keepPhoto(photo: LocalPhoto): Promise<LocalPhoto> {
   try {
-    const next = await compressAndPersistPhoto(photo);
-    if (next.uri !== photo.uri) await deleteLocalPhoto(photo.uri);
-    return next;
+    const uri = await persistQueuedPhoto(photo.uri);
+    if (uri !== photo.uri) await deleteLocalPhoto(photo.uri);
+    return { ...photo, uri };
   } catch {
-    try {
-      const uri = await persistQueuedPhoto(photo.uri);
-      if (uri !== photo.uri) await deleteLocalPhoto(photo.uri);
-      return { ...photo, uri };
-    } catch {
-      return photo;
-    }
+    return photo;
   }
 }
 
-/** Pick images and keep a local JPEG even if compression fails. */
+/**
+ * Copy each picked file into app storage. Shrinking happens later, when the
+ * photo is uploaded, so leaving this section does not cancel the save.
+ */
 export async function pickInspectionPhotos(
   limit = INSPECTION_BURST_MAX,
   onProgress?: (completed: number, total: number) => void,
+  onEach?: (photo: LocalPhoto) => void,
 ): Promise<LocalPhoto[]> {
   const room = Math.max(1, Math.min(INSPECTION_BURST_MAX, limit));
   const library = await openLibrary(room);
@@ -114,7 +112,9 @@ export async function pickInspectionPhotos(
   const saved: LocalPhoto[] = [];
   for (let index = 0; index < picked.length; index += 1) {
     await yieldToUi();
-    saved.push(await keepPhoto(picked[index]));
+    const savedPhoto = await keepPhoto(picked[index]);
+    saved.push(savedPhoto);
+    onEach?.(savedPhoto);
     onProgress?.(index + 1, picked.length);
   }
   return saved;
