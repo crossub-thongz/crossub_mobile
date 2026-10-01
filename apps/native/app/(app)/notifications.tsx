@@ -7,16 +7,18 @@ import { reportDecisionOf } from '@/src/lib/report-decision';
 import { colors } from '@/src/theme';
 import { AppHeader } from '@/src/ui/app-header';
 import { EmptyState } from '@/src/ui/empty-state';
+import { useScrollEndPadding } from '@/src/ui/use-scroll-end-padding';
 
 export default function NotificationsScreen() {
   const router = useRouter();
   const { notifications, refreshing, refresh, markNotificationRead } = useInbox();
+  const scrollEndPadding = useScrollEndPadding();
 
   return (
     <View style={styles.safe}>
       <AppHeader title="Notifications" />
       <ScrollView
-        contentContainerStyle={styles.inner}
+        contentContainerStyle={[styles.inner, { paddingBottom: scrollEndPadding }]}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -69,7 +71,7 @@ export default function NotificationsScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
-  inner: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 32, gap: 8 },
+  inner: { paddingHorizontal: 16, paddingTop: 16, gap: 8 },
   card: { borderWidth: 1, borderRadius: 12, padding: 16 },
   cardUnread: {
     borderColor: 'rgba(0,212,164,0.3)',

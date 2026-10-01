@@ -12,12 +12,14 @@ import { jobKeys } from '@/src/lib/routes';
 import { colors } from '@/src/theme';
 import { AppHeader } from '@/src/ui/app-header';
 import { EmptyState } from '@/src/ui/empty-state';
+import { useScrollEndPadding } from '@/src/ui/use-scroll-end-padding';
 
 type KeyFilter = 'all' | 'collect' | 'return';
 
 export default function KeyManagementScreen() {
   const router = useRouter();
   const { jobs } = useInspections();
+  const scrollEndPadding = useScrollEndPadding();
   const [filter, setFilter] = useState<KeyFilter>('all');
   const keyed = useMemo(
     () =>
@@ -47,7 +49,7 @@ export default function KeyManagementScreen() {
   return (
     <View style={styles.safe}>
       <AppHeader title="Key management" backHref="/more" />
-      <ScrollView contentContainerStyle={styles.inner}>
+      <ScrollView contentContainerStyle={[styles.inner, { paddingBottom: scrollEndPadding }]}>
         <Text style={styles.lede}>
           Collect and return still happen on the job. This list is every key set on your
           assigned work.
@@ -132,7 +134,7 @@ export default function KeyManagementScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
-  inner: { padding: 16, paddingBottom: 40, gap: 10 },
+  inner: { padding: 16, gap: 10 },
   lede: { color: colors.muted, fontSize: 12, lineHeight: 18 },
   filters: { flexDirection: 'row', gap: 8 },
   chip: {

@@ -44,6 +44,7 @@ import { colors } from '@/src/theme';
 import { AppHeader } from '@/src/ui/app-header';
 import { DateTimeField } from '@/src/ui/date-field';
 import { EmptyState } from '@/src/ui/empty-state';
+import { useScrollEndPadding } from '@/src/ui/use-scroll-end-padding';
 
 export default function OpenBatchScreen() {
   const { accessLevel } = useAccount();
@@ -56,6 +57,7 @@ export default function OpenBatchScreen() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const scrollEndPadding = useScrollEndPadding();
 
   const load = useCallback(async () => {
     try {
@@ -174,7 +176,7 @@ export default function OpenBatchScreen() {
     <View style={styles.safe}>
       <AppHeader title="Open Task Pool" backHref="/pool" />
       <ScrollView
-        contentContainerStyle={styles.inner}
+        contentContainerStyle={[styles.inner, { paddingBottom: scrollEndPadding }]}
         refreshControl={
           <RefreshControl
             refreshing={loading && overview != null}
@@ -392,7 +394,7 @@ export default function OpenBatchScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
-  inner: { padding: 16, paddingBottom: 40, gap: 16 },
+  inner: { padding: 16, gap: 16 },
   banner: { borderWidth: 1, borderRadius: 12, padding: 12, gap: 4 },
   bannerMuted: { borderColor: colors.border, backgroundColor: colors.card },
   bannerSelect: {

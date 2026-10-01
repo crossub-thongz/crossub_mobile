@@ -23,6 +23,7 @@ import { colors } from '@/src/theme';
 import { AppHeader } from '@/src/ui/app-header';
 import { AppTextInput } from '@/src/ui/app-text-input';
 import { EmptyState } from '@/src/ui/empty-state';
+import { useScrollEndPadding } from '@/src/ui/use-scroll-end-padding';
 
 export default function MessagesScreen() {
   const router = useRouter();
@@ -34,6 +35,7 @@ export default function MessagesScreen() {
   const [inspectionId, setInspectionId] = useState('');
   const [sending, setSending] = useState(false);
   const [pendingFiles, setPendingFiles] = useState<PendingAttachment[]>([]);
+  const scrollEndPadding = useScrollEndPadding();
 
   const cases = useMemo(
     () =>
@@ -79,7 +81,7 @@ export default function MessagesScreen() {
     <View style={styles.safe}>
       <AppHeader title="Messages" />
       <ScrollView
-        contentContainerStyle={styles.inner}
+        contentContainerStyle={[styles.inner, { paddingBottom: scrollEndPadding }]}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -222,7 +224,7 @@ export default function MessagesScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
-  inner: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 32, gap: 12 },
+  inner: { paddingHorizontal: 16, paddingTop: 16, gap: 12 },
   toolbar: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   hint: { flex: 1, color: colors.muted, fontSize: 12 },
   newBtn: {

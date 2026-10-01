@@ -12,6 +12,7 @@ import {
 } from '@/src/lib/routes';
 import { colors } from '@/src/theme';
 import { AppHeader } from '@/src/ui/app-header';
+import { useScrollEndPadding } from '@/src/ui/use-scroll-end-padding';
 
 type FaqLink = { label: string; href: Href };
 
@@ -65,11 +66,12 @@ const FAQS: Faq[] = [
 export default function HelpScreen() {
   const router = useRouter();
   const [open, setOpen] = useState<string | null>(FAQS[0]?.q ?? null);
+  const scrollEndPadding = useScrollEndPadding();
 
   return (
     <View style={styles.safe}>
       <AppHeader title="Help & support" backHref="/more" />
-      <ScrollView contentContainerStyle={styles.inner}>
+      <ScrollView contentContainerStyle={[styles.inner, { paddingBottom: scrollEndPadding }]}>
         {FAQS.map((item) => {
           const expanded = open === item.q;
           return (
@@ -113,7 +115,7 @@ export default function HelpScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
-  inner: { padding: 16, paddingBottom: 40, gap: 10 },
+  inner: { padding: 16, gap: 10 },
   card: {
     borderWidth: 1,
     borderColor: colors.border,

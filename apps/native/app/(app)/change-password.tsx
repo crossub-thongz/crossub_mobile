@@ -9,6 +9,7 @@ import { PASSWORD_MIN } from '@/src/constants/auth';
 import { profilePath, settingsPath } from '@/src/lib/routes';
 import { colors } from '@/src/theme';
 import { AppHeader } from '@/src/ui/app-header';
+import { useScrollEndPadding } from '@/src/ui/use-scroll-end-padding';
 
 export default function ChangePasswordScreen() {
   const router = useRouter();
@@ -23,6 +24,7 @@ export default function ChangePasswordScreen() {
   const [show, setShow] = useState({ current: false, next: false, confirm: false });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const scrollEndPadding = useScrollEndPadding();
 
   const onSubmit = async () => {
     if (!skipCurrent && !currentPassword) {
@@ -67,7 +69,7 @@ export default function ChangePasswordScreen() {
         title={skipCurrent ? 'Choose your password' : 'Change password'}
         backHref={forced ? undefined : backHref}
       />
-      <ScrollView contentContainerStyle={styles.inner} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={[styles.inner, { paddingBottom: scrollEndPadding }]} keyboardShouldPersistTaps="handled">
         <Text style={styles.body}>
           {skipCurrent
             ? 'Choose a password for your Inspector app account to continue.'
@@ -121,7 +123,7 @@ export default function ChangePasswordScreen() {
         {error ? <Text style={styles.error}>{error}</Text> : null}
         <Pressable disabled={busy} onPress={() => void onSubmit()} style={[styles.cta, busy && styles.ctaOff]}>
           <Text style={styles.ctaText}>
-            {busy ? 'SavingÖ' : forced ? 'Save and continue' : 'Update password'}
+            {busy ? 'Savingù' : forced ? 'Save and continue' : 'Update password'}
           </Text>
         </Pressable>
       </ScrollView>
@@ -131,7 +133,7 @@ export default function ChangePasswordScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
-  inner: { padding: 16, paddingBottom: 40, gap: 8 },
+  inner: { padding: 16, gap: 8 },
   body: { color: colors.muted, fontSize: 13, lineHeight: 20 },
   label: { color: colors.muted, fontSize: 11, fontWeight: '600', marginTop: 8 },
   input: {

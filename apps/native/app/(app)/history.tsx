@@ -15,6 +15,7 @@ import type { InspectionJob } from '@/src/lib/types';
 import { colors } from '@/src/theme';
 import { AppHeader } from '@/src/ui/app-header';
 import { EmptyState } from '@/src/ui/empty-state';
+import { useScrollEndPadding } from '@/src/ui/use-scroll-end-padding';
 
 function matchesHistoryQuery(job: InspectionJob, query: string): boolean {
   const q = query.trim().toLowerCase();
@@ -29,6 +30,7 @@ export default function HistoryScreen() {
   const { completedJobs, loading, refreshing, error, refresh, upsertJob } = useInspections();
   const [query, setQuery] = useState('');
   const fetchedKeys = useRef<Set<string>>(new Set());
+  const scrollEndPadding = useScrollEndPadding();
 
   useEffect(() => {
     const targets = completedJobs.filter((job) => {
@@ -65,7 +67,7 @@ export default function HistoryScreen() {
     <View style={styles.safe}>
       <AppHeader title="Job history" backHref="/" />
       <ScrollView
-        contentContainerStyle={styles.inner}
+        contentContainerStyle={[styles.inner, { paddingBottom: scrollEndPadding }]}
         keyboardShouldPersistTaps="handled"
         refreshControl={
           <RefreshControl
@@ -147,7 +149,7 @@ export default function HistoryScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
-  inner: { padding: 16, paddingBottom: 40, gap: 12 },
+  inner: { padding: 16, gap: 12 },
   lede: { color: colors.muted, fontSize: 12, lineHeight: 18 },
   search: {
     borderWidth: 1,

@@ -16,12 +16,14 @@ import { profilePath } from '@/src/lib/routes';
 import { colors } from '@/src/theme';
 import { AppHeader } from '@/src/ui/app-header';
 import { DateField } from '@/src/ui/date-field';
+import { useScrollEndPadding } from '@/src/ui/use-scroll-end-padding';
 
 export default function RegisterScreen() {
   const router = useRouter();
   const { user, refreshUser } = useAuth();
   const { registration, draft, registrationComplete, registrationResolved, saveRegistration } =
     useAccount();
+  const scrollEndPadding = useScrollEndPadding();
   const rosterOnlyComplete = registrationComplete && !registration;
   const [mobile, setMobile] = useState('');
   const [dateOfBirth, setDateOfBirth] = useState('');
@@ -145,7 +147,7 @@ export default function RegisterScreen() {
   return (
     <View style={styles.safe}>
       <AppHeader title="Inspector profile" backHref={profilePath} />
-      <ScrollView contentContainerStyle={styles.inner} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={[styles.inner, { paddingBottom: scrollEndPadding }]} keyboardShouldPersistTaps="handled">
         <Text style={styles.lede}>
           Complete your professional details. Your sign-in info is already on file.
         </Text>
@@ -285,7 +287,7 @@ export default function RegisterScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
-  inner: { padding: 16, paddingBottom: 48, gap: 8 },
+  inner: { padding: 16, gap: 8 },
   lede: { color: colors.muted, fontSize: 13, lineHeight: 18 },
   account: {
     borderWidth: 1,

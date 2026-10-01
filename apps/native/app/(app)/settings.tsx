@@ -6,15 +6,17 @@ import { changePasswordPath } from '@/src/lib/routes';
 import { useOffline } from '@/src/offline/offline-context';
 import { colors } from '@/src/theme';
 import { AppHeader } from '@/src/ui/app-header';
+import { useScrollEndPadding } from '@/src/ui/use-scroll-end-padding';
 
 export default function SettingsScreen() {
   const router = useRouter();
   const { pendingSync, syncing, lastError, syncNow } = useOffline();
+  const scrollEndPadding = useScrollEndPadding();
 
   return (
     <View style={styles.safe}>
       <AppHeader title="Settings" backHref="/more" />
-      <ScrollView contentContainerStyle={styles.inner}>
+      <ScrollView contentContainerStyle={[styles.inner, { paddingBottom: scrollEndPadding }]}>
         <View style={styles.card}>
           <Text style={styles.title}>Account security</Text>
           <Text style={styles.body}>
@@ -74,7 +76,7 @@ export default function SettingsScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
-  inner: { padding: 16, paddingBottom: 40, gap: 12 },
+  inner: { padding: 16, gap: 12 },
   card: {
     borderWidth: 1,
     borderColor: colors.border,

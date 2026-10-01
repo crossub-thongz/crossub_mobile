@@ -14,6 +14,7 @@ import type { InspectionType } from '@/src/lib/types';
 import { colors } from '@/src/theme';
 import { AppHeader } from '@/src/ui/app-header';
 import { EmptyState } from '@/src/ui/empty-state';
+import { useScrollEndPadding } from '@/src/ui/use-scroll-end-padding';
 
 const TYPE_COLOR: Record<InspectionType, string> = {
   open: '#38bdf8',
@@ -33,12 +34,13 @@ export default function EarningsScreen() {
     error,
     refresh,
   } = useLedger();
+  const scrollEndPadding = useScrollEndPadding();
 
   return (
     <View style={styles.safe}>
       <AppHeader title="Earnings" backHref="/more" />
       <ScrollView
-        contentContainerStyle={styles.inner}
+        contentContainerStyle={[styles.inner, { paddingBottom: scrollEndPadding }]}
         refreshControl={
           <RefreshControl
             refreshing={loading && earnings.length > 0}
@@ -70,7 +72,7 @@ export default function EarningsScreen() {
           </View>
         </View>
         <Text style={styles.rate}>
-          {`Routine & open: $${ROUTINE_OPEN_INSPECTOR_FEE_INC_GST_AUD} inc GST ∑ Entry/Final: agent price list`}
+          {`Routine & open: $${ROUTINE_OPEN_INSPECTOR_FEE_INC_GST_AUD} inc GST ù Entry/Final: agent price list`}
         </Text>
 
         <Text style={styles.section}>Payment history</Text>
@@ -96,7 +98,7 @@ export default function EarningsScreen() {
                   {row.propertyAddress}
                 </Text>
                 <Text style={styles.meta}>
-                  {`${formatDate(row.completedAt)} ∑ ${row.hoursWorked}h`}
+                  {`${formatDate(row.completedAt)} ù ${row.hoursWorked}h`}
                 </Text>
               </View>
               <View style={styles.amountCol}>
@@ -115,7 +117,7 @@ export default function EarningsScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
-  inner: { padding: 16, paddingBottom: 40, gap: 8 },
+  inner: { padding: 16, gap: 8 },
   stats: { flexDirection: 'row', gap: 6 },
   stat: {
     flex: 1,

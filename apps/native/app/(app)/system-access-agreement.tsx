@@ -18,6 +18,7 @@ import {
 import { registerPath } from '@/src/lib/routes';
 import { colors } from '@/src/theme';
 import { AppHeader } from '@/src/ui/app-header';
+import { useScrollEndPadding } from '@/src/ui/use-scroll-end-padding';
 
 export default function SystemAccessAgreementScreen() {
   const router = useRouter();
@@ -28,6 +29,7 @@ export default function SystemAccessAgreementScreen() {
   const [agreed, setAgreed] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const scrollEndPadding = useScrollEndPadding();
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -98,7 +100,7 @@ export default function SystemAccessAgreementScreen() {
   return (
     <View style={styles.safe}>
       <AppHeader title="Inspector Portal Access Agreement" />
-      <ScrollView contentContainerStyle={styles.inner} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={[styles.inner, { paddingBottom: scrollEndPadding }]} keyboardShouldPersistTaps="handled">
         <Text style={styles.kicker}>Required before access</Text>
         <Text style={styles.body}>
           Before using the CROSSUB Inspector portal, you must read and accept the inspector
@@ -172,7 +174,7 @@ export default function SystemAccessAgreementScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
-  inner: { padding: 16, paddingBottom: 40 },
+  inner: { padding: 16 },
   kicker: {
     color: colors.muted,
     fontSize: 11,

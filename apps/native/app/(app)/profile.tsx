@@ -17,6 +17,7 @@ import {
 } from '@/src/lib/routes';
 import { colors } from '@/src/theme';
 import { AppHeader } from '@/src/ui/app-header';
+import { useScrollEndPadding } from '@/src/ui/use-scroll-end-padding';
 
 function InfoRow({ label, value }: { label: string; value?: string | null }) {
   if (!value) return null;
@@ -43,11 +44,12 @@ export default function ProfileScreen() {
     useAccount();
   const name = user ? displayName(user) : displayName(profile ?? {});
   const needsRegistration = !registrationComplete;
+  const scrollEndPadding = useScrollEndPadding();
 
   return (
     <View style={styles.safe}>
       <AppHeader title="Inspector Information" backHref="/more" />
-      <ScrollView contentContainerStyle={styles.inner}>
+      <ScrollView contentContainerStyle={[styles.inner, { paddingBottom: scrollEndPadding }]}>
         {loading && !profile ? (
           <ActivityIndicator color={colors.primary} style={{ marginTop: 32 }} />
         ) : needsRegistration ? (
@@ -153,9 +155,9 @@ export default function ProfileScreen() {
                   label="Account"
                   value={
                     draft?.bankAccountNumber
-                      ? `ïïïï${draft.bankAccountNumber.slice(-4)}`
+                      ? `ùùùù${draft.bankAccountNumber.slice(-4)}`
                       : registration.bankAccountLast4
-                        ? `ïïïï${registration.bankAccountLast4}`
+                        ? `ùùùù${registration.bankAccountLast4}`
                         : undefined
                   }
                 />
@@ -166,7 +168,7 @@ export default function ProfileScreen() {
             {registration?.submittedAt ? (
               <Text style={styles.meta}>
                 Submitted {formatDate(registration.submittedAt)}
-                {registration.reviewedAt ? ` ∑ Reviewed ${formatDate(registration.reviewedAt)}` : ''}
+                {registration.reviewedAt ? ` ù Reviewed ${formatDate(registration.reviewedAt)}` : ''}
               </Text>
             ) : null}
           </>
@@ -195,7 +197,7 @@ export default function ProfileScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
-  inner: { padding: 16, paddingBottom: 40, gap: 12 },
+  inner: { padding: 16, gap: 12 },
   card: {
     borderWidth: 1,
     borderColor: colors.border,
