@@ -456,56 +456,58 @@ export function JobCamera({
                 ))}
               </ScrollView>
             ) : null}
-            <View style={[styles.bar, { paddingBottom: Math.max(insets.bottom, 16) }]}>
-              <Pressable onPress={closeWithoutSaving} style={styles.secondary}>
-                <Text style={styles.secondaryText}>Cancel</Text>
-              </Pressable>
-              <Pressable
-                onPress={() => {
-                  void snap();
-                }}
-                disabled={shutterDisabled}
-                style={({ pressed }) => [
-                  styles.shutter,
-                  pressed && styles.pressed,
-                  shutterDisabled && styles.disabled,
-                ]}
-              >
-                {busy && ready ? (
-                  <ActivityIndicator color="#111111" />
-                ) : (
-                  <View style={styles.shutterInner} />
-                )}
-              </Pressable>
-              {burst && shots.length > 0 ? (
+            <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 16) }]}>
+              <View style={styles.bar}>
+                <Pressable onPress={closeWithoutSaving} style={styles.secondary}>
+                  <Text style={styles.secondaryText}>Cancel</Text>
+                </Pressable>
                 <Pressable
                   onPress={() => {
-                    void finish(shotsRef.current);
+                    void snap();
                   }}
-                  disabled={busy}
-                  style={({ pressed }) => [styles.secondary, pressed && styles.pressed]}
+                  disabled={shutterDisabled}
+                  style={({ pressed }) => [
+                    styles.shutter,
+                    pressed && styles.pressed,
+                    shutterDisabled && styles.disabled,
+                  ]}
                 >
-                  <Text style={styles.useText}>{`Use ${shots.length}`}</Text>
+                  {busy && ready ? (
+                    <ActivityIndicator color="#111111" />
+                  ) : (
+                    <View style={styles.shutterInner} />
+                  )}
                 </Pressable>
-              ) : (
-                <View style={styles.spacer} />
-              )}
-            </View>
-            {error ? <Text style={styles.error}>{error}</Text> : null}
-            {stalled && !ready ? (
-              <Pressable onPress={() => void addFromLibrary()} style={styles.fallback}>
-                <Text style={styles.fallbackText}>
-                  Preview not ready. Tap to use the photo library instead.
+                {burst && shots.length > 0 ? (
+                  <Pressable
+                    onPress={() => {
+                      void finish(shotsRef.current);
+                    }}
+                    disabled={busy}
+                    style={({ pressed }) => [styles.secondary, pressed && styles.pressed]}
+                  >
+                    <Text style={styles.useText}>{`Use ${shots.length}`}</Text>
+                  </Pressable>
+                ) : (
+                  <View style={styles.spacer} />
+                )}
+              </View>
+              {error ? <Text style={styles.error}>{error}</Text> : null}
+              {stalled && !ready ? (
+                <Pressable onPress={() => void addFromLibrary()} style={styles.fallback}>
+                  <Text style={styles.fallbackText}>
+                    Preview not ready. Tap to use the photo library instead.
+                  </Text>
+                </Pressable>
+              ) : null}
+              {burst ? (
+                <Text style={styles.hint}>
+                  {shots.length > 0
+                    ? `Tap Use ${shots.length} to attach these photos.`
+                    : 'Snap photos with the shutter, then attach them.'}
                 </Text>
-              </Pressable>
-            ) : null}
-            {burst ? (
-              <Text style={styles.hint}>
-                {shots.length > 0
-                  ? `Tap Use ${shots.length} to attach these photos.`
-                  : 'Snap photos with the shutter, then attach them.'}
-              </Text>
-            ) : null}
+              ) : null}
+            </View>
           </>
         ) : null}
       </View>
@@ -553,6 +555,9 @@ const styles = StyleSheet.create({
   },
   secondaryText: { color: '#f4f4f4', fontWeight: '600' },
   useText: { color: '#00d4a4', fontWeight: '700' },
+  footer: {
+    backgroundColor: '#111111',
+  },
   bar: {
     flexDirection: 'row',
     alignItems: 'center',

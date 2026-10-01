@@ -1,6 +1,7 @@
 import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { Alert, KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Keyboard, KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppTextInput } from '@/src/ui/app-text-input';
 
@@ -34,11 +35,24 @@ export default function MessageThreadScreen() {
   const threadMessages = id ? getThreadMessages(id) : [];
   const [draft, setDraft] = useState('');
   const [pendingFiles, setPendingFiles] = useState<PendingAttachment[]>([]);
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
+  const insets = useSafeAreaInsets();
   const scroller = useRef<ScrollView>(null);
 
   useEffect(() => {
     scroller.current?.scrollToEnd({ animated: true });
   }, [threadMessages.length]);
+
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const show = Keyboard.addListener(showEvent, () => setKeyboardOpen(true));
+    const hide = Keyboard.addListener(hideEvent, () => setKeyboardOpen(false));
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
 
   if (!thread) {
     return (
@@ -102,7 +116,12 @@ export default function MessageThreadScreen() {
           )}
         </ScrollView>
 
-        <View style={styles.composerWrap}>
+        <View
+          style={[
+            styles.composerWrap,
+            { paddingBottom: keyboardOpen ? 12 : Math.max(insets.bottom, 12) },
+          ]}
+        >
           {pendingFiles.length > 0 ? (
             <Text style={styles.pending}>
               {pendingFiles.map((file) => file.fileName).join(' ? ')}
