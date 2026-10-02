@@ -164,6 +164,14 @@ export function ChecklistWalk({
   const sections = issue.activeSections ?? [];
   const isLast = names.length > 0 && areaIndex >= names.length - 1;
 
+  useEffect(() => {
+    listScrollY.current = 0;
+    const frame = requestAnimationFrame(() => {
+      listScrollRef.current?.scrollTo({ y: 0, animated: false });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [areaIndex, currentName]);
+
   const keepOpenedItemInView = useCallback((itemWindowY: number) => {
     const delta = itemWindowY - listWindowY.current - 8;
     if (Math.abs(delta) < 12) return;
@@ -235,6 +243,7 @@ export function ChecklistWalk({
     patchIssue(areaName, (rec) => ({
       ...rec,
       available: true,
+      photosSkipped: false,
       areaPhotos: photos.reduce(
         (urls, photo) => upsertPhotoUrl(urls, photo.uri, photo.uri),
         rec.areaPhotos ?? [],
@@ -251,6 +260,7 @@ export function ChecklistWalk({
           patchIssue(areaName, (rec) => ({
             ...rec,
             available: true,
+            photosSkipped: false,
             areaPhotos: upsertPhotoUrl(rec.areaPhotos ?? [], fromUri, toUri),
           }));
         });
@@ -279,6 +289,7 @@ export function ChecklistWalk({
           return {
             ...rec,
             available: true,
+            photosSkipped: false,
             photosBySection: {
               ...(rec.photosBySection ?? {}),
               [section]: {
@@ -295,6 +306,7 @@ export function ChecklistWalk({
         return {
           ...rec,
           available: true,
+          photosSkipped: false,
           photosBySection: {
             ...(rec.photosBySection ?? {}),
             [section]: withCurrentUrls(
@@ -330,19 +342,24 @@ export function ChecklistWalk({
 
   const goSpecial = () => {
     persist({
-      ...draft,
+      ...draftRef.current,
       workflowStep: 'special',
-      specialReporting: mergeSpecialReporting(draft.specialReporting),
+      specialReporting: mergeSpecialReporting(draftRef.current.specialReporting),
       specialReportingComplete: false,
     });
+  };
+
+  const advanceFromArea = () => {
+    setError(null);
+    if (isLast) goSpecial();
+    else goArea(areaIndex + 1);
   };
 
   const saveAreaAndAdvance = () => {
     if (!currentName) return;
     const rec = ensureIssue(currentName, draft.issues[currentName], customAreas);
     if (rec.available === false) {
-      if (isLast) goSpecial();
-      else goArea(areaIndex + 1);
+      advanceFromArea();
       return;
     }
     if (sections.length === 0) {
@@ -358,12 +375,9 @@ export function ChecklistWalk({
       (rec.areaPhotos?.length ?? 0) > 0 ||
       sections.some((section) => currentUrls(type, rec.photosBySection?.[section]).length > 0);
     if (!photographed) {
-      setError('Snap at least one photo for this area');
-      return;
+      updateIssue((current) => ({ ...current, photosSkipped: true }));
     }
-    setError(null);
-    if (isLast) goSpecial();
-    else goArea(areaIndex + 1);
+    advanceFromArea();
   };
 
   const finalize = async () => {
@@ -472,6 +486,7 @@ export function ChecklistWalk({
       );
     return (
       skipped ||
+      rec?.photosSkipped === true ||
       (rec?.available === true &&
         (rec.activeSections?.length ?? 0) > 0 &&
         !firstIncompleteSection(rec.activeSections ?? [], rec.itemMarks) &&
@@ -533,10 +548,10 @@ export function ChecklistWalk({
         ) : (
           <>
             <InspectionPhotosField
-              label="Area photos"
+              label="Overall"
               photoUrls={issue.areaPhotos ?? []}
               disabled={formBusy}
-              emptyLabel="Snap or upload several photos of this room, then attach them here."
+              emptyLabel="Snap or upload photos of this room."
               onTakePhotos={() => openCamera({ kind: 'area' })}
               onAddPhotos={(photos) => {
                 void attachAreaPhotos(currentName ?? null, photos);
@@ -550,6 +565,7 @@ export function ChecklistWalk({
             />
 
             <InspectionSectionPhotos
+              key={currentName ?? 'area'}
               definition={resolveAreaDefinition(currentName ?? '', customAreas)}
               activeSections={sections}
               photosBySection={issue.photosBySection ?? {}}

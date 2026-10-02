@@ -79,6 +79,7 @@ export function FieldWorkflowScreen({
   const [cameraOpen, setCameraOpen] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [areasDragging, setAreasDragging] = useState(false);
+  const inspectScrollRef = useRef<ScrollView>(null);
   const { celebrate, Celebration } = useFinishInspection({
     onHome: () => router.replace('/'),
     onKeys: () => {
@@ -141,6 +142,13 @@ export function FieldWorkflowScreen({
   draftRef.current = draft;
   const getDraftRef = useRef(getDraft);
   getDraftRef.current = getDraft;
+
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => {
+      inspectScrollRef.current?.scrollTo({ y: 0, animated: false });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [areaIndex, currentName]);
 
   useEffect(() => {
     if (!id || !job) return;
@@ -338,7 +346,10 @@ export function FieldWorkflowScreen({
   };
 
   const goArea = (index: number) => {
-    persist({ ...draft, areaIndex: Math.max(0, Math.min(index, names.length - 1)) });
+    persist({
+      ...draftRef.current,
+      areaIndex: Math.max(0, Math.min(index, names.length - 1)),
+    });
   };
 
   const onBurst = (photos: LocalPhoto[]) => {
@@ -353,6 +364,7 @@ export function FieldWorkflowScreen({
         [areaName]: {
           ...latest,
           available: true as const,
+          photosSkipped: false,
           areaPhotos: photos.reduce(
             (urls, photo) => upsertPhotoUrl(urls, photo.uri, photo.uri),
             latest.areaPhotos ?? [],
@@ -376,6 +388,7 @@ export function FieldWorkflowScreen({
               [areaName]: {
                 ...current,
                 available: true as const,
+                photosSkipped: false,
                 areaPhotos: upsertPhotoUrl(current.areaPhotos ?? [], fromUri, toUri),
               },
             },
@@ -404,10 +417,16 @@ export function FieldWorkflowScreen({
       setError('Confirm whether this area is available');
       return;
     }
-    if (current.available === true && current.areaPhotos.length === 0) {
-      setError('Snap at least one photo for this area');
-      return;
+    if (current.available === true && current.areaPhotos.length === 0 && !current.photosSkipped) {
+      persist({
+        ...draftRef.current,
+        issues: {
+          ...draftRef.current.issues,
+          [currentName]: { ...current, photosSkipped: true },
+        },
+      });
     }
+    setError(null);
     if (areaIndex >= names.length - 1) {
       await finalize();
       return;
@@ -540,13 +559,22 @@ export function FieldWorkflowScreen({
               areaIndex={areaIndex}
               isComplete={(_index, name) => {
                 const rec = draft.issues[name];
-                return rec?.available === false || (rec?.areaPhotos.length ?? 0) > 0;
+                return (
+                  rec?.available === false ||
+                  rec?.photosSkipped === true ||
+                  (rec?.areaPhotos.length ?? 0) > 0
+                );
               }}
               onGoToArea={goArea}
             />
           ) : null}
           {error ? <Text style={styles.errorPad}>{error}</Text> : null}
-          <ScrollView contentContainerStyle={styles.inner} keyboardShouldPersistTaps="handled" style={styles.flex}>
+          <ScrollView
+            ref={inspectScrollRef}
+            contentContainerStyle={styles.inner}
+            keyboardShouldPersistTaps="handled"
+            style={styles.flex}
+          >
             {names.length === 0 ? (
               <Text style={styles.body}>No areas selected for this inspection.</Text>
             ) : current.available === false ? (
@@ -573,10 +601,10 @@ export function FieldWorkflowScreen({
             ) : (
               <>
                 <InspectionPhotosField
-                  label="Area photos"
+                  label="Overall"
                   photoUrls={current.areaPhotos ?? []}
                   disabled={busy === 'complete'}
-                  emptyLabel="Snap or upload several photos of this room, then attach them here."
+                  emptyLabel="Snap or upload photos of this room."
                   onTakePhotos={() => setCameraOpen(true)}
                   onAddPhotos={(photos) => {
                     void onBurst(photos);

@@ -120,6 +120,8 @@ export type RoutineAreaIssueDraft = {
   activeSections?: string[];
   photosBySection?: Record<string, { ingoingPhotoUrls: string[]; outgoingPhotoUrls: string[] }>;
   responsibility?: string;
+  /** Inspector continued without snapping this area. */
+  photosSkipped?: boolean;
 };
 
 export type RoutineExecutionDraft = {
