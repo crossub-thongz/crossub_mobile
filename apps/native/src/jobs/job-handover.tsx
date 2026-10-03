@@ -352,7 +352,24 @@ export function JobHandoverPanel({
   }
 
   if (!job.keyAccess) {
-    return <Text style={styles.body}>No key collection required for this job.</Text>;
+    const routine = job.type === 'routine';
+    return (
+      <View style={styles.emptyWrap}>
+        <Ionicons name="key-outline" size={28} color={colors.muted} />
+        <Text style={styles.emptyTitle}>No key collection required for this job.</Text>
+        <Text style={styles.emptyCopy}>
+          {routine
+            ? 'Routine inspections meet the tenant or use lockbox access. Keys are not collected or returned in this app.'
+            : 'The office has not set a key pickup for this job. Use the access details on Job Details if you need to get in.'}
+        </Text>
+        <Pressable
+          onPress={() => onChangeTab('details')}
+          style={[styles.secondary, styles.emptyCta]}
+        >
+          <Text style={styles.secondaryText}>Back to job details</Text>
+        </Pressable>
+      </View>
+    );
   }
 
   const keyAccess = job.keyAccess;
@@ -824,6 +841,27 @@ export function JobHandoverPanel({
 
 const styles = StyleSheet.create({
   wrap: { flex: 1 },
+  emptyWrap: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 32,
+    gap: 12,
+  },
+  emptyTitle: {
+    color: colors.text,
+    fontSize: 16,
+    fontWeight: '700',
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+  emptyCopy: {
+    color: colors.muted,
+    fontSize: 13,
+    lineHeight: 18,
+    textAlign: 'center',
+  },
+  emptyCta: { alignSelf: 'stretch', marginTop: 8 },
   inner: { padding: 16, paddingBottom: 40, gap: 12 },
   phaseSwitch: {
     flexDirection: 'row',
@@ -865,7 +903,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   accessLocation: { color: colors.muted, fontSize: 12, lineHeight: 16 },
-  body: { color: colors.muted, fontSize: 14, lineHeight: 20 },
   hint: { color: colors.muted, fontSize: 11 },
   error: { color: colors.destructive, fontSize: 13 },
   partyRow: { flexDirection: 'row', gap: 8 },
