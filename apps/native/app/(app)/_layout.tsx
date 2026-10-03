@@ -29,20 +29,20 @@ export default function AppLayout() {
                 }}
               >
                 <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-                <Stack.Screen name="history" options={{ headerShown: false }} />
+                <Stack.Screen name="history" options={{ headerShown: false }} dangerouslySingular />
                 <Stack.Screen name="jobs/[id]" options={{ headerShown: false }} />
-                <Stack.Screen name="messages" options={{ headerShown: false }} />
-                <Stack.Screen name="notifications" options={{ headerShown: false }} />
-                <Stack.Screen name="open-batch" options={{ headerShown: false }} />
-                <Stack.Screen name="profile" options={{ headerShown: false }} />
-                <Stack.Screen name="register" options={{ headerShown: false }} />
-                <Stack.Screen name="weekly-availability" options={{ headerShown: false }} />
-                <Stack.Screen name="settings" options={{ headerShown: false }} />
-                <Stack.Screen name="change-password" options={{ headerShown: false }} />
-                <Stack.Screen name="help" options={{ headerShown: false }} />
-                <Stack.Screen name="earnings" options={{ headerShown: false }} />
-                <Stack.Screen name="key-management" options={{ headerShown: false }} />
-                <Stack.Screen name="system-access-agreement" options={{ headerShown: false }} />
+                <Stack.Screen name="messages" options={{ headerShown: false }} dangerouslySingular />
+                <Stack.Screen name="notifications" options={{ headerShown: false }} dangerouslySingular />
+                <Stack.Screen name="open-batch" options={{ headerShown: false }} dangerouslySingular />
+                <Stack.Screen name="profile" options={{ headerShown: false }} dangerouslySingular />
+                <Stack.Screen name="register" options={{ headerShown: false }} dangerouslySingular />
+                <Stack.Screen name="weekly-availability" options={{ headerShown: false }} dangerouslySingular />
+                <Stack.Screen name="settings" options={{ headerShown: false }} dangerouslySingular />
+                <Stack.Screen name="change-password" options={{ headerShown: false }} dangerouslySingular />
+                <Stack.Screen name="help" options={{ headerShown: false }} dangerouslySingular />
+                <Stack.Screen name="earnings" options={{ headerShown: false }} dangerouslySingular />
+                <Stack.Screen name="key-management" options={{ headerShown: false }} dangerouslySingular />
+                <Stack.Screen name="system-access-agreement" options={{ headerShown: false }} dangerouslySingular />
               </Stack>
               <PoolUrgentAlerts />
               <ReportDecisionAlerts />

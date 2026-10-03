@@ -341,11 +341,13 @@ export function ChecklistWalk({
   };
 
   const goSpecial = () => {
+    const latest = draftRef.current;
     persist({
-      ...draftRef.current,
+      ...latest,
       workflowStep: 'special',
-      specialReporting: mergeSpecialReporting(draftRef.current.specialReporting),
+      specialReporting: mergeSpecialReporting(latest.specialReporting),
       specialReportingComplete: false,
+      areasCompletedAt: latest.areasCompletedAt ?? new Date().toISOString(),
     });
   };
 
@@ -457,6 +459,7 @@ export function ChecklistWalk({
         onChange={(specialReporting) => persist({ ...draft, specialReporting })}
         submitting={busy === 'complete'}
         error={error}
+        completedAt={draft.areasCompletedAt}
         phase={type}
         onBack={() =>
           persist({

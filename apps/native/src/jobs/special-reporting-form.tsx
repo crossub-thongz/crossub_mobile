@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { AppTextInput } from '@/src/ui/app-text-input';
@@ -11,6 +11,7 @@ import {
 import { colors } from '@/src/theme';
 import { BACK_LABEL } from '@/src/ui/back-label';
 import { DateField } from '@/src/ui/date-field';
+import { formatDateTime } from '@/src/lib/datetime';
 
 const BOOL_SECTIONS: {
   title: string;
@@ -74,6 +75,23 @@ const BOOL_SECTIONS: {
     ],
   },
 ];
+
+function sectionSummary(
+  section: (typeof BOOL_SECTIONS)[number],
+  value: SpecialReportingDraft,
+  phase: 'ingoing' | 'outgoing',
+): string {
+  if (section.title === 'Water usage charging and efficiency') {
+    const missing = specialReportingMissing(value, phase);
+    return missing ? 'Meter reading still needed' : 'Meter reading entered';
+  }
+  if (section.title === 'Health issues' || section.title === 'Other safety issues') {
+    const flagged = section.rows.some((row) => value[row.key] === true);
+    return flagged ? 'Something was marked yes' : 'Nothing reported';
+  }
+  const allYes = section.rows.every((row) => value[row.key] === true);
+  return allYes ? 'All yes' : 'Review the answers';
+}
 
 function YesNo({
   value,
@@ -163,6 +181,7 @@ export function SpecialReportingForm({
   onBack,
   onFinalise,
   phase = 'ingoing',
+  completedAt,
 }: {
   value: SpecialReportingDraft;
   onChange: (next: SpecialReportingDraft) => void;
@@ -171,8 +190,13 @@ export function SpecialReportingForm({
   onBack: () => void;
   onFinalise: () => void;
   phase?: 'ingoing' | 'outgoing';
+  completedAt?: string;
 }) {
   const patch = (partial: Partial<SpecialReportingDraft>) => onChange({ ...value, ...partial });
+  const [openSection, setOpenSection] = useState<string | null>(null);
+  const [notesOpen, setNotesOpen] = useState(false);
+  const completedFallback = useRef(new Date().toISOString()).current;
+  const completedLabel = formatDateTime(completedAt || completedFallback);
 
   useEffect(() => {
     if (!error) return;
@@ -191,11 +215,28 @@ export function SpecialReportingForm({
         <Text style={styles.backText}>{BACK_LABEL} to areas</Text>
       </Pressable>
       <ScrollView contentContainerStyle={styles.inner} keyboardShouldPersistTaps="handled" style={styles.flex}>
+      <Text style={styles.completed}>Completed {completedLabel}</Text>
       <Text style={styles.title}>NSW Special Reporting</Text>
+      <Text style={styles.hint}>
+        Answers are already filled. Open a section only if something on site is different. The water meter is required before you finalise.
+      </Text>
 
-      {BOOL_SECTIONS.map((section) => (
+      {BOOL_SECTIONS.map((section) => {
+        const open = openSection === section.title;
+        return (
         <View key={section.title} style={styles.card}>
-          <Text style={styles.cardTitle}>{section.title}</Text>
+          <Pressable
+            onPress={() => setOpenSection(open ? null : section.title)}
+            style={styles.sectionHead}
+          >
+            <View style={styles.sectionCopy}>
+              <Text style={styles.cardTitle}>{section.title}</Text>
+              <Text style={styles.hint}>{sectionSummary(section, value, phase)}</Text>
+            </View>
+            <Text style={styles.link}>{open ? 'Hide' : 'Edit'}</Text>
+          </Pressable>
+          {open ? (
+            <>
           {section.hint ? <Text style={styles.hint}>{section.hint}</Text> : null}
           {section.rows.map((row) => (
             <View key={row.key} style={styles.question}>
@@ -293,11 +334,22 @@ export function SpecialReportingForm({
               )}
             </>
           ) : null}
+            </>
+          ) : null}
         </View>
-      ))}
+        );
+      })}
 
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Additional comments</Text>
+        <Pressable onPress={() => setNotesOpen((open) => !open)} style={styles.sectionHead}>
+          <View style={styles.sectionCopy}>
+            <Text style={styles.cardTitle}>Additional comments</Text>
+            <Text style={styles.hint}>Optional dates, notes, and signature</Text>
+          </View>
+          <Text style={styles.link}>{notesOpen ? 'Hide' : 'Edit'}</Text>
+        </Pressable>
+        {notesOpen ? (
+          <>
         <AppTextInput
           value={value.additionalComments}
           onChangeText={(additionalComments) => patch({ additionalComments })}
@@ -359,6 +411,8 @@ export function SpecialReportingForm({
           onChange={(landlordSignedDate) => patch({ landlordSignedDate })}
           optional
         />
+          </>
+        ) : null}
       </View>
 
       </ScrollView>
@@ -371,6 +425,7 @@ export function SpecialReportingForm({
           onPress={() => {
             const missing = specialReportingMissing(value, phase);
             if (missing) {
+              setOpenSection('Water usage charging and efficiency');
               Alert.alert('Cannot finalise', missing);
               return;
             }
@@ -396,6 +451,10 @@ const styles = StyleSheet.create({
   backText: { color: colors.primary, fontSize: 14, fontWeight: '500' },
   inner: { padding: 16, paddingBottom: 24, gap: 12 },
   title: { color: colors.text, fontSize: 22, fontWeight: '700', textAlign: 'center' },
+  completed: { color: colors.text, fontSize: 16, fontWeight: '700', textAlign: 'center' },
+  sectionHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  sectionCopy: { flex: 1, gap: 2 },
+  link: { color: colors.primary, fontSize: 13, fontWeight: '600' },
   card: {
     borderWidth: 1,
     borderColor: colors.border,

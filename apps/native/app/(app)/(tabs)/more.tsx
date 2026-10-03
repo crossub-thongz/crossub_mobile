@@ -1,5 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { useRouter } from 'expo-router';
+import { usePathname, useRouter } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { useAccount } from '@/src/account/account-context';
@@ -12,6 +12,7 @@ import {
 } from '@/src/constants/inspector-registration';
 import { useInspections } from '@/src/inspections/inspections-context';
 import { displayName, formatCurrency, formatDate, isThisWeek, personInitials } from '@/src/lib/datetime';
+import { openSingleton } from '@/src/lib/singleton-route';
 import { useOffline } from '@/src/offline/offline-context';
 import { colors } from '@/src/theme';
 import { AppHeader } from '@/src/ui/app-header';
@@ -27,6 +28,7 @@ function statusLabel(status?: string | null): string | undefined {
 
 export default function MoreScreen() {
   const router = useRouter();
+  const pathname = usePathname();
   const { user, logout } = useAuth();
   const { registration, profile, accessLevel, tribunalQualified } = useAccount();
   const { completedJobs } = useInspections();
@@ -124,7 +126,7 @@ export default function MoreScreen() {
                 {items.map((item, index) => (
                   <Pressable
                     key={`${item.href}-${item.label}`}
-                    onPress={() => router.push(item.href as never)}
+                    onPress={() => openSingleton(router, pathname, item.href)}
                     style={[styles.row, index === items.length - 1 && styles.rowLast]}
                   >
                     <View style={styles.rowIcon}>

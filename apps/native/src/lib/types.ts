@@ -136,5 +136,7 @@ export type RoutineExecutionDraft = {
   specialReporting?: SpecialReportingDraft;
   specialReportingComplete?: boolean;
   inspectionFinished?: boolean;
+  /** When the room walk was finished and NSW special reporting opened. */
+  areasCompletedAt?: string;
   workflowStep?: 'areas' | 'special';
 };

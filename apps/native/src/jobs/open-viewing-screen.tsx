@@ -325,9 +325,25 @@ export function OpenViewingScreen({
 
   const paymentBlocked = Boolean(job.awaitingAgentPayment || viewing?.awaitingAgentPayment);
   const keysBlocked = Boolean(job.keyAccess && !isKeyCollectComplete(job));
-  const live = viewing?.sessionStatus === 'open' || Boolean(viewing?.openedAt);
-  const ended = viewing?.sessionStatus === 'closed' || Boolean(viewing?.closedAt);
-  const canStart = Boolean(viewing?.canStart) && !paymentBlocked && !keysBlocked && !live;
+  const cancelled = viewing?.sessionStatus === 'cancelled';
+  const ended =
+    !cancelled &&
+    (viewing?.sessionStatus === 'closed' || Boolean(viewing?.closedAt));
+  const live =
+    !ended &&
+    !cancelled &&
+    (viewing?.sessionStatus === 'open' || Boolean(viewing?.openedAt));
+  const sessionReady =
+    viewing?.sessionStatus === 'scheduled' || viewing?.sessionStatus === 'staff_en_route';
+  const canStart =
+    Boolean(viewing) &&
+    !paymentBlocked &&
+    !keysBlocked &&
+    !live &&
+    !ended &&
+    !cancelled &&
+    sessionReady &&
+    (Boolean(viewing?.canStart) || job.status === 'assigned' || job.status === 'in_progress');
   const startEarly = Boolean(
     viewing && new Date(viewing.startTime).getTime() > Date.now() && canStart,
   );
@@ -366,6 +382,10 @@ export function OpenViewingScreen({
     try {
       const startTime = viewing.openedAt ?? viewing.startTime;
       const endTime = early ? new Date().toISOString() : viewing.endTime;
+      if (job.status === 'assigned') {
+        const dto = await acceptInspection(id);
+        upsertJob({ ...job, status: 'in_progress', id: dto.id });
+      }
       if (job.keyAccess && !isKeyReturnComplete(job)) {
         await completeInspection(id, { startTime, endTime }).catch(() => undefined);
         patchJob(id, { workflowData: buildInspectionFinishedPatch(job.workflowData) });
@@ -413,17 +433,22 @@ export function OpenViewingScreen({
 
         {viewing ? (
           <Text style={styles.meta}>
-            {formatInspectTime(viewing.startTime)} ? {formatInspectTime(viewing.endTime)}
+            {formatInspectTime(viewing.startTime)} - {formatInspectTime(viewing.endTime)}
           </Text>
         ) : (
           <ActivityIndicator color={colors.primary} />
         )}
 
-        {!live && !ended ? (
+        {!live && !ended && !cancelled ? (
           <>
             <Text style={styles.body}>
               Start the open inspection to open check-in and application links for prospects.
             </Text>
+            {!canStart && !paymentBlocked && !keysBlocked ? (
+              <Text style={styles.body}>
+                This viewing is not ready to start yet. Check Job Details, or ask the office if the time still stands.
+              </Text>
+            ) : null}
             <Pressable
               onPress={() => {
                 void start();
@@ -439,6 +464,38 @@ export function OpenViewingScreen({
                 </Text>
               )}
             </Pressable>
+          </>
+        ) : null}
+
+        {cancelled ? (
+          <Text style={styles.body}>
+            This viewing was cancelled, so there is nothing to start. Ask the office if the open should be booked again.
+          </Text>
+        ) : null}
+
+        {ended && !returnPending ? (
+          <>
+            <Text style={styles.body}>
+              {job.status === 'completed' || job.status === 'awaiting_approval'
+                ? 'This viewing has ended. There is nothing else to do on this task.'
+                : 'This viewing has ended. Finish the task so the office can review it.'}
+            </Text>
+            {job.status === 'assigned' || job.status === 'in_progress' ? (
+              <Pressable
+                onPress={() => {
+                  void finish(false);
+                }}
+                disabled={busy != null}
+                style={[styles.primary, busy != null && styles.disabled]}
+              >
+                {busy === 'complete' ? (
+                  <ActivityIndicator color={colors.primaryFg} />
+                ) : (
+                  <Text style={styles.primaryText}>Finish task</Text>
+                )}
+              </Pressable>
+            ) : null}
+            {viewing ? <OpenViewingPanels viewing={viewing} panel={tab} /> : null}
           </>
         ) : null}
 

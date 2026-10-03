@@ -1,11 +1,15 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Keyboard,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
   View,
+  type TextInput,
 } from 'react-native';
 
 import { releaseInspection } from '@/src/api/inspector';
@@ -31,6 +35,12 @@ export function CancelTaskSheet({
   const [mode, setMode] = useState<'flag_admin' | 'release_pool'>('release_pool');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const reasonRef = useRef<TextInput>(null);
+
+  const dismissKeyboard = () => {
+    reasonRef.current?.blur();
+    Keyboard.dismiss();
+  };
 
   const confirm = async () => {
     if (reason.trim().length < MIN_REASON) {
@@ -52,46 +62,68 @@ export function CancelTaskSheet({
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <View style={styles.backdrop}>
-        <View style={styles.card}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={styles.backdrop}
+      >
+        <Pressable style={styles.dismiss} onPress={dismissKeyboard}>
+          <Pressable style={styles.card} onPress={dismissKeyboard}>
           <Text style={styles.title}>Cancel task</Text>
           <Text style={styles.body}>
             A reason is required. Ops will be notified as a critical alert.
           </Text>
           {urgent ? (
             <Text style={styles.banner}>
-              Emergency task ù an additional $10 AUD will be added to this job's payout record.
+              Emergency task ? an additional $10 AUD will be added to this job's payout record.
             </Text>
           ) : null}
           <Text style={styles.label}>Reason for cancellation</Text>
           <AppTextInput
+            ref={reasonRef}
             value={reason}
             onChangeText={setReason}
             placeholder="Describe why this task cannot be completed (min. 10 characters)"
             placeholderTextColor={colors.muted}
             multiline
+            returnKeyType="done"
+            blurOnSubmit
+            submitBehavior="blurAndSubmit"
+            onSubmitEditing={dismissKeyboard}
             style={styles.input}
           />
           <Text style={styles.label}>What should happen next?</Text>
           <Pressable
-            onPress={() => setMode('flag_admin')}
+            onPress={() => {
+              dismissKeyboard();
+              setMode('flag_admin');
+            }}
             style={[styles.option, mode === 'flag_admin' && styles.optionOn]}
           >
             <Text style={styles.optionText}>Flag cancellation to Admin</Text>
           </Pressable>
           <Pressable
-            onPress={() => setMode('release_pool')}
+            onPress={() => {
+              dismissKeyboard();
+              setMode('release_pool');
+            }}
             style={[styles.option, mode === 'release_pool' && styles.optionOn]}
           >
             <Text style={styles.optionText}>Release task back to job pool</Text>
           </Pressable>
           {error ? <Text style={styles.error}>{error}</Text> : null}
           <View style={styles.row}>
-            <Pressable onPress={onClose} style={styles.secondary}>
+            <Pressable
+              onPress={() => {
+                dismissKeyboard();
+                onClose();
+              }}
+              style={styles.secondary}
+            >
               <Text style={styles.secondaryText}>Keep task</Text>
             </Pressable>
             <Pressable
               onPress={() => {
+                dismissKeyboard();
                 void confirm();
               }}
               disabled={busy}
@@ -104,8 +136,9 @@ export function CancelTaskSheet({
               )}
             </Pressable>
           </View>
-        </View>
-      </View>
+          </Pressable>
+        </Pressable>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -114,6 +147,10 @@ const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.55)',
+    justifyContent: 'center',
+  },
+  dismiss: {
+    flex: 1,
     justifyContent: 'center',
     padding: 16,
   },

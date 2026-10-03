@@ -23,6 +23,7 @@ import {
   headerBadge,
   personInitials,
 } from '@/src/lib/datetime';
+import { openSingleton } from '@/src/lib/singleton-route';
 import { colors } from '@/src/theme';
 import { BackLabelButton } from '@/src/ui/back-label';
 import { MORE_NAV_SECTIONS, moreNavForLevel } from '@/src/ui/more-nav';
@@ -59,7 +60,7 @@ export function AppHeader({
 
   const go = (href: string) => {
     setMoreOpen(false);
-    router.push(href as never);
+    openSingleton(router, pathname, href);
   };
 
   const actions = (
