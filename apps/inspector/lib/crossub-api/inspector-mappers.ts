@@ -654,8 +654,8 @@ export function toInspectorNotification(
   return {
     id: dto.id,
     type: NOTIFICATION_TYPE_VIEW[dto.type] ?? 'message',
-    title: dto.title,
-    body: dto.body,
+    title: dto.title ? dto.title.charAt(0).toUpperCase() + dto.title.slice(1) : dto.title,
+    body: dto.body ? dto.body.charAt(0).toUpperCase() + dto.body.slice(1) : dto.body,
     href: dto.href,
     read: dto.read,
     createdAt: asString(dto.at) ?? '',

@@ -103,6 +103,11 @@ export function mapMessageThreads(
   return { threads, messagesByThread };
 }
 
+function startUpper(value: string): string {
+  if (!value) return value;
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
 export function mapNotifications(
   dtos: Array<{
     id: string;
@@ -117,8 +122,8 @@ export function mapNotifications(
   return dtos.map((dto) => ({
     id: dto.id,
     type: dto.type.toLowerCase(),
-    title: dto.title,
-    body: dto.body,
+    title: startUpper(dto.title),
+    body: startUpper(dto.body),
     href: toNativeHref(dto.href),
     read: dto.read,
     createdAt: dto.at,

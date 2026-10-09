@@ -97,7 +97,7 @@ export function PoolUrgentAlerts() {
       clearToastTimer();
       setToast({
         id: job.id,
-        title: `URGENT - ${job.type} inspection needs acceptance`,
+        title: `Urgent - ${job.type.charAt(0).toUpperCase()}${job.type.slice(1)} inspection needs acceptance`,
         description: `${job.propertyAddress} - due ${formatInspectTime(job.scheduledTime)}`,
         href: jobDetail(job.id),
       });
