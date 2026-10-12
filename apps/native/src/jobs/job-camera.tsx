@@ -6,7 +6,6 @@ import {
   Linking,
   Modal,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -25,8 +24,9 @@ import {
   persistQueuedPhoto,
 } from '@/src/offline/queued-photo';
 import { applyPhotoUriRewrites, deleteQueueItemsByLocalUri } from '@/src/offline/db';
-import { enqueuePhotoUpload, syncOfflineQueue } from '@/src/offline/sync';
+import { enqueuePhotoUpload, setPhotoCaptureActive } from '@/src/offline/sync';
 import { isRemotePhotoUrl } from '@/src/lib/local-file';
+import { useThumbReachLift } from '@/src/ui/use-scroll-end-padding';
 
 type Lens = 0.5 | 1 | 2;
 
@@ -84,6 +84,7 @@ export function JobCamera({
   uploadAreaName,
 }: JobCameraProps) {
   const insets = useSafeAreaInsets();
+  const thumbLift = useThumbReachLift();
   const cameraRef = useRef<CameraView>(null);
   const shotsRef = useRef<LocalPhoto[]>([]);
   const pendingRef = useRef<Map<string, Promise<LocalPhoto>>>(new Map());
@@ -91,6 +92,7 @@ export function JobCamera({
   const cancelledRef = useRef(false);
   const readyRef = useRef(false);
   const snappingRef = useRef(false);
+  const persistTailRef = useRef(Promise.resolve());
   const [permission, requestPermission] = useCameraPermissions();
   const [busy, setBusy] = useState(false);
   const [ready, setReady] = useState(false);
@@ -106,6 +108,14 @@ export function JobCamera({
   const room = Math.max(0, maxPhotos - shots.length);
   const canAskAgain = permission?.canAskAgain !== false;
   const noRoom = burst && maxPhotos < 1;
+
+  useEffect(() => {
+    if (!visible) return;
+    setPhotoCaptureActive(true);
+    return () => {
+      setPhotoCaptureActive(false);
+    };
+  }, [visible]);
 
   useEffect(() => {
     if (!visible) return;
@@ -137,7 +147,7 @@ export function JobCamera({
     );
   };
 
-  const persistAndQueue = async (captured: LocalPhoto): Promise<LocalPhoto> => {
+  const persistAndQueue = async (captured: LocalPhoto, drain: boolean): Promise<LocalPhoto> => {
     const alreadyUploaded = applyPhotoUriRewrites(captured.uri);
     if (isRemotePhotoUrl(alreadyUploaded)) {
       return { ...captured, uri: alreadyUploaded };
@@ -159,7 +169,9 @@ export function JobCamera({
     const areaName = uploadAreaNameRef.current;
     if (inspectionId) {
       try {
-        const queued = await enqueuePhotoUpload(inspectionId, photo.uri, areaName);
+        const queued = await enqueuePhotoUpload(inspectionId, photo.uri, areaName, {
+          drain,
+        });
         photo = { ...photo, uri: queued };
       } catch {
         // The JPEG is already on disk; upload continues when the queue drains.
@@ -185,11 +197,10 @@ export function JobCamera({
   };
 
   const queueCompress = (captured: LocalPhoto) => {
-    const job = persistAndQueue(captured)
+    const job = persistTailRef.current.then(() => persistAndQueue(captured, false))
       .then((photo) => {
         if (cancelledRef.current || handedOffRef.current) {
           if (cancelledRef.current) void dropQueuedShot(photo.uri);
-          else if (photo.uri !== captured.uri) void deleteLocalPhoto(captured.uri);
           return photo;
         }
         if (photo.uri !== captured.uri) {
@@ -201,58 +212,27 @@ export function JobCamera({
       .finally(() => {
         pendingRef.current.delete(captured.uri);
       });
+    persistTailRef.current = job.then(
+      () => undefined,
+      () => undefined,
+    );
     pendingRef.current.set(captured.uri, job);
   };
 
-  const finish = async (photos: LocalPhoto[]) => {
+  const finish = (photos: LocalPhoto[]) => {
     if (photos.length === 0 || handedOffRef.current) return;
-    setBusy(true);
-    setError(null);
+    const ready = [...shotsRef.current];
+    if (ready.length === 0) return;
+    handedOffRef.current = true;
+    pendingRef.current.clear();
+    setShotList([]);
     try {
-      await Promise.allSettled([...pendingRef.current.values()]);
-      const shots = [...shotsRef.current];
-      const savedShots: Array<LocalPhoto | undefined> = new Array(shots.length);
-      let cursor = 0;
-      const workers = Math.min(4, shots.length);
-      await Promise.all(
-        Array.from({ length: workers }, async () => {
-          while (cursor < shots.length) {
-            const index = cursor;
-            cursor += 1;
-            const shot = shots[index];
-            try {
-              const photo = await persistAndQueue(shot);
-              if (photo.uri !== shot.uri) await deleteLocalPhoto(shot.uri);
-              savedShots[index] = photo;
-            } catch {
-              if (isRemotePhotoUrl(shot.uri) || (await localPhotoExists(shot.uri))) {
-                savedShots[index] = shot;
-              }
-            }
-          }
-        }),
-      );
-      const compressed = savedShots.filter((photo): photo is LocalPhoto => Boolean(photo));
-      if (compressed.length === 0) {
-        setError('Could not save the photo on this device.');
-        return;
-      }
-      handedOffRef.current = true;
-      pendingRef.current.clear();
-      setShotList([]);
-      try {
-        if (burst && onBurstComplete) onBurstComplete(compressed);
-        else if (onCapture) onCapture(compressed[compressed.length - 1]);
-      } catch {
-        // Photos are already on disk and in the queue.
-      }
-      onClose();
-      void syncOfflineQueue();
+      if (burst && onBurstComplete) onBurstComplete(ready);
+      else if (onCapture) onCapture(ready[ready.length - 1]);
     } catch {
-      setError('Could not save the photo on this device.');
-    } finally {
-      setBusy(false);
+      // The area screen still has the photo list from this hand-off.
     }
+    onClose();
   };
 
   const snap = async () => {
@@ -266,7 +246,7 @@ export function JobCamera({
       for (let attempt = 0; attempt < 4; attempt += 1) {
         try {
           picture = await cameraRef.current.takePictureAsync({
-            quality: 0.72,
+            quality: 0.4,
             exif: false,
             skipProcessing: true,
           });
@@ -286,7 +266,7 @@ export function JobCamera({
         height: picture.height ?? 0,
       };
       if (!burst) {
-        const photo = await persistAndQueue(captured);
+        const photo = await persistAndQueue(captured, false);
         if (photo.uri !== captured.uri) await deleteLocalPhoto(captured.uri);
         handedOffRef.current = true;
         onCapture?.(photo);
@@ -318,7 +298,7 @@ export function JobCamera({
       const picked = await pickInspectionPhotos(remaining);
       if (picked.length === 0) return;
       if (!burst) {
-        const photo = await persistAndQueue(picked[0]);
+        const photo = await persistAndQueue(picked[0], false);
         handedOffRef.current = true;
         setShotList([]);
         onCapture?.(photo);
@@ -438,25 +418,24 @@ export function JobCamera({
               <View style={styles.topSpacer} />
             </View>
             {burst && shots.length > 0 ? (
-              <ScrollView
-                horizontal
-                style={styles.strip}
-                contentContainerStyle={styles.stripInner}
-              >
-                {shots.map((shot) => (
-                  <Image
-                    key={shot.uri}
-                    source={{ uri: shot.uri }}
-                    style={styles.thumb}
-                    contentFit="cover"
-                    cachePolicy="memory"
-                    recyclingKey={shot.uri}
-                    transition={0}
-                  />
-                ))}
-              </ScrollView>
+              <View style={styles.strip}>
+                <Image
+                  source={{ uri: shots[shots.length - 1].uri }}
+                  style={styles.thumb}
+                  contentFit="cover"
+                  cachePolicy="memory"
+                  recyclingKey={shots[shots.length - 1].uri}
+                  transition={0}
+                />
+                <Text style={styles.stripCount}>{shots.length}</Text>
+              </View>
             ) : null}
-            <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 16) }]}>
+            <View
+              style={[
+                styles.footer,
+                { paddingBottom: Math.max(insets.bottom, 16) + thumbLift },
+              ]}
+            >
               <View style={styles.bar}>
                 <Pressable onPress={closeWithoutSaving} style={styles.secondary}>
                   <Text style={styles.secondaryText}>Cancel</Text>
@@ -636,7 +615,15 @@ const styles = StyleSheet.create({
   lensOn: { backgroundColor: '#00d4a4' },
   lensText: { color: '#f4f4f4', fontWeight: '700', fontSize: 13 },
   lensTextOn: { color: '#111111' },
-  strip: { maxHeight: 72, backgroundColor: '#111111' },
+  strip: {
+    height: 72,
+    backgroundColor: '#111111',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 16,
+  },
+  stripCount: { color: '#f4f4f4', fontSize: 16, fontWeight: '700' },
   stripInner: { paddingHorizontal: 16, paddingVertical: 8, gap: 8 },
   thumb: { width: 56, height: 56, borderRadius: 6, backgroundColor: '#333333' },
   hint: {

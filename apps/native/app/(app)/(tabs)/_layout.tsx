@@ -1,15 +1,22 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Tabs } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAccount } from '@/src/account/account-context';
 import { useInspections } from '@/src/inspections/inspections-context';
 import { inspectorLevelAllows } from '@/src/lib/inspector-access-level';
 import { colors } from '@/src/theme';
+import { useThumbReachLift } from '@/src/ui/use-scroll-end-padding';
+
+const TAB_BAR_HEIGHT = 49;
 
 export default function TabsLayout() {
   const { pool, todaysJobs } = useInspections();
   const { accessLevel } = useAccount();
   const showTribunal = inspectorLevelAllows(accessLevel, 'tribunal');
+  const insets = useSafeAreaInsets();
+  const thumbLift = useThumbReachLift();
+  const tabBarPadding = insets.bottom + thumbLift;
 
   return (
     <Tabs
@@ -18,6 +25,8 @@ export default function TabsLayout() {
         tabBarStyle: {
           backgroundColor: colors.background,
           borderTopColor: colors.border,
+          height: TAB_BAR_HEIGHT + tabBarPadding,
+          paddingBottom: tabBarPadding,
         },
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.muted,

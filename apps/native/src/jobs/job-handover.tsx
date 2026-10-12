@@ -31,6 +31,7 @@ import {
 import {
   canAccessKeyReturnTab,
   getKeyWorkflow,
+  isInspectionWorkflowFinished,
   isKeyCollectComplete,
   isKeyReturnComplete,
   withKeyPhase,
@@ -250,6 +251,7 @@ export function JobHandoverPanel({
   const collectDone = job ? isKeyCollectComplete(job) : false;
   const returnDone = job ? isKeyReturnComplete(job) : false;
   const draft = id ? getDraft(id) : undefined;
+  const inspectionFinished = job ? isInspectionWorkflowFinished(job, draft) : false;
   const returnUnlocked = job ? canAccessKeyReturnTab(job, draft) : false;
   const returnLocked = phase === 'return' && !returnUnlocked;
   const phaseDone = phase === 'collect' ? collectDone : returnDone;
@@ -625,14 +627,14 @@ export function JobHandoverPanel({
             phaseLabel={phaseLabel}
             record={phaseRecord}
             continueLabel={
-              phase === 'collect' && job.type === 'open'
+              phase === 'collect' && !inspectionFinished && job.type === 'open'
                 ? 'Continue Inspection'
-                : phase === 'collect'
+                : phase === 'collect' && !inspectionFinished
                   ? 'Continue to Areas'
                   : 'Back to job details'
             }
             onContinue={() => {
-              if (phase === 'collect') {
+              if (phase === 'collect' && !inspectionFinished) {
                 onChangeTab(job.type === 'open' ? 'start' : 'areas');
                 return;
               }

@@ -133,7 +133,21 @@ export default function JobDetailsScreen() {
     [keysPhase, router],
   );
 
-  const job = getJob(id) ?? cached;
+  const routedJob = getJob(id) ?? cached;
+  const routedDraft = id ? getDraft(id) : undefined;
+  const routedFinished = routedJob
+    ? isInspectionWorkflowFinished(routedJob, routedDraft)
+    : false;
+
+  useEffect(() => {
+    if (!routedFinished || (tab !== 'areas' && tab !== 'start')) return;
+    selectTab(
+      routedJob?.keyAccess ? 'handover' : 'details',
+      routedJob?.keyAccess ? { keys: 'return' } : undefined,
+    );
+  }, [routedFinished, routedJob?.keyAccess, tab, selectTab]);
+
+  const job = routedJob;
   if (!job) {
     const lookup = jobLookupMiss(jobsHydrated, idLookupDone);
     return (
@@ -258,13 +272,13 @@ export default function JobDetailsScreen() {
           onFinished={() => router.replace('/')}
         />
       ) : null}
-      {tab === 'areas' && job.type !== 'open' ? (
+      {tab === 'areas' && job.type !== 'open' && !inspectionFinished ? (
         <FieldWorkflowScreen type={job.type} view="areas" onChangeTab={selectTab} />
       ) : null}
-      {tab === 'start' && job.type === 'open' ? (
+      {tab === 'start' && job.type === 'open' && !inspectionFinished ? (
         <OpenViewingScreen onChangeTab={selectTab} />
       ) : null}
-      {tab === 'start' && job.type !== 'open' ? (
+      {tab === 'start' && job.type !== 'open' && !inspectionFinished ? (
         <FieldWorkflowScreen type={job.type} view="inspect" onChangeTab={selectTab} />
       ) : null}
       {tab === 'details' ? (
@@ -347,6 +361,10 @@ export default function JobDetailsScreen() {
           <Detail label="Special Instructions" value={job.notes?.trim() || '-'} />
         </View>
 
+        {inspectionFinished &&
+        !returnPending &&
+        job.status !== 'completed' &&
+        job.status !== 'awaiting_approval' ? null : (
         <Pressable
           disabled={ctaDisabled}
           onPress={() => {
@@ -354,8 +372,11 @@ export default function JobDetailsScreen() {
               router.push(jobHistory(job.id) as never);
               return;
             }
-            if (returnPending) selectTab('handover', { keys: 'return' });
-            else if (handoverNext) selectTab('handover', { keys: 'collect' });
+            if (returnPending || inspectionFinished) {
+              if (job.keyAccess && !keyReturnDone) selectTab('handover', { keys: 'return' });
+              return;
+            }
+            if (handoverNext) selectTab('handover', { keys: 'collect' });
             else if (job.type === 'open' || started) selectTab('start');
             else selectTab('areas');
           }}
@@ -364,6 +385,7 @@ export default function JobDetailsScreen() {
           <Text style={styles.primaryText}>{ctaLabel}</Text>
           <Ionicons name="chevron-forward" size={16} color={colors.primaryFg} />
         </Pressable>
+        )}
         {job.status === 'in_progress' ? (
           <Pressable onPress={() => setCancelOpen(true)} style={styles.secondary}>
             <Text style={styles.dangerText}>Cancel task</Text>

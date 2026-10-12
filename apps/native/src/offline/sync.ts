@@ -68,7 +68,7 @@ const DRAIN_ORDER: OfflineAction[] = [
 const MISSING_FILE_DROP_AFTER = 8;
 const PHOTO_UPLOAD_TIMEOUT_MS = 90_000;
 const PHOTO_UPLOAD_CONCURRENCY = 4;
-const PHOTO_COMPRESS_CONCURRENCY = 3;
+const PHOTO_COMPRESS_CONCURRENCY = 2;
 const AUTO_PHOTO_ATTEMPT_CAP = 2;
 
 let drainInFlight: Promise<{ synced: number; remaining: number; failed: string[] }> | null = null;
@@ -79,6 +79,26 @@ let photosSettled = 0;
 let settledWhenBackgrounded = 0;
 let backgroundedAt = 0;
 let photoUploadsInFlight = 0;
+let photoCaptureActive = false;
+let resumeSyncWhenOnline = false;
+
+/** A sync the inspector started was interrupted. Continue it when the network returns. */
+export function noteSyncShouldResume(should: boolean) {
+  resumeSyncWhenOnline = should;
+}
+
+export function syncShouldResume(): boolean {
+  return resumeSyncWhenOnline;
+}
+
+/** Pause photo uploads while the camera is open so a long burst does not encode and upload at the same time. */
+export function setPhotoCaptureActive(active: boolean) {
+  photoCaptureActive = active;
+}
+
+export function isPhotoCaptureActive(): boolean {
+  return photoCaptureActive;
+}
 
 class UploadSupersededError extends Error {
   constructor() {
@@ -134,8 +154,8 @@ export function noteAppForegrounded() {
     drainInFlight = null;
     drainAgain = false;
     emitSyncProgress(null);
+    resumeSyncWhenOnline = true;
   }
-  void syncOfflineQueue({ force: true }).catch(() => undefined);
 }
 
 export type SyncProgress = { completed: number; total: number };
@@ -210,6 +230,7 @@ function createLimiter(limit: number) {
 const compressPhoto = createLimiter(PHOTO_COMPRESS_CONCURRENCY);
 
 function scheduleSyncOfflineQueue() {
+  if (photoCaptureActive) return;
   void syncOfflineQueue().catch(() => undefined);
 }
 
@@ -576,6 +597,10 @@ async function drainQueue(
     await Promise.all(
       Array.from({ length: PHOTO_UPLOAD_CONCURRENCY }, async () => {
         while (!stopPhotos && runId === uploadRunId) {
+          if (photoCaptureActive) {
+            await new Promise((resolve) => setTimeout(resolve, 300));
+            continue;
+          }
           pullNew();
           const item = pending.shift();
           if (!item) {
@@ -709,7 +734,7 @@ export async function enqueuePhotoUpload(
   options?: { drain?: boolean },
 ): Promise<string> {
   if (!localUri) throw new Error('Photo is missing from this device.');
-  const drain = options?.drain !== false;
+  const drain = options?.drain === true;
   const kickDrain = () => {
     if (drain) scheduleSyncOfflineQueue();
   };
@@ -811,7 +836,6 @@ export async function queueInspectionPhotoBatch(
       urls.push(photo.uri);
     }
   }
-  scheduleSyncOfflineQueue();
   return urls;
 }
 

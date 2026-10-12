@@ -22,8 +22,11 @@ import {
   flushOfflineWork,
   noteAppBackgrounded,
   noteAppForegrounded,
+  isPhotoCaptureActive,
+  noteSyncShouldResume,
   subscribeSyncProgress,
   syncOfflineQueue,
+  syncShouldResume,
   type SyncProgress,
 } from '@/src/offline/sync';
 
@@ -62,6 +65,7 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
     setLastError(null);
     try {
       const result = await flushOfflineWork(force ? { force: true } : undefined);
+      noteSyncShouldResume(result.remaining > 0);
       setPendingSync(result.remaining);
       const rejected = [...new Set(result.failed)];
       if (rejected.length === 1) {
@@ -76,6 +80,7 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
       await refreshPending();
       return result;
     } catch (err) {
+      noteSyncShouldResume(true);
       const message = err instanceof Error ? err.message : 'Could not sync queued changes.';
       setLastError(message);
       await refreshPending();
@@ -99,13 +104,8 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (status !== 'authed') return;
-    void syncNow().catch(() => undefined);
-  }, [status, syncNow]);
-
-  useEffect(() => {
-    if (status !== 'authed') return;
     const sub = Network.addNetworkStateListener((state) => {
-      if (state.isConnected) {
+      if (state.isConnected && syncShouldResume() && !isPhotoCaptureActive()) {
         void syncNow().catch(() => undefined);
       }
     });
@@ -117,11 +117,12 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
     const sub = AppState.addEventListener('change', (state) => {
       if (state === 'active') {
         noteAppForegrounded();
+        if (syncShouldResume()) void syncNow().catch(() => undefined);
         return;
       }
       if (state === 'inactive' || state === 'background') {
+        if (syncingRef.current) noteSyncShouldResume(true);
         noteAppBackgrounded();
-        void syncOfflineQueue().catch(() => undefined);
       }
     });
     return () => sub.remove();

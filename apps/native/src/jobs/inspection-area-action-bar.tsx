@@ -2,6 +2,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { colors } from '@/src/theme';
+import { useThumbReachLift } from '@/src/ui/use-scroll-end-padding';
 
 export function InspectionAreaActionBar({
   checked,
@@ -20,8 +21,9 @@ export function InspectionAreaActionBar({
   isLast: boolean;
   onNext: () => void;
 }) {
+  const thumbLift = useThumbReachLift();
   return (
-    <View style={styles.wrap}>
+    <View style={[styles.wrap, thumbLift > 0 ? { paddingBottom: 12 + thumbLift } : null]}>
       <View style={styles.ring}>
         <Text style={styles.ringText}>
           {checked}/{total}

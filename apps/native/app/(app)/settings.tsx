@@ -32,8 +32,9 @@ export default function SettingsScreen() {
         <View style={styles.card}>
           <Text style={styles.title}>Offline Mode</Text>
           <Text style={styles.body}>
-            Drafts and findings queue in SQLite. Photos stay as JPEG files on this
-            phone, not in the database, and upload when the connection returns.
+            Photos and drafts stay on this phone until you tap Sync now. If the
+            connection drops during a sync, the rest continues when it returns.
+            Closing the app keeps the saved photos.
           </Text>
           {pendingSync > 0 ? (
             <Text style={styles.pending}>

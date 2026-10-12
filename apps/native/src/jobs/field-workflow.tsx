@@ -45,6 +45,7 @@ import { moveIndex, rekeyRecord, renameCustomArea } from '@/src/lib/inspection-l
 import { buildInspectionFinishedPatch, isKeyCollectComplete } from '@/src/lib/key-access';
 import { jobLookupMiss } from '@/src/lib/job-lookup';
 import { discardLocalPhoto, jobHasQueuedPhotos } from '@/src/offline/db';
+import { SyncPendingButton } from '@/src/offline/sync-pending-button';
 import { queueExecutionDraft, queueInspectionFindings, queueInspectionPhotoBatch } from '@/src/offline/sync';
 import { upsertPhotoUrl } from '@/src/offline/queued-photo';
 import { inspectionHasNswSpecialReporting } from '@/src/lib/special-reporting';
@@ -395,6 +396,7 @@ export function FieldWorkflowScreen({
       }
       try {
         await queueInspectionPhotoBatch(id, photos, areaName, (fromUri, toUri) => {
+          if (fromUri === toUri) return;
           const current = draftRef.current.issues[areaName] ?? emptyRoutineIssue();
           persist({
             ...draftRef.current,
@@ -692,6 +694,7 @@ export function FieldWorkflowScreen({
               </>
             )}
           </ScrollView>
+          <SyncPendingButton />
           {names.length > 0 ? (
             <InspectionAreaActionBar
               checked={current.available === true && (current.areaPhotos?.length ?? 0) > 0 ? 1 : 0}

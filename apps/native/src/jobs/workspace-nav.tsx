@@ -2,6 +2,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { jobInspectionContinuing } from '@/src/lib/inspection-job-cta';
+import { isInspectionWorkflowFinished } from '@/src/lib/key-access';
 import type { InspectionJob } from '@/src/lib/types';
 import { colors } from '@/src/theme';
 import { useInspections } from '@/src/inspections/inspections-context';
@@ -29,19 +30,23 @@ export function JobWorkspaceNav({
   onSelect: (tab: WorkspaceTab) => void;
 }) {
   const { getDraft } = useInspections();
-  const continuing = jobInspectionContinuing(job, getDraft(job.id));
+  const draft = getDraft(job.id);
+  const continuing = jobInspectionContinuing(job, draft);
+  const finished = isInspectionWorkflowFinished(job, draft);
   const items: { id: WorkspaceTab; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
     { id: 'details', label: 'Job Details', icon: 'document-text-outline' },
     { id: 'handover', label: 'Handover', icon: 'key-outline' },
   ];
-  if (job.type !== 'open') {
+  if (!finished && job.type !== 'open') {
     items.push({ id: 'areas', label: 'Areas', icon: 'grid-outline' });
   }
-  items.push({
-    id: 'start',
-    label: continuing ? 'Continue Inspection' : 'Start Inspection',
-    icon: 'play',
-  });
+  if (!finished) {
+    items.push({
+      id: 'start',
+      label: continuing ? 'Continue Inspection' : 'Start Inspection',
+      icon: 'play',
+    });
+  }
 
   return (
     <View style={styles.nav}>

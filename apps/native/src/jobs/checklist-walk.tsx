@@ -40,6 +40,7 @@ import {
 import { useInspections } from '@/src/inspections/inspections-context';
 import type { RoutineAreaIssueDraft, RoutineExecutionDraft } from '@/src/lib/types';
 import { discardLocalPhoto } from '@/src/offline/db';
+import { SyncPendingButton } from '@/src/offline/sync-pending-button';
 import { queueInspectionFindings, queueInspectionPhotoBatch } from '@/src/offline/sync';
 import { upsertPhotoUrl } from '@/src/offline/queued-photo';
 import { useOffline } from '@/src/offline/offline-context';
@@ -258,6 +259,7 @@ export function ChecklistWalk({
       }
       try {
         await queueInspectionPhotoBatch(inspectionId, photos, areaName, (fromUri, toUri) => {
+          if (fromUri === toUri) return;
           patchIssue(areaName, (rec) => ({
             ...rec,
             available: true,
@@ -284,6 +286,7 @@ export function ChecklistWalk({
       resolvedSide === 'outgoing' || type === 'outgoing' ? 'outgoing' : 'ingoing';
 
     const applyUrls = (fromUri: string, toUri: string) => {
+      if (fromUri === toUri) return;
       patchIssue(areaName, (rec) => {
         const photosForSection = rec.photosBySection?.[section];
         if (resolvedSide === 'ingoing') {
@@ -321,7 +324,30 @@ export function ChecklistWalk({
     };
 
     setError(null);
-    for (const photo of photos) applyUrls(photo.uri, photo.uri);
+    patchIssue(areaName, (rec) => {
+      const photosForSection = photos.reduce((slotPhotos, photo) => {
+        if (resolvedSide === 'ingoing') {
+          return {
+            ...slotPhotos,
+            ingoingPhotoUrls: upsertPhotoUrl(slotPhotos.ingoingPhotoUrls, photo.uri, photo.uri),
+          };
+        }
+        return withCurrentUrls(
+          slot,
+          slotPhotos,
+          upsertPhotoUrl(currentUrls(slot, slotPhotos), photo.uri, photo.uri),
+        );
+      }, rec.photosBySection?.[section] ?? emptySectionPhotos());
+      return {
+        ...rec,
+        available: true,
+        photosSkipped: false,
+        photosBySection: {
+          ...(rec.photosBySection ?? {}),
+          [section]: photosForSection,
+        },
+      };
+    });
     void (async () => {
       try {
         await ensureAccepted();
@@ -361,15 +387,6 @@ export function ChecklistWalk({
     const rec = ensureIssue(currentName, draft.issues[currentName], customAreas);
     if (rec.available === false) {
       advanceFromArea();
-      return;
-    }
-    if (sections.length === 0) {
-      setError('Add at least one item, or skip this area');
-      return;
-    }
-    const incomplete = firstIncompleteSection(sections, rec.itemMarks);
-    if (incomplete) {
-      setError(`Finish marking or unmark "${incomplete}"`);
       return;
     }
     const photographed =
@@ -727,6 +744,7 @@ export function ChecklistWalk({
         )}
       </ScrollView>
       </View>
+      <SyncPendingButton />
       {names.length > 0 ? (
         <InspectionAreaActionBar
           checked={issue.available === false ? 0 : checkedCount}

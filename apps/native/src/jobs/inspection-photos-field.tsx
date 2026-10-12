@@ -5,7 +5,6 @@ import {
   useContext,
   useCallback,
   useEffect,
-  useMemo,
   useRef,
   useState,
   type ReactNode,
@@ -19,7 +18,6 @@ import {
   StyleSheet,
   Text,
   View,
-  type ListRenderItem,
 } from 'react-native';
 
 import type { LocalPhoto } from '@/src/jobs/compress-photo';
@@ -29,10 +27,6 @@ import { asFileUri, isRemotePhotoUrl, resolveLocalFileUri } from '@/src/lib/loca
 import { colors } from '@/src/theme';
 
 const CELL_GAP = 8;
-const VISIBLE_ROWS = 4;
-const ADD_ITEM = { type: 'add' as const };
-
-type GridItem = { type: 'photo'; url: string; index: number } | { type: 'add' };
 
 function photoCachePolicy(uri: string) {
   return isRemotePhotoUrl(uri) ? ('disk' as const) : ('memory' as const);
@@ -147,6 +141,69 @@ function PhotoThumb({
   );
 }
 
+function PhotoSetSheet({
+  visible,
+  title,
+  photoUrls,
+  disabled,
+  onClose,
+  onOpen,
+  onRemove,
+}: {
+  visible: boolean;
+  title: string;
+  photoUrls: string[];
+  disabled?: boolean;
+  onClose: () => void;
+  onOpen: (index: number) => void;
+  onRemove?: (index: number) => void;
+}) {
+  return (
+    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
+      <View style={styles.allRoot}>
+        <View style={styles.allHead}>
+          <Text style={styles.allTitle}>{title}</Text>
+          <Pressable onPress={onClose} accessibilityLabel="Close photos">
+            <Text style={styles.allClose}>Done</Text>
+          </Pressable>
+        </View>
+        <FlatList
+          data={photoUrls}
+          numColumns={3}
+          keyExtractor={(url, index) => `${index}:${url.slice(-32)}`}
+          contentContainerStyle={styles.allList}
+          columnWrapperStyle={styles.allRow}
+          initialNumToRender={12}
+          maxToRenderPerBatch={9}
+          windowSize={5}
+          removeClippedSubviews
+          renderItem={({ item, index }) => (
+            <View style={styles.allCell}>
+              <PhotoThumb
+                uri={item}
+                onPress={() => {
+                  onClose();
+                  onOpen(index);
+                }}
+              />
+              {!disabled && onRemove ? (
+                <Pressable
+                  onPress={() => onRemove(index)}
+                  style={styles.remove}
+                  hitSlop={8}
+                  accessibilityLabel="Remove photo"
+                >
+                  <Ionicons name="close" size={12} color="#fff" />
+                </Pressable>
+              ) : null}
+            </View>
+          )}
+        />
+      </View>
+    </Modal>
+  );
+}
+
 export function InspectionPhotosField({
   label = 'Photos',
   saveLabel,
@@ -178,31 +235,9 @@ export function InspectionPhotosField({
   const [showAll, setShowAll] = useState(false);
   const [picking, setPicking] = useState(false);
   const [pickProgress, setPickProgress] = useState<{ completed: number; total: number } | null>(null);
-  const [gridWidth, setGridWidth] = useState(0);
-  const listRef = useRef<FlatList<GridItem>>(null);
   const previewUrl = previewIndex != null ? photoUrls[previewIndex] : null;
-  const prevCountRef = useRef(photoUrls.length);
+  const coverUrl = photoUrls[photoUrls.length - 1];
   const atLimit = maxPhotos != null && photoUrls.length >= maxPhotos;
-  const canAdd = !disabled && !atLimit;
-  const gridItems = useMemo<GridItem[]>(() => {
-    const items: GridItem[] = photoUrls.map((url, index) => ({ type: 'photo', url, index }));
-    if (canAdd) items.push(ADD_ITEM);
-    return items;
-  }, [photoUrls, canAdd]);
-  const cellSize = gridWidth > 0 ? Math.floor((gridWidth - CELL_GAP * 2) / 3) : 0;
-  const rows = Math.ceil(Math.max(gridItems.length, 1) / 3);
-  const visibleRows = Math.min(rows, VISIBLE_ROWS);
-  const gridHeight =
-    cellSize > 0 ? visibleRows * cellSize + Math.max(0, visibleRows - 1) * CELL_GAP : 0;
-  const scrollable = rows > VISIBLE_ROWS;
-
-  useEffect(() => {
-    const prev = prevCountRef.current;
-    prevCountRef.current = photoUrls.length;
-    if (photoUrls.length > prev && scrollable) {
-      requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: true }));
-    }
-  }, [photoUrls.length, scrollable]);
 
   const reportLibrarySave = useContext(LibrarySaveContext);
   const mountedRef = useRef(true);
@@ -240,37 +275,6 @@ export function InspectionPhotosField({
         setPickProgress(null);
       }
     }
-  };
-
-  const renderGridItem: ListRenderItem<GridItem> = ({ item }) => {
-    if (item.type === 'add') {
-      return (
-        <Pressable
-          onPress={onTakePhotos}
-          style={[styles.addCell, { width: cellSize, height: cellSize }]}
-          accessibilityLabel="Add photo"
-        >
-          <View style={styles.addCellInner} pointerEvents="none">
-            <Ionicons name="camera-outline" size={22} color={colors.muted} />
-          </View>
-        </Pressable>
-      );
-    }
-    return (
-      <View style={[styles.cell, { width: cellSize, height: cellSize }]}>
-        <PhotoThumb uri={item.url} onPress={() => setPreviewIndex(item.index)} />
-        {!disabled && onRemove ? (
-          <Pressable
-            onPress={() => onRemove(item.index)}
-            style={styles.remove}
-            hitSlop={8}
-            accessibilityLabel="Remove photo"
-          >
-            <Ionicons name="close" size={12} color="#fff" />
-          </Pressable>
-        ) : null}
-      </View>
-    );
   };
 
   return (
@@ -329,91 +333,36 @@ export function InspectionPhotosField({
           <Ionicons name="add" size={16} color={colors.muted} />
           <Text style={styles.emptyText}>{emptyLabel}</Text>
         </Pressable>
-      ) : (
-        <>
-          <View
-            onLayout={(event) => {
-              const next = event.nativeEvent.layout.width;
-              if (next > 0 && next !== gridWidth) setGridWidth(next);
-            }}
-          >
-            {cellSize > 0 ? (
-              <FlatList
-                ref={listRef}
-                data={gridItems}
-                numColumns={3}
-                extraData={`${cellSize}:${disabled}:${photoUrls.join('\n')}`}
-                keyExtractor={(item) =>
-                  item.type === 'add' ? 'add' : `${item.index}:${item.url.slice(-32)}`
-                }
-                renderItem={renderGridItem}
-                scrollEnabled={scrollable}
-                nestedScrollEnabled={scrollable}
-                style={{ height: gridHeight }}
-                columnWrapperStyle={styles.inlineRow}
-                initialNumToRender={12}
-                maxToRenderPerBatch={12}
-                windowSize={8}
-                removeClippedSubviews={false}
-              />
-            ) : (
-              <View style={{ height: 96 }} />
-            )}
-          </View>
-          {scrollable ? (
-            <Pressable onPress={() => setShowAll(true)} style={styles.viewAll}>
-              <Text style={styles.viewAllText}>Expand {photoUrls.length} photos</Text>
-            </Pressable>
-          ) : null}
-        </>
-      )}
-
-      <Modal
-        visible={showAll}
-        animationType="slide"
-        onRequestClose={() => setShowAll(false)}
-      >
-        <View style={styles.allRoot}>
-          <View style={styles.allHead}>
-            <Text style={styles.allTitle}>{photoUrls.length} photos</Text>
-            <Pressable onPress={() => setShowAll(false)} accessibilityLabel="Close photo list">
-              <Text style={styles.allClose}>Done</Text>
-            </Pressable>
-          </View>
-          <FlatList
-            data={photoUrls}
-            numColumns={3}
-            keyExtractor={(url, index) => `${index}:${url.slice(-32)}`}
-            contentContainerStyle={styles.allList}
-            columnWrapperStyle={styles.allRow}
-            initialNumToRender={12}
-            maxToRenderPerBatch={9}
-            windowSize={8}
-            removeClippedSubviews={false}
-            renderItem={({ item, index }) => (
-              <View style={styles.allCell}>
-                <PhotoThumb
-                  uri={item}
-                  onPress={() => {
-                    setShowAll(false);
-                    setPreviewIndex(index);
-                  }}
-                />
-                {!disabled && onRemove ? (
-                  <Pressable
-                    onPress={() => onRemove(index)}
-                    style={styles.remove}
-                    hitSlop={8}
-                    accessibilityLabel="Remove photo"
-                  >
-                    <Ionicons name="close" size={12} color="#fff" />
-                  </Pressable>
-                ) : null}
-              </View>
-            )}
+      ) : coverUrl ? (
+        <Pressable
+          onPress={() => setShowAll(true)}
+          style={styles.roll}
+          accessibilityLabel={`View ${photoUrls.length} photos`}
+        >
+          <Image
+            source={{ uri: coverUrl }}
+            style={styles.rollImage}
+            contentFit="cover"
+            cachePolicy={photoCachePolicy(coverUrl)}
+            recyclingKey={coverUrl}
+            allowDownscaling
+            transition={0}
           />
-        </View>
-      </Modal>
+          <View style={styles.rollCount} pointerEvents="none">
+            <Text style={styles.rollCountText}>{photoUrls.length}</Text>
+          </View>
+        </Pressable>
+      ) : null}
+
+      <PhotoSetSheet
+        visible={showAll}
+        title={`${photoUrls.length} photo${photoUrls.length === 1 ? '' : 's'}`}
+        photoUrls={photoUrls}
+        disabled={disabled}
+        onClose={() => setShowAll(false)}
+        onOpen={setPreviewIndex}
+        onRemove={onRemove}
+      />
 
       <Modal visible={previewUrl != null} transparent animationType="fade" onRequestClose={() => setPreviewIndex(null)}>
         <Pressable style={styles.preview} onPress={() => setPreviewIndex(null)}>
@@ -454,10 +403,10 @@ export function BeforeAfterPhotoColumn({
   onRemove?: (index: number) => void;
 }) {
   const primaryUrl = photoUrls[0];
-  const extraUrls = photoUrls.slice(1);
   const [picking, setPicking] = useState(false);
   const [pickProgress, setPickProgress] = useState<{ completed: number; total: number } | null>(null);
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
+  const [showAll, setShowAll] = useState(false);
   const pickingBusy = picking;
   const canCapture = !disabled && Boolean(onTakePhotos);
   const previewUrl = previewIndex != null ? photoUrls[previewIndex] : null;
@@ -514,7 +463,7 @@ export function BeforeAfterPhotoColumn({
     <View style={styles.column}>
       <Pressable
         onPress={
-          primaryUrl ? () => openPreview(0) : canCapture ? onTakePhotos : undefined
+          primaryUrl ? () => setShowAll(true) : canCapture ? onTakePhotos : undefined
         }
         disabled={!primaryUrl && !canCapture}
         style={styles.square}
@@ -576,13 +525,15 @@ export function BeforeAfterPhotoColumn({
       {pickProgress ? (
         <UploadProgress completed={pickProgress.completed} total={pickProgress.total} />
       ) : null}
-      {extraUrls.length > 0 ? (
-        <Pressable onPress={() => openPreview(1)} style={styles.columnMoreBtn}>
-          <Text style={styles.columnMore}>
-            {extraUrls.length === 1 ? 'View 1 more' : `View ${extraUrls.length} more`}
-          </Text>
-        </Pressable>
-      ) : null}
+      <PhotoSetSheet
+        visible={showAll}
+        title={`${photoUrls.length} ${title} photo${photoUrls.length === 1 ? '' : 's'}`}
+        photoUrls={photoUrls}
+        disabled={disabled}
+        onClose={() => setShowAll(false)}
+        onOpen={openPreview}
+        onRemove={onRemove}
+      />
 
       <Modal
         visible={previewUrl != null}
@@ -700,6 +651,27 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   emptyText: { color: colors.muted, fontSize: 12, flexShrink: 1 },
+  roll: {
+    width: 88,
+    height: 88,
+    borderRadius: 10,
+    overflow: 'hidden',
+    backgroundColor: colors.secondary,
+  },
+  rollImage: { width: '100%', height: '100%' },
+  rollCount: {
+    position: 'absolute',
+    right: 6,
+    bottom: 6,
+    minWidth: 22,
+    height: 22,
+    borderRadius: 11,
+    paddingHorizontal: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.72)',
+  },
+  rollCountText: { color: '#fff', fontSize: 12, fontWeight: '700' },
   inlineRow: { gap: CELL_GAP, marginBottom: CELL_GAP, justifyContent: 'flex-start' },
   cell: { borderRadius: 8, overflow: 'hidden', position: 'relative' },
   thumbBtn: { flex: 1, width: '100%', height: '100%', backgroundColor: colors.secondary },

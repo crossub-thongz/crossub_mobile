@@ -58,7 +58,7 @@ const FAQS: Faq[] = [
   },
   {
     q: 'What if I am offline?',
-    a: 'Photos are saved on this phone as soon as you take them, even before they upload. Login and logout both sync the queue. Settings shows how many changes are waiting. Tap Sync now when you have a connection.',
+    a: 'Photos are saved on this phone as soon as you take them. They do not upload during capture. Tap Sync on the inspection screen, or Sync now in Settings, when you have a connection. If the connection drops, the rest continues when it returns. Closing the app keeps the saved photos.',
     links: [{ label: 'Open Settings', href: settingsPath }],
   },
 ];
