@@ -1,68 +1,30 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 
-const LOCATION_SYNC_MS = 30_000;
+import { readDeviceLocation, subscribeDeviceLocation } from '@/lib/use-device-position';
 
 /**
- * Periodically read the device GPS and push fixes to the inspector location API
- * while the inspector is signed in with an approved roster row.
+ * Send the shared GPS fix to the inspector location API. The watcher itself
+ * already waits 30 seconds or 50 metres, so this does not PATCH on every tick.
+ * The subscription lives in an effect so a new fix does not re-render the provider.
  */
 export function useInspectorLocationSync(
   enabled: boolean,
   onLocation: (latitude: number, longitude: number) => void | Promise<void>,
 ) {
-  const onLocationRef = useRef(onLocation);
-  onLocationRef.current = onLocation;
-
   useEffect(() => {
-    if (!enabled || typeof window === 'undefined' || !navigator.geolocation) {
-      return;
-    }
-
-    let cancelled = false;
-    let watchId: number | null = null;
-
-    const pushFix = (latitude: number, longitude: number) => {
-      if (cancelled) return;
-      if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return;
-      void onLocationRef.current(latitude, longitude);
+    if (!enabled) return;
+    let lastKey = '';
+    const send = () => {
+      const position = readDeviceLocation();
+      if (!position) return;
+      const key = `${position.latitude.toFixed(5)},${position.longitude.toFixed(5)}`;
+      if (lastKey === key) return;
+      lastKey = key;
+      void onLocation(position.latitude, position.longitude);
     };
-
-    const syncNow = () => {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => pushFix(pos.coords.latitude, pos.coords.longitude),
-        () => {
-          // Retry once with a looser accuracy budget — silent deny still yields no fix.
-          navigator.geolocation.getCurrentPosition(
-            (pos) => pushFix(pos.coords.latitude, pos.coords.longitude),
-            () => {},
-            { enableHighAccuracy: false, maximumAge: 60_000, timeout: 15_000 },
-          );
-        },
-        { enableHighAccuracy: true, maximumAge: 15_000, timeout: 20_000 },
-      );
-    };
-
-    syncNow();
-    const interval = window.setInterval(syncNow, LOCATION_SYNC_MS);
-
-    try {
-      watchId = navigator.geolocation.watchPosition(
-        (pos) => pushFix(pos.coords.latitude, pos.coords.longitude),
-        () => {},
-        { enableHighAccuracy: true, maximumAge: 15_000, timeout: 25_000 },
-      );
-    } catch {
-      // watchPosition unavailable — interval polling is enough.
-    }
-
-    return () => {
-      cancelled = true;
-      window.clearInterval(interval);
-      if (watchId != null) {
-        navigator.geolocation.clearWatch(watchId);
-      }
-    };
-  }, [enabled]);
+    send();
+    return subscribeDeviceLocation(send);
+  }, [enabled, onLocation]);
 }

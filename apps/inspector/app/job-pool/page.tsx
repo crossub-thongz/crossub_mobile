@@ -13,6 +13,7 @@ import { JobCard } from '@/components/inspector/job-card';
 import { JobPoolLocationBar } from '@/components/inspector/job-pool-location-bar';
 import { InspectorShell } from '@/components/layout/inspector-shell';
 import { useInspectorData } from '@/components/providers/inspector-data-provider';
+import { useDeviceLocation } from '@/lib/use-device-position';
 import {
   CORE_INSPECTION_TYPES,
   INSPECTION_TYPE_LABEL,
@@ -56,8 +57,8 @@ export default function JobPoolPage() {
     poolError,
     refresh,
     profile,
-    deviceLocation,
   } = useInspectorData();
+  const deviceLocation = useDeviceLocation();
   const allowedPoolTypes = useMemo(
     () => poolTypesForInspectorLevel(profile.accessLevel),
     [profile.accessLevel],

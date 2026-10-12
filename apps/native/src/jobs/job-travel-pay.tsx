@@ -28,7 +28,7 @@ export function JobTravelCard({
           <Text style={styles.label}>Travel to site</Text>
           {travel ? (
             <Text style={styles.value}>
-              {formatDistanceKm(travel.distanceKm)} · ~{travel.travelMinutes} min ETA
+              {formatDistanceKm(travel.distanceKm)} Â· ~{travel.travelMinutes} min ETA
             </Text>
           ) : (
             <Text style={styles.muted}>
@@ -71,7 +71,7 @@ export function JobPayBreakdown({
   const routineCopy =
     hours === 1 && laborAmount === ROUTINE_OPEN_INSPECTOR_FEE_INC_GST_AUD
       ? `$${ROUTINE_OPEN_INSPECTOR_FEE_INC_GST_AUD} inc GST per routine / open job`
-      : `Agent APP price list${hours > 0 ? ` · ~${hours}h on site` : ''}`;
+      : `Agent APP price list${hours > 0 ? ` Â· ~${hours}h on site` : ''}`;
   return (
     <View>
       {durationLabel ? <Text style={styles.hint}>{durationLabel}</Text> : null}

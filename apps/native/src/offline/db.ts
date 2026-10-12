@@ -1,9 +1,14 @@
 import * as SQLite from 'expo-sqlite';
 
-import { isRemotePhotoUrl, sameLocalPhotoUri } from '@/src/lib/local-file';
+import { isRemotePhotoUrl, localFileCandidates } from '@/src/lib/local-file';
 import type { HandoverParty, KeyCondition } from '@/src/lib/handover-notes';
 import type { InspectionJob, RoutineExecutionDraft } from '@/src/lib/types';
-import { deleteQueuedPhoto, dedupeDraftPhotoLists, stripBase64Payload } from '@/src/offline/queued-photo';
+import {
+  deleteOfflineQueueFiles,
+  deleteQueuedPhoto,
+  dedupeDraftPhotoLists,
+  stripBase64Payload,
+} from '@/src/offline/queued-photo';
 
 const DB_NAME = 'crossub-inspector.db';
 
@@ -24,6 +29,8 @@ export type OfflineQueueItem = {
   payload: Record<string, unknown>;
   createdAt: string;
   attempts: number;
+  /** Set when the server rejected this item. Automatic sync skips it. */
+  lastError: string | null;
 };
 
 export type HandoverFormDraft = {
@@ -89,12 +96,31 @@ export function flushDraftNotifications(): void {
 
 let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
 const appliedPhotoUriRewrites: Array<{ from: string; to: string }> = [];
+const rewriteByUri = new Map<string, string>();
+
+function indexPhotoUriRewrite(from: string, to: string) {
+  rewriteByUri.set(from, to);
+  for (const key of localFileCandidates(from)) rewriteByUri.set(key, to);
+}
+
+function rebuildPhotoUriIndex() {
+  rewriteByUri.clear();
+  for (const rewrite of appliedPhotoUriRewrites) {
+    indexPhotoUriRewrite(rewrite.from, rewrite.to);
+  }
+}
 
 async function migrateQueue(db: SQLite.SQLiteDatabase): Promise<void> {
   const cols = await db.getAllAsync<{ name: string }>(`PRAGMA table_info(queue)`);
   if (!cols.some((col) => col.name === 'attempts')) {
     await db.execAsync(`ALTER TABLE queue ADD COLUMN attempts INTEGER NOT NULL DEFAULT 0`);
   }
+  if (!cols.some((col) => col.name === 'last_error')) {
+    await db.execAsync(`ALTER TABLE queue ADD COLUMN last_error TEXT`);
+  }
+  await db.execAsync(
+    `CREATE INDEX IF NOT EXISTS queue_action_created_at ON queue(action, created_at)`,
+  );
 }
 
 async function migrateHandoverDrafts(db: SQLite.SQLiteDatabase): Promise<void> {
@@ -134,6 +160,7 @@ async function migratePhotoUriRewrites(db: SQLite.SQLiteDatabase): Promise<void>
     if (!row.from_uri || !row.to_uri || row.from_uri === row.to_uri) continue;
     appliedPhotoUriRewrites.push({ from: row.from_uri, to: row.to_uri });
   }
+  rebuildPhotoUriIndex();
 }
 
 async function getDb(): Promise<SQLite.SQLiteDatabase> {
@@ -175,6 +202,23 @@ async function getDb(): Promise<SQLite.SQLiteDatabase> {
   return dbPromise;
 }
 
+/** Remove drafts, the upload queue, handover notes, and the job cache for the signed-out inspector. */
+export async function wipeLocalInspectorData(): Promise<void> {
+  const db = await getDb();
+  await db.execAsync(`
+    DELETE FROM drafts;
+    DELETE FROM queue;
+    DELETE FROM handover_drafts;
+    DELETE FROM jobs_cache;
+    DELETE FROM photo_uri_rewrites;
+  `);
+  appliedPhotoUriRewrites.length = 0;
+  rewriteByUri.clear();
+  await deleteOfflineQueueFiles();
+  notifyQueueChanged();
+  notifyDraftsChanged();
+}
+
 export function isRetryableNetworkError(err: unknown): boolean {
   const message = err instanceof Error ? err.message.toLowerCase() : String(err).toLowerCase();
   return (
@@ -208,10 +252,13 @@ export function isPermanentPhotoError(err: unknown): boolean {
 
 function rememberPhotoUriRewrite(from: string, to: string): void {
   if (!from || from === to) return;
-  if (appliedPhotoUriRewrites.some((item) => item.from === from && item.to === to)) return;
+  if (rewriteByUri.get(from) === to) return;
   appliedPhotoUriRewrites.push({ from, to });
   if (appliedPhotoUriRewrites.length > 4000) {
     appliedPhotoUriRewrites.splice(0, appliedPhotoUriRewrites.length - 3000);
+    rebuildPhotoUriIndex();
+  } else {
+    indexPhotoUriRewrite(from, to);
   }
   void persistPhotoUriRewrite(from, to);
 }
@@ -231,9 +278,11 @@ async function persistPhotoUriRewrite(from: string, to: string): Promise<void> {
 
 function uploadedUrlFor(uri: string): string | null {
   if (!uri || isRemotePhotoUrl(uri)) return null;
-  for (const rewrite of appliedPhotoUriRewrites) {
-    if (!rewrite.to || !isRemotePhotoUrl(rewrite.to)) continue;
-    if (uri === rewrite.from || sameLocalPhotoUri(uri, rewrite.from)) return rewrite.to;
+  const direct = rewriteByUri.get(uri);
+  if (direct && isRemotePhotoUrl(direct)) return direct;
+  for (const key of localFileCandidates(uri)) {
+    const hit = rewriteByUri.get(key);
+    if (hit && isRemotePhotoUrl(hit)) return hit;
   }
   return null;
 }
@@ -451,6 +500,7 @@ export async function enqueueOfflineAction(
     payload: safePayload,
     createdAt: new Date().toISOString(),
     attempts: 0,
+    lastError: null,
   };
   await db.runAsync(
     `INSERT INTO queue (id, job_id, action, payload, created_at, attempts) VALUES (?, ?, ?, ?, ?, 0)`,
@@ -463,8 +513,19 @@ export async function enqueueOfflineAction(
   const countRow = await db.getFirstAsync<{ count: number }>(`SELECT COUNT(*) as count FROM queue`);
   const extra = (countRow?.count ?? 0) - OFFLINE_QUEUE_MAX_ITEMS;
   if (extra > 0) await trimOldest(db, extra);
+  if (item.action === 'photo_upload' || item.action === 'key_photo') {
+    photoArrivals.push(item);
+  }
   notifyQueueChanged();
   return item;
+}
+
+const photoArrivals: OfflineQueueItem[] = [];
+
+/** Photos queued while a sync is already running. The drain takes these instead of re-reading the table. */
+export function takeArrivedPhotos(): OfflineQueueItem[] {
+  if (photoArrivals.length === 0) return [];
+  return photoArrivals.splice(0, photoArrivals.length);
 }
 
 export async function loadOfflineQueue(): Promise<OfflineQueueItem[]> {
@@ -476,7 +537,10 @@ export async function loadOfflineQueue(): Promise<OfflineQueueItem[]> {
     payload: string;
     created_at: string;
     attempts: number | null;
-  }>(`SELECT id, job_id, action, payload, created_at, attempts FROM queue ORDER BY created_at ASC`);
+    last_error: string | null;
+  }>(
+    `SELECT id, job_id, action, payload, created_at, attempts, last_error FROM queue ORDER BY created_at ASC`,
+  );
   const items: OfflineQueueItem[] = [];
   for (const row of rows) {
     const payload = await parsePayload(row.payload);
@@ -491,6 +555,7 @@ export async function loadOfflineQueue(): Promise<OfflineQueueItem[]> {
       payload,
       createdAt: row.created_at,
       attempts: row.attempts ?? 0,
+      lastError: row.last_error,
     });
   }
   return items;
@@ -498,8 +563,27 @@ export async function loadOfflineQueue(): Promise<OfflineQueueItem[]> {
 
 export async function pendingSyncCount(): Promise<number> {
   const db = await getDb();
-  const row = await db.getFirstAsync<{ count: number }>(`SELECT COUNT(*) as count FROM queue`);
+  const row = await db.getFirstAsync<{ count: number }>(
+    `SELECT COUNT(*) as count FROM queue WHERE last_error IS NULL`,
+  );
   return row?.count ?? 0;
+}
+
+export type FailedQueueItem = { id: string; action: string; message: string };
+
+export async function listFailedQueueItems(): Promise<FailedQueueItem[]> {
+  const db = await getDb();
+  const rows = await db.getAllAsync<{ id: string; action: string; last_error: string }>(
+    `SELECT id, action, last_error FROM queue WHERE last_error IS NOT NULL ORDER BY created_at ASC`,
+  );
+  return rows.map((row) => ({ id: row.id, action: row.action, message: row.last_error }));
+}
+
+export async function markQueueItemFailed(id: string, message: string): Promise<void> {
+  const db = await getDb();
+  const trimmed = message.trim().slice(0, 280) || 'The server rejected this change.';
+  await db.runAsync(`UPDATE queue SET last_error = ? WHERE id = ?`, trimmed, id);
+  notifyQueueChanged();
 }
 
 export async function removeQueueItem(id: string): Promise<void> {
@@ -598,8 +682,46 @@ export async function rewriteDraftPhotoUris(from: string, to: string): Promise<v
   await commitUploadedPhoto(from, to);
 }
 
+export async function jobHasQueuedPhotos(jobId: string): Promise<boolean> {
+  if (!jobId) return false;
+  const db = await getDb();
+  const row = await db.getFirstAsync<{ hit: number }>(
+    `SELECT 1 as hit FROM queue
+     WHERE job_id = ? AND action IN ('photo_upload', 'key_photo')
+     LIMIT 1`,
+    jobId,
+  );
+  return Boolean(row);
+}
+
+export async function discardLocalPhoto(uri: string): Promise<void> {
+  if (!uri || isRemotePhotoUrl(uri)) return;
+  await deleteQueueItemsByLocalUri(uri);
+  await deleteQueuedPhoto(uri);
+}
+
+function forgetArrivedUri(uri: string) {
+  const alt = uri.includes('file:///private/var/')
+    ? uri.replace('file:///private/var/', 'file:///var/')
+    : uri.replace('file:///var/', 'file:///private/var/');
+  for (let i = photoArrivals.length - 1; i >= 0; i -= 1) {
+    const local = photoArrivals[i]?.payload.localUri;
+    if (local === uri || local === alt) photoArrivals.splice(i, 1);
+  }
+}
+
+export async function queueItemExists(id: string): Promise<boolean> {
+  const db = await getDb();
+  const row = await db.getFirstAsync<{ hit: number }>(
+    `SELECT 1 as hit FROM queue WHERE id = ? LIMIT 1`,
+    id,
+  );
+  return Boolean(row);
+}
+
 export async function deleteQueueItemsByLocalUri(uri: string): Promise<void> {
   if (!uri) return;
+  forgetArrivedUri(uri);
   const db = await getDb();
   const alt = uri.includes('file:///private/var/')
     ? uri.replace('file:///private/var/', 'file:///var/')

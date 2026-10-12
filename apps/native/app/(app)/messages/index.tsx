@@ -1,7 +1,8 @@
 import { useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { memo, useCallback, useMemo, useState } from 'react';
 import {
   Alert,
+  FlatList,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -11,6 +12,7 @@ import {
 } from 'react-native';
 
 import { useInbox } from '@/src/inbox/inbox-context';
+import type { MessageThread } from '@/src/lib/inbox';
 import { useInspections } from '@/src/inspections/inspections-context';
 import { formatRelative } from '@/src/lib/datetime';
 import {
@@ -24,6 +26,36 @@ import { AppHeader } from '@/src/ui/app-header';
 import { AppTextInput } from '@/src/ui/app-text-input';
 import { EmptyState } from '@/src/ui/empty-state';
 import { useScrollEndPadding } from '@/src/ui/use-scroll-end-padding';
+
+const MessageRow = memo(function MessageRow({
+  item,
+  onOpen,
+}: {
+  item: MessageThread;
+  onOpen: (id: string) => void;
+}) {
+  return (
+    <Pressable onPress={() => onOpen(item.id)} style={styles.card}>
+      <View style={styles.cardHead}>
+        <Text style={styles.subject} numberOfLines={1}>
+          {item.subject}
+        </Text>
+        {item.unread > 0 ? (
+          <View style={styles.unread}>
+            <Text style={styles.unreadText}>{item.unread}</Text>
+          </View>
+        ) : null}
+      </View>
+      <Text style={styles.preview} numberOfLines={2}>
+        {item.lastMessage}
+      </Text>
+      <Text style={styles.meta}>
+        {formatRelative(item.lastAt)} · {item.category}
+        {item.inspectionTrackingNumber ? ` · #${item.inspectionTrackingNumber}` : ''}
+      </Text>
+    </Pressable>
+  );
+});
 
 export default function MessagesScreen() {
   const router = useRouter();
@@ -41,7 +73,7 @@ export default function MessagesScreen() {
     () =>
       jobs
         .filter((job) => job.status !== 'available' && job.status !== 'declined')
-        .map((job) => ({ id: job.id, label: `${job.type} ? ${job.propertyAddress}` })),
+        .map((job) => ({ id: job.id, label: `${job.type} · ${job.propertyAddress}` })),
     [jobs],
   );
 
@@ -77,10 +109,21 @@ export default function MessagesScreen() {
     }
   };
 
+  const openThread = useCallback(
+    (id: string) => {
+      router.push(messageDetail(id));
+    },
+    [router],
+  );
+
   return (
     <View style={styles.safe}>
       <AppHeader title="Messages" />
-      <ScrollView
+      <FlatList
+        data={messages}
+        keyExtractor={(item) => item.id}
+        renderItem={({ item }) => <MessageRow item={item} onOpen={openThread} />}
+        keyboardShouldPersistTaps="handled"
         contentContainerStyle={[styles.inner, { paddingBottom: scrollEndPadding }]}
         refreshControl={
           <RefreshControl
@@ -91,9 +134,10 @@ export default function MessagesScreen() {
             tintColor={colors.primary}
           />
         }
-      >
+        ListHeaderComponent={
+          <>
         <View style={styles.toolbar}>
-          <Text style={styles.hint}>Message the office ? pick a case when it relates to a job.</Text>
+          <Text style={styles.hint}>Message the office · pick a case when it relates to a job.</Text>
           <Pressable
             onPress={() => setComposing((open) => !open)}
             style={[styles.newBtn, composing && styles.newBtnOutline]}
@@ -148,7 +192,7 @@ export default function MessagesScreen() {
             />
             {pendingFiles.length > 0 ? (
               <Text style={styles.hint}>
-                {pendingFiles.map((file) => file.fileName).join(' ? ')}
+                {pendingFiles.map((file) => file.fileName).join(' · ')}
               </Text>
             ) : null}
             <View style={styles.composeActions}>
@@ -184,40 +228,18 @@ export default function MessagesScreen() {
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
-        {messages.length === 0 && !composing && !loading ? (
-          <EmptyState
-            icon="chatbox-outline"
-            title="No messages"
-            description="Tap New message to contact the office."
-          />
-        ) : (
-          messages.map((item) => (
-            <Pressable
-              key={item.id}
-              onPress={() => router.push(messageDetail(item.id))}
-              style={styles.card}
-            >
-              <View style={styles.cardHead}>
-                <Text style={styles.subject} numberOfLines={1}>
-                  {item.subject}
-                </Text>
-                {item.unread > 0 ? (
-                  <View style={styles.unread}>
-                    <Text style={styles.unreadText}>{item.unread}</Text>
-                  </View>
-                ) : null}
-              </View>
-              <Text style={styles.preview} numberOfLines={2}>
-                {item.lastMessage}
-              </Text>
-              <Text style={styles.meta}>
-                {formatRelative(item.lastAt)} ? {item.category}
-                {item.inspectionTrackingNumber ? ` ? #${item.inspectionTrackingNumber}` : ''}
-              </Text>
-            </Pressable>
-          ))
-        )}
-      </ScrollView>
+          </>
+        }
+        ListEmptyComponent={
+          !composing && !loading ? (
+            <EmptyState
+              icon="chatbox-outline"
+              title="No messages"
+              description="Tap New message to contact the office."
+            />
+          ) : null
+        }
+      />
     </View>
   );
 }

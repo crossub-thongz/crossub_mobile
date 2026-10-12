@@ -1,4 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { memo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { INSPECTION_TYPE_LABEL, isCoreInspectionType } from '@/src/constants/inspection';
@@ -21,7 +22,7 @@ const TYPE_ICON: Record<InspectionJob['type'], keyof typeof Ionicons.glyphMap> =
   tribunal: 'home-outline',
 };
 
-export function InspectJobRow({
+export const InspectJobRow = memo(function InspectJobRow({
   job,
   completed,
   onOpen,
@@ -29,7 +30,7 @@ export function InspectJobRow({
 }: {
   job: InspectionJob;
   completed?: boolean;
-  onOpen: () => void;
+  onOpen: (id: string) => void;
   onAction: (href: string) => void;
 }) {
   const { getDraft } = useInspections();
@@ -42,7 +43,7 @@ export function InspectJobRow({
     : job.type.toUpperCase();
   return (
     <View style={styles.card}>
-      <Pressable onPress={onOpen} style={styles.row}>
+      <Pressable onPress={() => onOpen(job.id)} style={styles.row}>
         <View style={styles.timeCol}>
           <Text style={[styles.time, { color: visual.text }]}>
             {formatInspectTime(job.scheduledTime || job.scheduledDate)}
@@ -84,7 +85,7 @@ export function InspectJobRow({
       ) : null}
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   card: {

@@ -64,7 +64,7 @@ import {
   type IngoingAreaPlan,
 } from '@/lib/ingoing-area-plan';
 import { findingsAreaFromSections } from '@/lib/inspection-findings-items';
-import { moveIndex, rekeyRecord, renameCustomArea } from '@/lib/inspection-layout-edit';
+import { moveSetupArea, removeSetupArea, renameSetupArea } from '@/lib/inspection-layout-edit';
 import { jobLookupMiss } from '@/lib/job-lookup';
 import { parseJobWorkspaceView } from '@/lib/job-workspace-view';
 
@@ -423,50 +423,20 @@ export default function RoutineInspectionPage() {
 
   const handleRemoveSetupArea = (name: string) => {
     setDraft((prev) => {
-      const nextSelected = removeSelectedAreaName(
-        prev.selectedAreaNames,
-        name,
-        prev.issues,
-        prev.customAreas ?? [],
-      );
-      const nextCustom = (prev.customAreas ?? []).filter(
-        (item) => item.name.trim().toLowerCase() !== name.trim().toLowerCase(),
-      );
-      return {
-        ...prev,
-        selectedAreaNames: nextSelected,
-        customAreas: nextCustom,
-        issues: omitNamedRecordKey(prev.issues, name),
-        areaIndex: Math.min(prev.areaIndex, Math.max(nextSelected.length - 1, 0)),
-      };
+      const { records, ...rest } = removeSetupArea(prev, name, prev.issues);
+      return { ...rest, issues: records };
     });
   };
 
   const handleMoveSetupArea = (from: number, to: number) => {
-    setDraft((prev) => ({
-      ...prev,
-      selectedAreaNames: moveIndex(
-        effectiveSelectedAreaNames(
-          prev.selectedAreaNames,
-          prev.issues,
-          prev.customAreas ?? [],
-        ),
-        from,
-        to,
-      ),
-    }));
+    setDraft((prev) => moveSetupArea(prev, from, to, prev.issues));
   };
 
   const handleRenameSetupArea = (from: string, to: string) => {
-    if (from === to) return;
-    setDraft((prev) => ({
-      ...prev,
-      selectedAreaNames: (prev.selectedAreaNames ?? []).map((name) =>
-        name === from ? to : name,
-      ),
-      customAreas: renameCustomArea(prev.customAreas ?? [], from, to),
-      issues: rekeyRecord(prev.issues, from, to),
-    }));
+    setDraft((prev) => {
+      const { records, ...rest } = renameSetupArea(prev, from, to, prev.issues);
+      return { ...rest, issues: records };
+    });
   };
 
   const addAllFromIngoing = () => {

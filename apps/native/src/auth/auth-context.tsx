@@ -8,7 +8,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { AppState } from 'react-native';
+import { Alert, AppState } from 'react-native';
 
 import {
   fetchCurrentUser,
@@ -31,6 +31,8 @@ import {
   SESSION_CHECK_MS,
   SESSION_MAX_MS,
 } from '@/src/constants/auth';
+import { clearRegistrationDraft } from '@/src/account/registration-draft';
+import { wipeLocalInspectorData } from '@/src/offline/db';
 import { flushOfflineWork } from '@/src/offline/sync';
 import { unregisterInspectorPush } from '@/src/push/register-push';
 
@@ -73,10 +75,40 @@ async function flushLocalWork(): Promise<void> {
   await withFlushTimeout(flushOfflineWork());
 }
 
+async function dropLocalInspectorData(email?: string | null): Promise<void> {
+  const owner = email ?? (await loadStoredUser())?.email;
+  await clearRegistrationDraft(owner).catch(() => undefined);
+  await wipeLocalInspectorData().catch(() => undefined);
+}
+
+function confirmSwitchAccount(email: string): Promise<boolean> {
+  const who = email.trim() || 'the current inspector';
+  return new Promise((resolve) => {
+    Alert.alert(
+      'Switch inspector?',
+      `This phone is signed in as ${who}. Continuing signs them out and removes their saved jobs from this phone.`,
+      [
+        { text: 'Stay signed in', style: 'cancel', onPress: () => resolve(false) },
+        { text: 'Sign out and continue', style: 'destructive', onPress: () => resolve(true) },
+      ],
+      { cancelable: true, onDismiss: () => resolve(false) },
+    );
+  });
+}
+
+export class MagicLinkDeclinedError extends Error {
+  constructor() {
+    super('Stayed signed in.');
+    this.name = 'MagicLinkDeclinedError';
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [status, setStatus] = useState<AuthStatus>('loading');
   const loggingOutRef = useRef(false);
+  const userRef = useRef(user);
+  userRef.current = user;
 
   const finishLogout = useCallback(async () => {
     if (loggingOutRef.current) return;
@@ -85,6 +117,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await flushLocalWork();
       await unregisterInspectorPush().catch(() => undefined);
       await logoutRemote();
+      await dropLocalInspectorData(userRef.current?.email);
       setUser(null);
       setStatus('guest');
     } finally {
@@ -108,7 +141,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     (async () => {
       const access = await getAccessToken();
       if (!access) {
+        const stored = await loadStoredUser();
         await clearSession();
+        await dropLocalInspectorData(stored?.email);
         if (!cancelled) {
           setUser(null);
           setStatus('guest');
@@ -140,6 +175,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
         await flushLocalWork();
         await clearSession();
+        await dropLocalInspectorData(stored?.email);
         setUser(null);
         setStatus('guest');
       }
@@ -177,6 +213,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const loginWithMagicLink = useCallback(async (token: string) => {
+    const current = userRef.current;
+    if (current) {
+      const proceed = await confirmSwitchAccount(current.email);
+      if (!proceed) throw new MagicLinkDeclinedError();
+      await finishLogout();
+    }
     const next = await loginWithToken(token);
     const live = await fetchCurrentUser().catch(() => next);
     await saveUser(live);
@@ -184,7 +226,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(live);
     setStatus('authed');
     await flushLocalWork();
-  }, []);
+  }, [finishLogout]);
 
   const register = useCallback(
     async (body: {

@@ -78,6 +78,32 @@ const InspectionsContext = createContext<InspectionsContextValue | undefined>(
   undefined,
 );
 
+let poolScreenFocused = false;
+
+export function setPoolScreenFocused(focused: boolean) {
+  poolScreenFocused = focused;
+}
+
+const KEY_FETCH_CONCURRENCY = 4;
+
+async function mapWithLimit<T, R>(
+  items: T[],
+  limit: number,
+  fn: (item: T) => Promise<R>,
+): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  let next = 0;
+  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (next < items.length) {
+      const index = next;
+      next += 1;
+      results[index] = await fn(items[index]);
+    }
+  });
+  await Promise.all(workers);
+  return results;
+}
+
 async function enrichKeys(jobs: InspectionJob[]): Promise<InspectionJob[]> {
   const pending = jobs.filter(
     (job) =>
@@ -86,17 +112,15 @@ async function enrichKeys(jobs: InspectionJob[]): Promise<InspectionJob[]> {
       job.status === 'awaiting_approval',
   );
   if (pending.length === 0) return jobs;
-  const updates = await Promise.all(
-    pending.map(async (job) => {
-      try {
-        const collection = await fetchKeyCollection(job.id);
-        if (!collection) return job;
-        return applyKeyCollection(job, collection);
-      } catch {
-        return job;
-      }
-    }),
-  );
+  const updates = await mapWithLimit(pending, KEY_FETCH_CONCURRENCY, async (job) => {
+    try {
+      const collection = await fetchKeyCollection(job.id);
+      if (!collection) return job;
+      return applyKeyCollection(job, collection);
+    } catch {
+      return job;
+    }
+  });
   const byId = new Map(updates.map((job) => [job.id, job]));
   return jobs.map((job) => byId.get(job.id) ?? job);
 }
@@ -123,6 +147,7 @@ export function InspectionsProvider({ children }: { children: ReactNode }) {
   const [receivingJobs, setReceivingJobs] = useState(true);
   const receivingRef = useRef(receivingJobs);
   receivingRef.current = receivingJobs;
+  const acceptDraftsRef = useRef(true);
   const deviceLocation = useDeviceLocation({
     enabled: status === 'authed',
     pingServer: receivingJobs,
@@ -149,13 +174,13 @@ export function InspectionsProvider({ children }: { children: ReactNode }) {
           await saveDraftLocal(jobId, normalized);
         }
       }
-      if (!cancelled) setDrafts(next);
+      if (!cancelled && acceptDraftsRef.current) setDrafts(next);
     };
 
     void (async () => {
       try {
         const loaded = await loadAllDrafts();
-        if (!cancelled) {
+        if (!cancelled && acceptDraftsRef.current) {
           const ready: Record<string, RoutineExecutionDraft> = {};
           for (const [jobId, draft] of Object.entries(loaded)) {
             ready[jobId] = dedupeDraftPhotoLists(applyPhotoUriRewrites(draft));
@@ -234,11 +259,26 @@ export function InspectionsProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (status !== 'authed') {
+    if (status === 'guest') {
+      acceptDraftsRef.current = false;
+      setJobs([]);
+      setPool([]);
+      setDrafts({});
       setJobsHydrated(false);
+      setDraftsHydrated(false);
       return;
     }
+    if (status !== 'authed') return;
+    acceptDraftsRef.current = true;
     void (async () => {
+      const loaded = await loadAllDrafts().catch(() => ({}));
+      if (!acceptDraftsRef.current) return;
+      const ready: Record<string, RoutineExecutionDraft> = {};
+      for (const [jobId, draft] of Object.entries(loaded)) {
+        ready[jobId] = dedupeDraftPhotoLists(applyPhotoUriRewrites(draft));
+      }
+      setDrafts(ready);
+      setDraftsHydrated(true);
       const cached = await loadJobsCache('assigned').catch(() => []);
       if (cached.length > 0) {
         setJobs((previous) => (previous.length > 0 ? previous : cached));
@@ -259,8 +299,10 @@ export function InspectionsProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (status !== 'authed' || !receivingJobs) return;
     let busy = false;
-    const timer = setInterval(() => {
+    let timer: ReturnType<typeof setInterval> | null = null;
+    const tick = () => {
       if (busy || !receivingRef.current) return;
+      if (AppState.currentState !== 'active' || !poolScreenFocused) return;
       busy = true;
       void (async () => {
         try {
@@ -273,8 +315,25 @@ export function InspectionsProvider({ children }: { children: ReactNode }) {
           busy = false;
         }
       })();
-    }, 15_000);
-    return () => clearInterval(timer);
+    };
+    const start = () => {
+      if (timer || AppState.currentState !== 'active') return;
+      timer = setInterval(tick, 15_000);
+    };
+    const stop = () => {
+      if (!timer) return;
+      clearInterval(timer);
+      timer = null;
+    };
+    const sub = AppState.addEventListener('change', (next) => {
+      if (next === 'active') start();
+      else stop();
+    });
+    start();
+    return () => {
+      stop();
+      sub.remove();
+    };
   }, [status, receivingJobs]);
 
   const refresh = useCallback(async () => {

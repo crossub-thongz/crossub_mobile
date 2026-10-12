@@ -3,10 +3,18 @@ import * as React from 'react';
 import { bindTextValueWithoutEmojis, propAllowsEmoji, stripEmojis } from '@/lib/strip-emojis';
 import { cn } from '@/lib/utils';
 
-function Input({ className, type, onChange, value, defaultValue, ...props }: React.ComponentProps<'input'>) {
+function Input({
+  className,
+  type,
+  onChange,
+  value,
+  defaultValue,
+  'data-allow-emoji': allowEmojiProp,
+  ...props
+}: React.ComponentProps<'input'> & { 'data-allow-emoji'?: string | boolean }) {
   const isDateInput =
     type === 'date' || type === 'datetime-local' || type === 'time';
-  const allowEmoji = propAllowsEmoji(props['data-allow-emoji']);
+  const allowEmoji = propAllowsEmoji(allowEmojiProp);
   const textValue = typeof value === 'string' && !allowEmoji ? stripEmojis(value) : value;
   const textDefault =
     typeof defaultValue === 'string' && !allowEmoji ? stripEmojis(defaultValue) : defaultValue;

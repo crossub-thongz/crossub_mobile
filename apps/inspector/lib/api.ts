@@ -76,11 +76,14 @@ const buildHeaders = (init?: RequestInit): HeadersInit => ({
   ...(init?.headers ?? {}),
 });
 
+const REQUEST_TIMEOUT_MS = 30_000;
+
 const doFetch = (path: string, init?: RequestInit): Promise<Response> =>
   fetch(`${API_URL}${path}`, {
     credentials: 'include',
     cache: 'no-store',
     ...init,
+    signal: init?.signal ?? AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     headers: buildHeaders(init),
   });
 

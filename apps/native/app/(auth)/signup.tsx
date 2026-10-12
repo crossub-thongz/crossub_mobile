@@ -178,7 +178,7 @@ export default function SignupScreen() {
               Sign in
             </Link>
           </Text>
-          <Text style={styles.hint}>Nest {getApiOrigin()} ù POST /api/auth/register-inspector</Text>
+          <Text style={styles.hint}>Nest {getApiOrigin()} ¬∑ POST /api/auth/register-inspector</Text>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>

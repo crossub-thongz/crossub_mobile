@@ -104,6 +104,7 @@ export function InboxProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (status !== 'authed') return;
     const timer = setInterval(() => {
+      if (AppState.currentState !== 'active') return;
       void load('background');
     }, 15_000);
     return () => clearInterval(timer);

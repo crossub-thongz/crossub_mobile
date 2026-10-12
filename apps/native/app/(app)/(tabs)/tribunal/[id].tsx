@@ -75,14 +75,14 @@ export default function TribunalDetailScreen() {
             <Text style={styles.address}>{hearing.propertyAddress}</Text>
             <Text style={styles.meta}>
               {hearing.caseNumber}
-              {hearing.suburb ? ` · ${hearing.suburb}` : ''}
+              {hearing.suburb ? ` Â· ${hearing.suburb}` : ''}
             </Text>
 
             <View style={styles.card}>
               <Text style={styles.kicker}>Hearing</Text>
               <Text style={styles.body}>
                 {hearing.hearingDate
-                  ? `${formatDate(hearing.hearingDate)}${hearing.hearingTime ? ` · ${hearing.hearingTime}` : ''}`
+                  ? `${formatDate(hearing.hearingDate)}${hearing.hearingTime ? ` Â· ${hearing.hearingTime}` : ''}`
                   : 'Date to be advised'}
               </Text>
               <Text style={styles.body}>{hearing.location}</Text>

@@ -65,7 +65,12 @@ function throwIfFailed(
   if (response.status === 401) {
     throw new Error('Session expired. Sign out and sign in again.');
   }
-  throw new Error(apiErrorMessage(error, fallback));
+  const message = apiErrorMessage(error, fallback);
+  throw new Error(
+    new RegExp(`\\b${response.status}\\b`).test(message)
+      ? message
+      : `${message} (${response.status})`,
+  );
 }
 
 export function inspectionDraftKind(
@@ -255,10 +260,15 @@ export async function saveInspectionExecutionDraft(
 export async function uploadInspectionPhoto(
   inspectionId: string,
   body: UploadInspectorPhoto,
+  idempotencyKey?: string,
 ): Promise<InspectorPhoto> {
   const { data, error, response } = await crossub.POST(
     '/inspector/inspections/{inspectionId}/photos/upload',
-    { params: { path: { inspectionId } }, body },
+    {
+      params: { path: { inspectionId } },
+      body,
+      headers: idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : undefined,
+    },
   );
   if (data) return data;
   if (response.status === 413) {

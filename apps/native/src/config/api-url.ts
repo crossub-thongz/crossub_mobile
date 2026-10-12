@@ -9,3 +9,12 @@ export function getApiOrigin(): string {
 export function getV1BaseUrl(): string {
   return `${getApiOrigin()}/api/v1`;
 }
+
+/** True only for the configured API host. The sign-in token must not leave that origin. */
+export function isApiOriginUrl(url: string): boolean {
+  try {
+    return new URL(url).origin === new URL(getApiOrigin()).origin;
+  } catch {
+    return false;
+  }
+}

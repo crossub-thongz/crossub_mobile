@@ -10,12 +10,8 @@ import {
 
 import { api, ApiError } from '@/lib/api';
 import type { AuthUser } from '@/lib/auth-types';
-import {
-  clearLocalSession,
-  clearOrphanLocalAccessCookie,
-  getLocalSessionUser,
-  hasLocalAccessCookie,
-} from '@/lib/local-auth';
+import { clearAllInspectorRegistrations } from '@/lib/inspector-registration';
+import { clearLocalSession } from '@/lib/local-auth';
 
 type AuthStatus = 'loading' | 'authed' | 'guest';
 
@@ -34,33 +30,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [status, setStatus] = useState<AuthStatus>('loading');
 
   const refresh = useCallback(async (): Promise<AuthUser | null> => {
-    clearOrphanLocalAccessCookie();
+    clearLocalSession();
 
     try {
       const data = await api.get<{ user: AuthUser }>('/auth/me');
-      clearLocalSession();
       setUser(data.user);
       setStatus('authed');
       return data.user;
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
-        const localUser = getLocalSessionUser();
-        if (localUser && hasLocalAccessCookie()) {
-          setUser(localUser);
-          setStatus('authed');
-          return localUser;
-        }
         setUser(null);
         setStatus('guest');
         return null;
       }
-    }
-
-    const localUser = getLocalSessionUser();
-    if (localUser && hasLocalAccessCookie()) {
-      setUser(localUser);
-      setStatus('authed');
-      return localUser;
     }
 
     setUser(null);
@@ -70,6 +52,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = useCallback(async () => {
     clearLocalSession();
+    clearAllInspectorRegistrations();
     try {
       await api.post('/auth/logout');
     } catch {

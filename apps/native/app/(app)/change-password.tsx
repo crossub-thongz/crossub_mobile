@@ -123,7 +123,7 @@ export default function ChangePasswordScreen() {
         {error ? <Text style={styles.error}>{error}</Text> : null}
         <Pressable disabled={busy} onPress={() => void onSubmit()} style={[styles.cta, busy && styles.ctaOff]}>
           <Text style={styles.ctaText}>
-            {busy ? 'Savingù' : forced ? 'Save and continue' : 'Update password'}
+            {busy ? 'Saving‚Ä¶' : forced ? 'Save and continue' : 'Update password'}
           </Text>
         </Pressable>
       </ScrollView>

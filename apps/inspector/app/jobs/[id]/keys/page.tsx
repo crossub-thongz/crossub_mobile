@@ -15,6 +15,7 @@ import { NoImageDialog } from '@/components/inspector/no-image-dialog';
 import { JobLookupFallback } from '@/components/inspector/job-lookup-fallback';
 import { InspectorShell } from '@/components/layout/inspector-shell';
 import { useInspectorData } from '@/components/providers/inspector-data-provider';
+import { useDeviceLocation } from '@/lib/use-device-position';
 import { Button } from '@/components/ui/button';
 import { INSPECTION_PAY_LABEL } from '@/constants/inspection';
 import { jobAreas, jobDetail, jobInspect } from '@/constants/routes';
@@ -39,8 +40,9 @@ export default function JobKeysPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const initialTab = searchParams.get('tab') === 'return' ? 'return' : 'collect';
-  const { getJob, saveKeyWorkflow, completeJob, refresh, jobsHydrated, profile, deviceLocation } =
+  const { getJob, saveKeyWorkflow, completeJob, refresh, jobsHydrated, profile } =
     useInspectorData();
+  const deviceLocation = useDeviceLocation();
   const job = getJob(id);
 
   const [tab, setTab] = useState<Tab>(initialTab);

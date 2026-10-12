@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { useAuth } from '@/src/auth/auth-context';
+import { MagicLinkDeclinedError, useAuth } from '@/src/auth/auth-context';
 
 export default function LoginWithTokenScreen() {
   const { loginWithMagicLink } = useAuth();
@@ -22,6 +22,10 @@ export default function LoginWithTokenScreen() {
         await loginWithMagicLink(token);
         router.replace('/');
       } catch (err) {
+        if (err instanceof MagicLinkDeclinedError) {
+          router.replace('/');
+          return;
+        }
         setFailed(true);
         setError(
           err instanceof Error

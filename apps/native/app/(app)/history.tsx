@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
 import { AppTextInput } from '@/src/ui/app-text-input';
 import { useRouter } from 'expo-router';
@@ -25,12 +25,55 @@ function matchesHistoryQuery(job: InspectionJob, query: string): boolean {
   );
 }
 
+const HistoryRow = memo(function HistoryRow({
+  job,
+  onOpen,
+}: {
+  job: InspectionJob;
+  onOpen: (id: string) => void;
+}) {
+  const proofCount = historyProofPhotoCount(job);
+  return (
+    <Pressable onPress={() => onOpen(job.id)} style={styles.card}>
+      <View style={styles.badges}>
+        <View style={styles.typeChip}>
+          <Text style={styles.typeChipText}>
+            {(INSPECTION_PAY_LABEL[job.type] ?? job.type).toUpperCase()}
+          </Text>
+        </View>
+        <View style={styles.statusChip}>
+          <Text style={styles.statusChipText}>
+            {job.status === 'awaiting_approval' ? 'PENDING APPROVAL' : 'COMPLETED'}
+          </Text>
+        </View>
+      </View>
+      <Text style={styles.address}>{job.propertyAddress}</Text>
+      <Text style={styles.meta}>
+        {formatDateTime(job.scheduledTime || job.scheduledDate)}
+        {job.approvedAt ? ` - Report ${formatDateTime(job.approvedAt)}` : ''}
+      </Text>
+      <Text style={styles.view}>
+        View report
+        {proofCount > 0 ? <Text style={styles.proof}>{historyProofLabel(proofCount)}</Text> : null}
+      </Text>
+    </Pressable>
+  );
+});
+
 export default function HistoryScreen() {
   const router = useRouter();
   const { completedJobs, loading, refreshing, error, refresh, upsertJob } = useInspections();
   const [query, setQuery] = useState('');
   const fetchedKeys = useRef<Set<string>>(new Set());
   const scrollEndPadding = useScrollEndPadding();
+
+  const alive = useRef(true);
+  useEffect(() => {
+    alive.current = true;
+    return () => {
+      alive.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     const targets = completedJobs.filter((job) => {
@@ -39,23 +82,23 @@ export default function HistoryScreen() {
     });
     if (targets.length === 0) return;
     for (const job of targets) fetchedKeys.current.add(job.id);
-    let cancelled = false;
     void (async () => {
-      await Promise.all(
-        targets.map(async (job) => {
-          try {
-            const collection = await fetchKeyCollection(job.id);
-            if (!collection || cancelled) return;
-            upsertJob(applyKeyCollection(job, collection));
-          } catch {
-            // Keep the row. Jobs with no key photos stay at 0.
-          }
-        }),
-      );
+      const batchSize = 3;
+      for (let i = 0; i < targets.length; i += batchSize) {
+        if (!alive.current) return;
+        await Promise.all(
+          targets.slice(i, i + batchSize).map(async (job) => {
+            try {
+              const collection = await fetchKeyCollection(job.id);
+              if (!collection || !alive.current) return;
+              upsertJob(applyKeyCollection(job, collection));
+            } catch {
+              // Keep the row. Jobs with no key photos stay at 0.
+            }
+          }),
+        );
+      }
     })();
-    return () => {
-      cancelled = true;
-    };
   }, [completedJobs, upsertJob]);
 
   const filtered = useMemo(
@@ -63,10 +106,20 @@ export default function HistoryScreen() {
     [completedJobs, query],
   );
 
+  const openJob = useCallback(
+    (id: string) => {
+      router.push(jobHistory(id));
+    },
+    [router],
+  );
+
   return (
     <View style={styles.safe}>
       <AppHeader title="Job history" backHref="/" />
-      <ScrollView
+      <FlatList
+        data={loading && completedJobs.length === 0 ? [] : filtered}
+        keyExtractor={(item) => item.id}
+        renderItem={({ item }) => <HistoryRow job={item} onOpen={openJob} />}
         contentContainerStyle={[styles.inner, { paddingBottom: scrollEndPadding }]}
         keyboardShouldPersistTaps="handled"
         refreshControl={
@@ -78,71 +131,41 @@ export default function HistoryScreen() {
             tintColor={colors.primary}
           />
         }
-      >
-        <Text style={styles.lede}>
-          Completed inspections with key collection proof and uploaded section photos.
-        </Text>
-        <View style={styles.search}>
-          <AppTextInput
-            value={query}
-            onChangeText={setQuery}
-            placeholder="Search address or suburb"
-            placeholderTextColor={colors.muted}
-            autoCorrect={false}
-            autoCapitalize="none"
-            style={styles.searchInput}
-          />
-        </View>
-        {error ? <Text style={styles.error}>{error}</Text> : null}
-        {loading && completedJobs.length === 0 ? (
-          <ActivityIndicator color={colors.primary} style={{ marginTop: 32 }} />
-        ) : filtered.length === 0 ? (
-          <EmptyState
-            icon="document-text-outline"
-            title={query.trim() ? 'No matching jobs' : 'No completed jobs yet'}
-            description={
-              query.trim()
-                ? 'Try a different address or suburb.'
-                : 'Finished inspections will appear here with proof photos and key records.'
-            }
-          />
-        ) : (
-          filtered.map((job) => {
-            const proofCount = historyProofPhotoCount(job);
-            return (
-              <Pressable
-                key={job.id}
-                onPress={() => router.push(jobHistory(job.id))}
-                style={styles.card}
-              >
-                <View style={styles.badges}>
-                  <View style={styles.typeChip}>
-                    <Text style={styles.typeChipText}>
-                      {(INSPECTION_PAY_LABEL[job.type] ?? job.type).toUpperCase()}
-                    </Text>
-                  </View>
-                  <View style={styles.statusChip}>
-                    <Text style={styles.statusChipText}>
-                      {job.status === 'awaiting_approval' ? 'PENDING APPROVAL' : 'COMPLETED'}
-                    </Text>
-                  </View>
-                </View>
-                <Text style={styles.address}>{job.propertyAddress}</Text>
-                <Text style={styles.meta}>
-                  {formatDateTime(job.scheduledTime || job.scheduledDate)}
-                  {job.approvedAt ? ` - Report ${formatDateTime(job.approvedAt)}` : ''}
-                </Text>
-                <Text style={styles.view}>
-                  View report
-                  {proofCount > 0 ? (
-                    <Text style={styles.proof}>{historyProofLabel(proofCount)}</Text>
-                  ) : null}
-                </Text>
-              </Pressable>
-            );
-          })
-        )}
-      </ScrollView>
+        ListHeaderComponent={
+          <View style={styles.header}>
+            <Text style={styles.lede}>
+              Completed inspections with key collection proof and uploaded section photos.
+            </Text>
+            <View style={styles.search}>
+              <AppTextInput
+                value={query}
+                onChangeText={setQuery}
+                placeholder="Search address or suburb"
+                placeholderTextColor={colors.muted}
+                autoCorrect={false}
+                autoCapitalize="none"
+                style={styles.searchInput}
+              />
+            </View>
+            {error ? <Text style={styles.error}>{error}</Text> : null}
+          </View>
+        }
+        ListEmptyComponent={
+          loading && completedJobs.length === 0 ? (
+            <ActivityIndicator color={colors.primary} style={{ marginTop: 32 }} />
+          ) : (
+            <EmptyState
+              icon="document-text-outline"
+              title={query.trim() ? 'No matching jobs' : 'No completed jobs yet'}
+              description={
+                query.trim()
+                  ? 'Try a different address or suburb.'
+                  : 'Finished inspections will appear here with proof photos and key records.'
+              }
+            />
+          )
+        }
+      />
     </View>
   );
 }
@@ -150,6 +173,7 @@ export default function HistoryScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
   inner: { padding: 16, gap: 12 },
+  header: { gap: 12 },
   lede: { color: colors.muted, fontSize: 12, lineHeight: 18 },
   search: {
     borderWidth: 1,

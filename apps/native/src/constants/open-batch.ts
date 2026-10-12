@@ -17,8 +17,8 @@ export const OPEN_ROUTE_STOP_BASIS = {
 
 export const OPEN_ROUTE_BASIS_NOTE: Record<string, string | null> = {
   [OPEN_ROUTE_STOP_BASIS.COORDINATES]: null,
-  [OPEN_ROUTE_STOP_BASIS.SUBURB]: 'Placed by suburb — travel time is an estimate',
-  [OPEN_ROUTE_STOP_BASIS.UNPLACED]: 'No map position — check the drive yourself',
+  [OPEN_ROUTE_STOP_BASIS.SUBURB]: 'Placed by suburb â€” travel time is an estimate',
+  [OPEN_ROUTE_STOP_BASIS.UNPLACED]: 'No map position â€” check the drive yourself',
 };
 
 export const OPEN_BATCH_EMPTY = {

@@ -100,9 +100,9 @@ export default function TribunalListScreen() {
               <Text style={styles.summary}>{hearing.caseSummary}</Text>
               <Text style={styles.meta}>
                 {hearing.hearingDate
-                  ? `${formatDate(hearing.hearingDate)}${hearing.hearingTime ? ` · ${hearing.hearingTime}` : ''}`
+                  ? `${formatDate(hearing.hearingDate)}${hearing.hearingTime ? ` Â· ${hearing.hearingTime}` : ''}`
                   : 'Hearing date TBA'}
-                {` · ${hearing.location}`}
+                {` Â· ${hearing.location}`}
               </Text>
             </Pressable>
           ))

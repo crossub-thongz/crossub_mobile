@@ -1,6 +1,6 @@
 import { createCrossubClient } from '@crossub-thongz/api-contract';
 
-import { getApiOrigin, getV1BaseUrl } from '@/src/config/api-url';
+import { getApiOrigin, getV1BaseUrl, isApiOriginUrl } from '@/src/config/api-url';
 import {
   clearSession,
   getAccessToken,
@@ -33,6 +33,7 @@ function authUrl(path: string): string {
 }
 
 async function attachAccessToken(request: Request): Promise<Request> {
+  if (!isApiOriginUrl(request.url)) return request;
   const headers = new Headers(request.headers);
   const token = await getAccessToken();
   if (token) headers.set('Authorization', `Bearer ${token}`);
@@ -76,6 +77,7 @@ export async function fetchWithBearer(
 ): Promise<Response> {
   try {
     const original = input instanceof Request ? input : new Request(input, init);
+    if (!isApiOriginUrl(original.url)) return await fetch(original);
     const first = await attachAccessToken(original.clone());
     let res = await fetch(first);
     if (res.status !== 401 || isAuthUrl(first.url)) return res;

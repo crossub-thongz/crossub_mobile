@@ -17,7 +17,6 @@ import { INSPECTOR_HOURLY_RATE_AUD } from '@/constants/inspection';
 import { INSPECTION_STATUS } from '@/constants/api-enums';
 import { ROUTES } from '@/constants/routes';
 import { TRIBUNAL_INSPECTION_HOURS } from '@/constants/inspection-rates';
-import { api, ApiError } from '@/lib/api';
 import {
   acceptInspection as apiAcceptInspection,
   claimInspection as apiClaimInspection,
@@ -120,8 +119,7 @@ import {
   type InspectorAvailability,
 } from '@/lib/inspector-availability';
 import { useInspectorLocationSync } from '@/lib/use-inspector-location-sync';
-import { useDevicePosition } from '@/lib/use-device-position';
-import type { GeoPoint } from '@/lib/travel';
+import { usePublishDevicePosition } from '@/lib/use-device-position';
 import {
   demoSeedSnapshot,
   shouldShowDemoSeeds,
@@ -166,8 +164,6 @@ interface InspectorDataContextValue {
   pendingSync: number;
   /** True when the inspector is open to new pool jobs (green bubble). */
   receivingJobs: boolean;
-  /** Latest device GPS fix for on-screen distance/ETA. */
-  deviceLocation: GeoPoint | null;
   availability: InspectorAvailability;
   toggleReceivingJobs: () => void;
   refresh: (opts?: {
@@ -493,8 +489,8 @@ export function InspectorDataProvider({
         ...payload,
         registrationStatus: 'not_started',
       };
-      // Local draft first — keeps never-echoed PII/bank fields without marking
-      // onboarding complete until the server accepts the application.
+      // Local draft first so a failed submit can be retried. Identity and bank
+      // fields are left out of localStorage.
       saveInspectorRegistration(email, draft);
       setRegistration(draft);
       // Submit to the real registry intake: the application lands PENDING_REVIEW
@@ -593,16 +589,6 @@ export function InspectorDataProvider({
     }
     setApiError(null);
     let connected = false;
-    let healthError: string | null = null;
-    try {
-      await api.get('/health');
-      connected = true;
-    } catch (err) {
-      healthError =
-        err instanceof ApiError
-          ? `API unavailable (${err.status})`
-          : 'API unavailable';
-    }
     // Overlay live facade data onto the demo seeds — each domain independently, so a
     // failure in one leaves just that slice on demo data (the board never blanks).
     // `/inspector/inspections` -> assigned jobs; `/inspector/inspections/pool` -> pool;
@@ -665,7 +651,12 @@ export function InspectorDataProvider({
       // pool and made unrelated fetches fail as "API unavailable".
       const poolWithKeys = poolFromApi;
       if (connected && inspectionsOk) {
-        assignedWithKeys = await enrichJobsWithKeyCollection(assignedFromApi);
+        const outstanding = assignedFromApi.filter(
+          (job) => job.status !== 'completed' && job.status !== 'awaiting_approval',
+        );
+        const enriched = await enrichJobsWithKeyCollection(outstanding);
+        const enrichedById = new Map(enriched.map((job) => [job.id, job]));
+        assignedWithKeys = assignedFromApi.map((job) => enrichedById.get(job.id) ?? job);
       }
       setJobs((prev) => {
         const prevById = new Map(prev.map((j) => [j.id, j]));
@@ -826,7 +817,7 @@ export function InspectorDataProvider({
       setApiError(null);
     } else {
       setApiError(
-        healthError ?? 'Could not reach the server — check your connection.',
+        'Could not reach the server — check your connection.',
       );
     }
     setApiConnected(connected);
@@ -1945,9 +1936,9 @@ export function InspectorDataProvider({
     pushInspectorLocation,
   );
 
-  const deviceLocation = useDevicePosition(status === 'authed');
+  usePublishDevicePosition(status === 'authed' && Boolean(serverProfile?.roster));
 
-  const value: InspectorDataContextValue = {
+  const value = useMemo<InspectorDataContextValue>(() => ({
     loading,
     jobsHydrated,
     apiConnected,
@@ -1956,7 +1947,6 @@ export function InspectorDataProvider({
     rosterLinked,
     pendingSync,
     receivingJobs,
-    deviceLocation,
     availability,
     toggleReceivingJobs,
     refresh,
@@ -2004,7 +1994,57 @@ export function InspectorDataProvider({
     markNotificationRead,
     sendMessage,
     createMessageThread,
-  };
+  }), [
+    loading,
+    jobsHydrated,
+    apiConnected,
+    apiError,
+    poolError,
+    rosterLinked,
+    pendingSync,
+    receivingJobs,
+    availability,
+    toggleReceivingJobs,
+    refresh,
+    syncOfflineQueue,
+    profile,
+    registration,
+    registrationComplete,
+    registrationHydrated,
+    registrationResolved,
+    saveRegistration,
+    summary,
+    jobs,
+    poolJobs,
+    assignedJobs,
+    todaysJobs,
+    upcomingJobs,
+    completedJobs,
+    tribunals,
+    earnings,
+    messages,
+    notifications,
+    threadMessages,
+    acceptJob,
+    declineJob,
+    cancelJob,
+    updateJobStatus,
+    updateJobWorkflow,
+    completeJob,
+    completeOpenInspectionJob,
+    finishInspectionWorkflow,
+    saveKeyWorkflow,
+    loadInspectionFindings,
+    loadInspectionReportPhotos,
+    uploadInspectionPhotos,
+    commitInspectionAreaPhotos,
+    saveInspectionFindingsAction,
+    updateTribunalChecklist,
+    recordTribunalOutcome,
+    markNotificationRead,
+    sendMessage,
+    createMessageThread,
+  ]);
 
   return (
     <InspectorDataContext.Provider value={value}>

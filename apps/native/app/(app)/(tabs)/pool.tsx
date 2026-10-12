@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { useRouter } from 'expo-router';
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -16,7 +16,7 @@ import {
 import { PoolJobCard } from '@/src/inspections/pool-job-card';
 import { POOL_SORT_LABEL, PoolLocationBar } from '@/src/inspections/pool-location-bar';
 import { useAccount } from '@/src/account/account-context';
-import { useInspections } from '@/src/inspections/inspections-context';
+import { setPoolScreenFocused, useInspections } from '@/src/inspections/inspections-context';
 import {
   CORE_INSPECTION_TYPES,
   INSPECTION_TYPE_LABEL,
@@ -126,29 +126,46 @@ export default function PoolScreen() {
     })),
   ];
 
-  const onAccept = async (id: string) => {
-    if (!receivingJobs) return;
-    setClaimError(null);
-    try {
-      const job = await claim(id);
-      if (job.awaitingAgentPayment) {
-        Alert.alert(
-          'Job accepted',
-          'Waiting for the agency to pay before you can start.',
-        );
-        router.push(jobDetail(job.id));
-        return;
+  useFocusEffect(
+    useCallback(() => {
+      setPoolScreenFocused(true);
+      return () => setPoolScreenFocused(false);
+    }, []),
+  );
+
+  const openJob = useCallback(
+    (id: string) => {
+      router.push(jobDetail(id));
+    },
+    [router],
+  );
+
+  const onAccept = useCallback(
+    async (id: string) => {
+      if (!receivingJobs) return;
+      setClaimError(null);
+      try {
+        const job = await claim(id);
+        if (job.awaitingAgentPayment) {
+          Alert.alert(
+            'Job accepted',
+            'Waiting for the agency to pay before you can start.',
+          );
+          router.push(jobDetail(job.id));
+          return;
+        }
+        Alert.alert('Job accepted', 'This job is now on My Inspections.', [
+          { text: 'Stay here' },
+          { text: 'Open job', onPress: () => router.push(jobDetail(job.id)) },
+        ]);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Could not accept this job.';
+        setClaimError(message);
+        Alert.alert('Could not accept', message);
       }
-      Alert.alert('Job accepted', 'This job is now on My Inspections.', [
-        { text: 'Stay here' },
-        { text: 'Open job', onPress: () => router.push(jobDetail(job.id)) },
-      ]);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Could not accept this job.';
-      setClaimError(message);
-      Alert.alert('Could not accept', message);
-    }
-  };
+    },
+    [receivingJobs, claim, router],
+  );
 
   let empty: ReactNode = null;
   if (!receivingJobs) {
@@ -281,10 +298,8 @@ export default function PoolScreen() {
             origin={origin}
             busy={claimingId === item.id}
             receiving={receivingJobs}
-            onAccept={() => {
-              void onAccept(item.id);
-            }}
-            onDetails={() => router.push(jobDetail(item.id))}
+            onAccept={onAccept}
+            onDetails={openJob}
           />
         )}
       />

@@ -155,9 +155,9 @@ export default function ProfileScreen() {
                   label="Account"
                   value={
                     draft?.bankAccountNumber
-                      ? `ùùùù${draft.bankAccountNumber.slice(-4)}`
+                      ? `‚Ä¢‚Ä¢‚Ä¢‚Ä¢${draft.bankAccountNumber.slice(-4)}`
                       : registration.bankAccountLast4
-                        ? `ùùùù${registration.bankAccountLast4}`
+                        ? `‚Ä¢‚Ä¢‚Ä¢‚Ä¢${registration.bankAccountLast4}`
                         : undefined
                   }
                 />
@@ -168,7 +168,7 @@ export default function ProfileScreen() {
             {registration?.submittedAt ? (
               <Text style={styles.meta}>
                 Submitted {formatDate(registration.submittedAt)}
-                {registration.reviewedAt ? ` ù Reviewed ${formatDate(registration.reviewedAt)}` : ''}
+                {registration.reviewedAt ? ` ¬∑ Reviewed ${formatDate(registration.reviewedAt)}` : ''}
               </Text>
             ) : null}
           </>

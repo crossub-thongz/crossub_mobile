@@ -29,7 +29,7 @@ export function areasFromBedroomCount(
   bedrooms: number | null | undefined,
 ): string[] {
   const count = Number.isFinite(bedrooms) ? Math.floor(Number(bedrooms)) : 1;
-  const names = [...ONE_BED_AREAS];
+  const names: string[] = [...ONE_BED_AREAS];
   if (count <= 1) return names;
 
   names.push('Ensuite', 'Bedroom 2');

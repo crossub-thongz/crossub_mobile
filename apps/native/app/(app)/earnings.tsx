@@ -72,7 +72,7 @@ export default function EarningsScreen() {
           </View>
         </View>
         <Text style={styles.rate}>
-          {`Routine & open: $${ROUTINE_OPEN_INSPECTOR_FEE_INC_GST_AUD} inc GST ù Entry/Final: agent price list`}
+          {`Routine & open: $${ROUTINE_OPEN_INSPECTOR_FEE_INC_GST_AUD} inc GST ¬∑ Entry/Final: agent price list`}
         </Text>
 
         <Text style={styles.section}>Payment history</Text>
@@ -98,7 +98,7 @@ export default function EarningsScreen() {
                   {row.propertyAddress}
                 </Text>
                 <Text style={styles.meta}>
-                  {`${formatDate(row.completedAt)} ù ${row.hoursWorked}h`}
+                  {`${formatDate(row.completedAt)} ¬∑ ${row.hoursWorked}h`}
                 </Text>
               </View>
               <View style={styles.amountCol}>

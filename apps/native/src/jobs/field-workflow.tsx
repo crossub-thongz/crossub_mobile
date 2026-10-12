@@ -44,6 +44,7 @@ import {
 import { moveIndex, rekeyRecord, renameCustomArea } from '@/src/lib/inspection-layout-edit';
 import { buildInspectionFinishedPatch, isKeyCollectComplete } from '@/src/lib/key-access';
 import { jobLookupMiss } from '@/src/lib/job-lookup';
+import { discardLocalPhoto, jobHasQueuedPhotos } from '@/src/offline/db';
 import { queueExecutionDraft, queueInspectionFindings, queueInspectionPhotoBatch } from '@/src/offline/sync';
 import { upsertPhotoUrl } from '@/src/offline/queued-photo';
 import { inspectionHasNswSpecialReporting } from '@/src/lib/special-reporting';
@@ -139,6 +140,20 @@ export function FieldWorkflowScreen({
   const areaIndex = Math.min(draft.areaIndex, Math.max(names.length - 1, 0));
   const currentName = names[areaIndex];
   const current = currentName ? draft.issues[currentName] ?? emptyRoutineIssue() : emptyRoutineIssue();
+  const [notesText, setNotesText] = useState(current.notes ?? '');
+  const notesTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const notesArea = useRef(currentName);
+  useEffect(() => {
+    if (notesArea.current !== currentName) {
+      if (notesTimer.current) clearTimeout(notesTimer.current);
+      notesTimer.current = null;
+      notesArea.current = currentName;
+      setNotesText(current.notes ?? '');
+      return;
+    }
+    if (notesTimer.current) return;
+    setNotesText(current.notes ?? '');
+  }, [currentName, current.notes]);
   draftRef.current = draft;
   const getDraftRef = useRef(getDraft);
   getDraftRef.current = getDraft;
@@ -450,6 +465,13 @@ export function FieldWorkflowScreen({
         );
         return;
       }
+      if (await jobHasQueuedPhotos(id)) {
+        Alert.alert(
+          'Photos still uploading',
+          'Wait until the queued photos finish, then complete the report.',
+        );
+        return;
+      }
       if (job.keyAccess && !job.keyAccess.returnComplete && kind === 'routine') {
         persist({ ...draft, inspectionFinished: true });
         patchJob(id, {
@@ -520,6 +542,13 @@ export function FieldWorkflowScreen({
             setError={setError}
             customAreas={draft.customAreas ?? []}
             onAfterFindings={async () => {
+              if (await jobHasQueuedPhotos(id)) {
+                Alert.alert(
+                  'Photos still uploading',
+                  'Wait until the queued photos finish, then complete the report.',
+                );
+                return;
+              }
               if (job.keyAccess && !job.keyAccess.returnComplete) {
                 patchJob(id, {
                   workflowData: buildInspectionFinishedPatch(job.workflowData),
@@ -611,6 +640,7 @@ export function FieldWorkflowScreen({
                   }}
                   onRemove={(index) => {
                     if (!currentName) return;
+                    const removed = current.areaPhotos[index];
                     persist({
                       ...draft,
                       issues: {
@@ -621,21 +651,30 @@ export function FieldWorkflowScreen({
                         },
                       },
                     });
+                    if (removed) void discardLocalPhoto(removed);
                   }}
                 />
                 <View>
                   <Text style={styles.notesLabel}>Area notes</Text>
                   <AppTextInput
-                    value={current.notes}
+                    value={notesText}
                     onChangeText={(notes) => {
                       if (!currentName) return;
-                      persist({
-                        ...draft,
-                        issues: {
-                          ...draft.issues,
-                          [currentName]: { ...current, notes, available: current.available ?? true },
-                        },
-                      });
+                      setNotesText(notes);
+                      if (notesTimer.current) clearTimeout(notesTimer.current);
+                      const areaName = currentName;
+                      notesTimer.current = setTimeout(() => {
+                        notesTimer.current = null;
+                        const latest = draftRef.current;
+                        const area = latest.issues[areaName] ?? current;
+                        persist({
+                          ...latest,
+                          issues: {
+                            ...latest.issues,
+                            [areaName]: { ...area, notes, available: area.available ?? true },
+                          },
+                        });
+                      }, 500);
                     }}
                     placeholder={
                       draft.method === 'physical'

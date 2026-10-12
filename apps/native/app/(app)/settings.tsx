@@ -10,7 +10,7 @@ import { useScrollEndPadding } from '@/src/ui/use-scroll-end-padding';
 
 export default function SettingsScreen() {
   const router = useRouter();
-  const { pendingSync, syncing, lastError, syncNow } = useOffline();
+  const { pendingSync, failedSync, syncing, lastError, syncNow } = useOffline();
   const scrollEndPadding = useScrollEndPadding();
 
   return (
@@ -42,7 +42,20 @@ export default function SettingsScreen() {
           ) : (
             <Text style={styles.body}>Nothing waiting to sync.</Text>
           )}
-          {lastError ? <Text style={styles.danger}>{lastError}</Text> : null}
+          {failedSync.length > 0 ? (
+            <Text style={styles.danger}>
+              {failedSync.length} change{failedSync.length === 1 ? '' : 's'} skipped after the
+              server rejected {failedSync.length === 1 ? 'it' : 'them'}. Sync now tries again.
+            </Text>
+          ) : null}
+          {failedSync.map((item) => (
+            <Text key={item.id} style={styles.danger}>
+              {item.message}
+            </Text>
+          ))}
+          {lastError && failedSync.length === 0 ? (
+            <Text style={styles.danger}>{lastError}</Text>
+          ) : null}
           <Pressable
             onPress={() => {
               void syncNow(true)

@@ -1,4 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { memo } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { INSPECTION_TYPE_LABEL, isCoreInspectionType } from '@/src/constants/inspection';
@@ -22,7 +23,7 @@ const TYPE_ICON: Record<InspectionJob['type'], keyof typeof Ionicons.glyphMap> =
   tribunal: 'home-outline',
 };
 
-export function PoolJobCard({
+export const PoolJobCard = memo(function PoolJobCard({
   job,
   busy,
   receiving,
@@ -34,8 +35,8 @@ export function PoolJobCard({
   busy?: boolean;
   receiving?: boolean;
   origin?: GeoPoint | null;
-  onAccept: () => void;
-  onDetails: () => void;
+  onAccept: (id: string) => void;
+  onDetails: (id: string) => void;
 }) {
   const { street, locality } = propertyAddressLines(job);
   const visual = poolAccent[job.type];
@@ -94,11 +95,11 @@ export function PoolJobCard({
       </View>
       {showActions ? (
         <View style={styles.actions}>
-          <Pressable onPress={onDetails} style={styles.details}>
+          <Pressable onPress={() => onDetails(job.id)} style={styles.details}>
             <Text style={styles.detailsText}>View Details</Text>
           </Pressable>
           <Pressable
-            onPress={onAccept}
+            onPress={() => onAccept(job.id)}
             disabled={acceptDisabled}
             style={[styles.accept, acceptDisabled && styles.disabled]}
           >
@@ -112,7 +113,7 @@ export function PoolJobCard({
       ) : null}
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   card: {

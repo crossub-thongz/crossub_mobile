@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@crossub-thongz/api-contract": "workspace:*",
+    "@crossub/inspector-core": "workspace:*",
     "@expo/metro-runtime": "~57.0.15",
     "@expo/vector-icons": "^15.0.3",
     "@react-native-community/datetimepicker": "9.1.0",

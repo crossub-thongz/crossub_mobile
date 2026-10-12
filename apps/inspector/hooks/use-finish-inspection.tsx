@@ -20,7 +20,7 @@ export function useFinishInspection(jobId: string) {
   const overlayRef = useRef(overlay);
   overlayRef.current = overlay;
   const pendingRedirectRef = useRef<OverlayState['redirect'] | null>(null);
-  const navigationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const navigationTimerRef = useRef<number | null>(null);
 
   const navigateToNextStep = useCallback(
     (redirect: OverlayState['redirect']) => {

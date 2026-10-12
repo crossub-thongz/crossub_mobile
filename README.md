@@ -1,74 +1,68 @@
-# crossub_mobile_inspector
+# crossub_mobile
 
-Field operations platform for property inspectors in the CROSSUB ecosystem. Consumes the [crossub_web](https://github.com/justin-crossub/crossub_web) API.
+CROSSUB Inspector for iPhone and Android, plus the inspector website in the same workspace. Both consume the [crossub_web](https://github.com/crossub-thongz/crossub_web) Nest API.
+
+The phone app is **React Native / Expo** (TypeScript). It is not a handwritten Swift or Kotlin app. Expo generates the Xcode and Android projects locally. Those folders are gitignored (`apps/native/ios`, `apps/native/android`), so GitHub shows TypeScript, not an Xcode project.
 
 > **Use pnpm only.** Run all scripts via `pnpm`.
 
-## Purpose
-
-The Inspector App is a complete field operations platform — not just a reporting tool. Inspectors can:
-
-- Accept jobs from the pool or manager assignments
-- Navigate to properties (Google Maps, Apple Maps, Waze)
-- Perform open, ingoing, outgoing, and routine inspections
-- Attend tribunal hearings with auto-compiled evidence packages
-- Track weekly earnings
-- Communicate with agents and leasing teams
-- Work offline with automatic sync when reconnected
-
 ## Apps
 
-- `apps/inspector` — `@crossub/inspector`, Next.js 16 inspector portal (port **3006** locally)
+| Path | Package | What it is |
+|------|---------|------------|
+| `apps/native` | `@crossub/inspector-native` | Expo SDK 57 app. TestFlight and the future Android build. Bundle / package `com.crossub.inspector`. |
+| `apps/inspector` | `@crossub/inspector` | Next.js inspector portal (port **3006**). This is the website, not the App Store binary. |
+
+The older repo name `crossub_mobile_inspector` is this website only. The phone source lives here.
 
 ## Requirements
 
 - Node.js `>=20`
 - pnpm `>=9`
-- `crossub_web` API running (Postgres + Redis in that repo)
+- Xcode (iOS) or Android Studio (Android) when you build a device binary
+- Staging API: `https://crossub-api-staging.onrender.com`
 
-## Local development
+## Phone app
+
+```bash
+pnpm install
+cp apps/native/.env.example apps/native/.env
+pnpm dev:native
+```
+
+Scan the QR code with Expo Go. A phone cannot use `localhost`. The default API is staging (`EXPO_PUBLIC_API_URL` in `apps/native/.env`).
+
+Native run (generates `ios/` or `android/` on this machine):
+
+```bash
+pnpm ios
+pnpm android
+```
+
+Store builds use EAS from `apps/native` (`eas.json`). The production profile points at the staging API. iOS App Store Connect app `6812279119`, team `KQ997HDJ7H`, TestFlight group Dev Test. Marketing version is `0.1.0`. The iOS build number is Xcode `CURRENT_PROJECT_VERSION` in the local `ios/` project, not `app.json`.
+
+## Inspector website
 
 ```bash
 pnpm install
 cp apps/inspector/.env.example apps/inspector/.env
-
-# Terminal 1 — API (crossub_web)
-cd ../crossub_web && pnpm dev:api
-
-# Terminal 2 — inspector app (this repo)
-pnpm dev
+pnpm dev:inspector
 ```
 
 Open [http://localhost:3006](http://localhost:3006).
 
-The app ships with **demo data** for all PRD modules. When the API is reachable, auth and health checks use the live backend.
+## Deploy the website on Render
 
----
+Deploy **after** the `crossub_web` API is live. The phone app is not a Render web service.
 
-## Deploy on Render
-
-Deploy **after** the `crossub_web` API is live on Render.
-
-### Step 1 — Deploy the API (crossub_web)
-
-Deploy `crossub_web` → `apps/api` as a Render Web Service. Note the public URL, e.g.:
-
-```
-https://crossub-api.onrender.com
-```
-
-See `crossub_web/README.md` for Postgres, Redis, and API env vars.
-
-### Step 2 — Create the inspector Web Service
-
-**Option A — Blueprint (recommended)**
+### Blueprint
 
 1. Push this repo to GitHub.
 2. [Render Dashboard](https://dashboard.render.com) → **New** → **Blueprint**.
-3. Connect the `crossub_mobile_inspector` repo — Render reads `render.yaml`.
-4. When prompted, set environment variables (see Step 3).
+3. Connect `crossub_mobile`. Render reads `render.yaml`.
+4. Set the environment variables below.
 
-**Option B — Manual Web Service**
+### Manual web service
 
 | Setting | Value |
 |---------|--------|
@@ -80,11 +74,8 @@ See `crossub_web/README.md` for Postgres, Redis, and API env vars.
 | **Build Command** | `corepack pnpm install --frozen-lockfile && corepack pnpm build:inspector` |
 | **Start Command** | `corepack pnpm --filter @crossub/inspector start` |
 | **Health Check Path** | `/login` |
-| **Plan** | Starter (or higher) |
 
-### Step 3 — Environment variables
-
-Set these in Render → your service → **Environment**:
+### Environment variables
 
 | Variable | Value | Required |
 |----------|-------|----------|
@@ -94,79 +85,29 @@ Set these in Render → your service → **Environment**:
 | `NEXT_PUBLIC_WEB_URL` | `https://crossub-web.onrender.com` | Optional |
 | `NEXT_PUBLIC_AGENT_PORTAL_URL` | `https://crossub-mobile-agent.onrender.com` | Optional |
 
-Replace URLs with your actual Render service URLs. Do **not** add `/api` to the end of `API_INTERNAL_URL`.
+Do **not** add `/api` to the end of `API_INTERNAL_URL`. Render injects `PORT`. The start script binds with `next start -H 0.0.0.0`.
 
-Render injects `PORT` automatically; the start script binds via `next start -H 0.0.0.0`.
-
-### Step 4 — Update API CORS / email links (crossub_web)
-
-In `crossub_web` API env on Render, add your inspector app URL:
+On the API, password-reset links and CORS should include the inspector website host:
 
 ```bash
-# Password-reset emails point here when inspectors use this portal
 WEB_URL=https://crossub-mobile-inspector.onrender.com
-
-# Only needed if a frontend calls the API directly (not via /api proxy)
 CORS_ORIGINS=https://crossub-mobile-inspector.onrender.com,https://crossub-mobile-agent.onrender.com
 ```
 
-Leave `COOKIE_DOMAIN` empty so auth cookies bind to the inspector app hostname.
+Leave `COOKIE_DOMAIN` empty so auth cookies bind to the inspector website hostname.
 
-### Troubleshooting builds
+**`Can't resolve '@crossub-thongz/api-contract'`** — the contract is vendored under `packages/api-contract/` and built during `pnpm build:inspector`. After the backend OpenAPI spec changes, copy the refreshed package from `crossub_web` and commit it.
 
-**`Can't resolve '@crossub-thongz/api-contract'`** — The API contract is vendored under `packages/api-contract/` and built during `pnpm build:inspector`. Do not rely on a sibling `crossub_web` checkout on Render. After updating the backend OpenAPI spec, copy the refreshed `packages/api-contract` from `crossub_web` and commit.
-
-**`EROFS: read-only file system, unlink '/usr/bin/pnpm'`** — Do not run `corepack enable` on Render. The filesystem is read-only; use `corepack pnpm` directly (as in `render.yaml` and the build command above).
-
-### Step 5 — Verify
-
-1. Open `https://crossub-mobile-inspector.onrender.com/login`
-2. Sign in with a CROSSUB account from the shared API
-3. Dashboard, Job Pool, and inspection workflows should load (demo data until inspector API endpoints exist)
-
----
-
-## PRD module map
-
-| PRD Section | Route |
-|-------------|-------|
-| Inspector Dashboard | `/dashboard` |
-| Job Pool | `/job-pool` |
-| Inspections (OPEN / INGOING / OUTGOING / ROUTINE) | `/inspections` |
-| Manager Assignment | `/inspections` (redirect from `/jobs`) |
-| Job Detail & Navigation | `/jobs/[id]` |
-| Open Inspection | `/jobs/[id]/open` |
-| Ingoing Inspection | `/jobs/[id]/ingoing` |
-| Outgoing Inspection | `/jobs/[id]/outgoing` |
-| Routine Inspection | `/jobs/[id]/routine` |
-| Tribunal Module | `/tribunal`, `/tribunal/[id]` |
-| Inspector Earnings | `/earnings` |
-| Communication Hub | `/messages` |
-| Notification Centre | `/notifications` |
-| Offline Mode | Settings + auto-sync banner |
-| Profile | `/profile` |
-
-## Environment reference
-
-| Variable | Local | Render |
-|----------|-------|--------|
-| `NEXT_PUBLIC_API_URL` | `/api` | `/api` |
-| `API_INTERNAL_URL` | `http://localhost:3001` | `https://your-api.onrender.com` |
-| `PORT` | `3006` (dev script) | Set by Render |
-
-## Build
-
-```bash
-pnpm build:inspector
-```
+**`EROFS: read-only file system, unlink '/usr/bin/pnpm'`** — do not run `corepack enable` on Render. Use `corepack pnpm` directly.
 
 ## Project structure
 
 ```
-crossub_mobile_inspector/
-├── apps/inspector/       Next.js inspector portal
-├── render.yaml           Render Blueprint
-├── scripts/              Dev helpers
+crossub_mobile/
+├── apps/native/          Expo inspector app (iOS + Android)
+├── apps/inspector/       Next.js inspector website
+├── packages/api-contract Vendored Nest OpenAPI client
+├── render.yaml           Render blueprint for the website only
 └── package.json          Workspace root
 ```
 
@@ -180,14 +121,5 @@ crossub_mobile_inspector/
 | crossub_tenant_app | 3003 |
 | crossub_mobile_maintenance | 3004 |
 | crossub_mobile_landlord_app | 3005 |
-| **crossub_mobile_inspector** | **3006** |
-
-## API integration (future)
-
-The shared API does not yet have dedicated inspector-scoped endpoints. Before production:
-
-- Add `INSPECTOR` RBAC role with job-scoped permissions
-- Inspector job pool, assignment, workflow, and tribunal endpoints
-- Add inspector portal URL to API `CORS_ORIGINS` / `WEB_URL`
-
-Until then, the app uses demo data for jobs, inspections, and earnings while auth connects to the live API.
+| inspector website (`apps/inspector`) | 3006 |
+| Expo (`apps/native`) | 8081 |

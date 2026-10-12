@@ -1,5 +1,5 @@
 import * as DocumentPicker from 'expo-document-picker';
-import { launchImageLibraryAsync } from 'expo-image-picker';
+import { launchImageLibraryAsync, type ImagePickerOptions } from 'expo-image-picker';
 
 import {
   INSPECTION_BURST_MAX,
@@ -57,7 +57,10 @@ async function openLibrary(limit: number): Promise<LibraryOutcome> {
   ];
   for (const options of attempts) {
     try {
-      const result = await launchImageLibraryAsync(options);
+      const result = await launchImageLibraryAsync({
+        ...options,
+        mediaTypes: [...options.mediaTypes],
+      } as ImagePickerOptions);
       if (result?.canceled) return { kind: 'canceled' };
       return { kind: 'photos', photos: assetsToPhotos(result?.assets, limit) };
     } catch {

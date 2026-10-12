@@ -12,7 +12,12 @@ import {
 import { AppState } from 'react-native';
 
 import { useAuth } from '@/src/auth/auth-context';
-import { pendingSyncCount, subscribeQueueChanged } from '@/src/offline/db';
+import {
+  listFailedQueueItems,
+  pendingSyncCount,
+  subscribeQueueChanged,
+  type FailedQueueItem,
+} from '@/src/offline/db';
 import {
   flushOfflineWork,
   noteAppBackgrounded,
@@ -24,11 +29,12 @@ import {
 
 type OfflineContextValue = {
   pendingSync: number;
+  failedSync: FailedQueueItem[];
   syncing: boolean;
   syncProgress: SyncProgress | null;
   lastError: string | null;
   refreshPending: () => Promise<void>;
-  syncNow: (force?: boolean) => Promise<{ synced: number; remaining: number }>;
+  syncNow: (force?: boolean) => Promise<{ synced: number; remaining: number; failed: string[] }>;
 };
 
 const OfflineContext = createContext<OfflineContextValue | undefined>(undefined);
@@ -36,6 +42,7 @@ const OfflineContext = createContext<OfflineContextValue | undefined>(undefined)
 export function OfflineProvider({ children }: { children: ReactNode }) {
   const { status } = useAuth();
   const [pendingSync, setPendingSync] = useState(0);
+  const [failedSync, setFailedSync] = useState<FailedQueueItem[]>([]);
   const [syncing, setSyncing] = useState(false);
   const [syncProgress, setSyncProgress] = useState<SyncProgress | null>(null);
   const [lastError, setLastError] = useState<string | null>(null);
@@ -43,6 +50,7 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
 
   const refreshPending = useCallback(async () => {
     setPendingSync(await pendingSyncCount());
+    setFailedSync(await listFailedQueueItems());
   }, []);
 
   const syncNow = useCallback(async (force = false) => {
@@ -55,9 +63,17 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
     try {
       const result = await flushOfflineWork(force ? { force: true } : undefined);
       setPendingSync(result.remaining);
-      if (result.remaining > 0 && result.synced === 0) {
+      const rejected = [...new Set(result.failed)];
+      if (rejected.length === 1) {
+        setLastError(`Skipped a change the server rejected: ${rejected[0]}`);
+      } else if (rejected.length > 1) {
+        setLastError(
+          `Skipped ${rejected.length} changes the server rejected. The rest kept syncing.`,
+        );
+      } else if (result.remaining > 0 && result.synced === 0) {
         setLastError('Still waiting to reach the server. Tap Sync now to retry.');
       }
+      await refreshPending();
       return result;
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Could not sync queued changes.';
@@ -112,8 +128,16 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
   }, [status, syncNow]);
 
   const value = useMemo(
-    () => ({ pendingSync, syncing, syncProgress, lastError, refreshPending, syncNow }),
-    [pendingSync, syncing, syncProgress, lastError, refreshPending, syncNow],
+    () => ({
+      pendingSync,
+      failedSync,
+      syncing,
+      syncProgress,
+      lastError,
+      refreshPending,
+      syncNow,
+    }),
+    [pendingSync, failedSync, syncing, syncProgress, lastError, refreshPending, syncNow],
   );
 
   return <OfflineContext.Provider value={value}>{children}</OfflineContext.Provider>;

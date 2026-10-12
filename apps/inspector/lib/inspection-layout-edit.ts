@@ -1,4 +1,7 @@
 import {
+  effectiveSelectedAreaNames,
+  omitNamedRecordKey,
+  removeSelectedAreaName,
   resolveAreaDefinition,
   type CustomAreaDefinition,
 } from '@/lib/custom-inspection-areas';
@@ -48,6 +51,69 @@ export function validateUniqueLabel(
     return 'That name is already in the list.';
   }
   return null;
+}
+
+type AreaSetupShape = {
+  selectedAreaNames?: string[];
+  customAreas?: CustomAreaDefinition[];
+  areaIndex: number;
+};
+
+/** Shared room-list edits for ingoing (`entries`), outgoing, and routine (`issues`). */
+export function removeSetupArea<T extends AreaSetupShape, R>(
+  prev: T,
+  name: string,
+  records: Record<string, R>,
+): T & { records: Record<string, R> } {
+  const nextSelected = removeSelectedAreaName(
+    prev.selectedAreaNames,
+    name,
+    records,
+    prev.customAreas ?? [],
+  );
+  const nextCustom = (prev.customAreas ?? []).filter(
+    (item) => item.name.trim().toLowerCase() !== name.trim().toLowerCase(),
+  );
+  return {
+    ...prev,
+    selectedAreaNames: nextSelected,
+    customAreas: nextCustom,
+    records: omitNamedRecordKey(records, name),
+    areaIndex: Math.min(prev.areaIndex, Math.max(nextSelected.length - 1, 0)),
+  };
+}
+
+export function moveSetupArea<T extends AreaSetupShape, R>(
+  prev: T,
+  from: number,
+  to: number,
+  records: Record<string, R>,
+): T {
+  return {
+    ...prev,
+    selectedAreaNames: moveIndex(
+      effectiveSelectedAreaNames(prev.selectedAreaNames, records, prev.customAreas ?? []),
+      from,
+      to,
+    ),
+  };
+}
+
+export function renameSetupArea<T extends AreaSetupShape, R>(
+  prev: T,
+  from: string,
+  to: string,
+  records: Record<string, R>,
+): T & { records: Record<string, R> } {
+  if (from === to) return { ...prev, records };
+  return {
+    ...prev,
+    selectedAreaNames: (prev.selectedAreaNames ?? []).map((name) =>
+      name === from ? to : name,
+    ),
+    customAreas: renameCustomArea(prev.customAreas ?? [], from, to),
+    records: rekeyRecord(records, from, to),
+  };
 }
 
 export function renameCustomArea(

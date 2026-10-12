@@ -210,6 +210,17 @@ export async function compressAndPersistPhoto(photo: LocalPhoto): Promise<LocalP
   }
 }
 
+/** Drop every queued JPEG. Called when this phone changes inspector. */
+export async function deleteOfflineQueueFiles(): Promise<void> {
+  queueDirReady = null;
+  if (!FileSystem.documentDirectory) return;
+  try {
+    await FileSystem.deleteAsync(QUEUE_DIR, { idempotent: true });
+  } catch {
+    // The folder may already be gone.
+  }
+}
+
 export async function deleteQueuedPhoto(uri: string | undefined): Promise<void> {
   if (!uri || !uri.includes('/offline-queue/')) return;
   await deleteLocalPhoto(uri);

@@ -18,8 +18,8 @@ import { mergeSpecialReporting } from '@/lib/special-reporting';
 const INGOING_SUFFIX = /\s*\(ingoing\)\s*$/i;
 const OUTGOING_SUFFIX = /\s*\(outgoing\)\s*$/i;
 
-function isPersistedPhotoUrl(url: string): boolean {
-  return /^https?:\/\//i.test(url.trim());
+function isPersistedPhotoUrl(url: string | null | undefined): url is string {
+  return typeof url === 'string' && /^https?:\/\//i.test(url.trim());
 }
 
 function mergeMarks(

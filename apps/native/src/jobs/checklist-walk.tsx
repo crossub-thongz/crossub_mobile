@@ -39,6 +39,7 @@ import {
 } from '@/src/lib/special-reporting';
 import { useInspections } from '@/src/inspections/inspections-context';
 import type { RoutineAreaIssueDraft, RoutineExecutionDraft } from '@/src/lib/types';
+import { discardLocalPhoto } from '@/src/offline/db';
 import { queueInspectionFindings, queueInspectionPhotoBatch } from '@/src/offline/sync';
 import { upsertPhotoUrl } from '@/src/offline/queued-photo';
 import { useOffline } from '@/src/offline/offline-context';
@@ -556,12 +557,14 @@ export function ChecklistWalk({
               onAddPhotos={(photos) => {
                 void attachAreaPhotos(currentName ?? null, photos);
               }}
-              onRemove={(index) =>
+              onRemove={(index) => {
+                const removed = (issue.areaPhotos ?? [])[index];
                 updateIssue((current) => ({
                   ...current,
                   areaPhotos: (current.areaPhotos ?? []).filter((_, i) => i !== index),
-                }))
-              }
+                }));
+                if (removed) void discardLocalPhoto(removed);
+              }}
             />
 
             <InspectionSectionPhotos
@@ -647,6 +650,11 @@ export function ChecklistWalk({
               onRemovePhoto={(section, index, side) => {
                 if (type === 'outgoing' && side === 'ingoing') return;
                 const resolved = side ?? (type === 'outgoing' ? 'outgoing' : 'ingoing');
+                const existingPhotos = issue.photosBySection?.[section] ?? emptySectionPhotos();
+                const removed =
+                  resolved === 'outgoing'
+                    ? existingPhotos.outgoingPhotoUrls[index]
+                    : existingPhotos.ingoingPhotoUrls[index];
                 updateIssue((current) => {
                   const existing = current.photosBySection?.[section] ?? emptySectionPhotos();
                   return {
@@ -666,6 +674,7 @@ export function ChecklistWalk({
                     },
                   };
                 });
+                if (removed) void discardLocalPhoto(removed);
               }}
             />
 

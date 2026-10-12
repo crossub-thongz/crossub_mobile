@@ -108,7 +108,7 @@ export function formatPlanWindow(plan: OpenBatchPlan): string | null {
   if (plan.stops.length === 0) return null;
   const first = plan.stops[0];
   const last = plan.stops[plan.stops.length - 1];
-  return `${formatOpenTime(first.startTime)} – ${formatOpenTime(last.endTime)}`;
+  return `${formatOpenTime(first.startTime)} â€“ ${formatOpenTime(last.endTime)}`;
 }
 
 export function stopsMissingAgentPreference(plan: OpenBatchPlan): OpenBatchPlannedStop[] {

@@ -537,9 +537,9 @@ export function mapTribunalCases(
 
 /**
  * Merge the server's registration record (status truth: pending/approved/rejected,
- * review timestamps) over the locally saved form. The server NEVER echoes PII or
- * full bank details, so those fields keep the local copy — with the account
- * number's last 4 digits as the display fallback when no local value exists.
+ * review timestamps) over the locally saved form. Date of birth, address, and
+ * bank details are not stored on this device. The account row shows the last 4
+ * digits the server returns.
  */
 export function mapInspectorRegistration(
   dto: InspectorRegistrationStatusDto,
@@ -563,7 +563,7 @@ export function mapInspectorRegistration(
     bankAccountName: local?.bankAccountName ?? '',
     bankBsb: local?.bankBsb ?? '',
     bankAccountNumber:
-      local?.bankAccountNumber ?? asString(dto.bankAccountLast4) ?? '',
+      local?.bankAccountNumber?.trim() || asString(dto.bankAccountLast4) || '',
     registrationStatus:
       dto.registrationStatus as InspectorRegistration['registrationStatus'],
     submittedAt: asString(dto.submittedAt) ?? undefined,

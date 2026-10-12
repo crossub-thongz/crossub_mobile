@@ -36,29 +36,45 @@ export function useDeviceLocation(options?: {
     };
 
     void (async () => {
-      const current = await Location.getForegroundPermissionsAsync();
-      let status = current.status;
-      if (status !== Location.PermissionStatus.GRANTED) {
-        const asked = await Location.requestForegroundPermissionsAsync();
-        status = asked.status;
+      try {
+        const current = await Location.getForegroundPermissionsAsync();
+        let status = current.status;
+        if (status !== Location.PermissionStatus.GRANTED) {
+          const asked = await Location.requestForegroundPermissionsAsync();
+          status = asked.status;
+        }
+        if (cancelled || status !== Location.PermissionStatus.GRANTED) return;
+
+        const last = await Location.getLastKnownPositionAsync();
+        if (cancelled) return;
+        if (last) apply(last.coords);
+        let fresh: Location.LocationObject | null = null;
+        try {
+          fresh = await Location.getCurrentPositionAsync({
+            accuracy: Location.Accuracy.Balanced,
+          });
+        } catch {
+          fresh = null;
+        }
+        if (cancelled) return;
+        if (fresh) apply(fresh.coords);
+
+        const watcher = await Location.watchPositionAsync(
+          {
+            accuracy: Location.Accuracy.Balanced,
+            distanceInterval: 50,
+            timeInterval: 30_000,
+          },
+          (loc) => apply(loc.coords),
+        );
+        if (cancelled) {
+          watcher.remove();
+          return;
+        }
+        subscription = watcher;
+      } catch {
+        // Location is unavailable. The screen still works without a pin.
       }
-      if (cancelled || status !== Location.PermissionStatus.GRANTED) return;
-
-      const last = await Location.getLastKnownPositionAsync();
-      if (last) apply(last.coords);
-      const fresh = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-      }).catch(() => null);
-      if (fresh) apply(fresh.coords);
-
-      subscription = await Location.watchPositionAsync(
-        {
-          accuracy: Location.Accuracy.Balanced,
-          distanceInterval: 50,
-          timeInterval: 30_000,
-        },
-        (loc) => apply(loc.coords),
-      );
     })();
 
     return () => {

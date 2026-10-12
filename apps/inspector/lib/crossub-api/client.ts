@@ -10,7 +10,16 @@ import { createCrossubClient } from '@crossub-thongz/api-contract';
  */
 const API_BASE = `${process.env.NEXT_PUBLIC_API_URL ?? '/api'}/v1`;
 
+const REQUEST_TIMEOUT_MS = 30_000;
+
+const fetchWithTimeout: typeof fetch = (input, init) =>
+  fetch(input, {
+    ...init,
+    signal: init?.signal ?? AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+  });
+
 export const crossub = createCrossubClient({
   baseUrl: API_BASE,
   credentials: 'include',
+  fetch: fetchWithTimeout,
 });

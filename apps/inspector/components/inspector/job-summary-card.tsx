@@ -9,6 +9,7 @@ import { PropertyThumb } from '@/components/inspector/property-thumb';
 import { JobTypeBadge } from '@/components/inspector/status-badge';
 import { Button } from '@/components/ui/button';
 import { useInspectorData } from '@/components/providers/inspector-data-provider';
+import { useDeviceLocation } from '@/lib/use-device-position';
 import { formatJobRefId } from '@/lib/job-cancellation';
 import { buildMapUrl } from '@/lib/navigation';
 import { propertyAddressLines } from '@/lib/property-address';
@@ -22,7 +23,8 @@ export function JobSummaryCard({
   job: InspectionJob;
   showPayout?: boolean;
 }) {
-  const { deviceLocation, profile } = useInspectorData();
+  const { profile } = useInspectorData();
+  const deviceLocation = useDeviceLocation();
   const { street, locality } = propertyAddressLines(job);
   const directionsHref = buildMapUrl(
     'google',

@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@crossub-thongz/api-contract": "workspace:*",
+    "@crossub/inspector-core": "workspace:*",
     "@hookform/resolvers": "^3.9.1",
     "@radix-ui/react-label": "2.1.8",
     "@radix-ui/react-slot": "1.2.4",
@@ -33,6 +34,8 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4.2.0",
     "@types/node": "^22",
+    "eslint": "^9.25.0",
+    "eslint-config-next": "16.2.4",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "postcss": "^8.5",

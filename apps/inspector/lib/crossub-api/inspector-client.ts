@@ -133,7 +133,8 @@ async function fetchPoolInspectionsByType(
   const base = process.env.NEXT_PUBLIC_API_URL ?? '/api';
   const trimmed = search?.trim();
   const pageSize = 100;
-  const maxPages = 20;
+  // The 15s poll used to walk up to 20 pages for each of 4 types.
+  const maxPages = 1;
   const all: InspectorInspection[] = [];
 
   for (let page = 1; page <= maxPages; page += 1) {
@@ -145,6 +146,7 @@ async function fetchPoolInspectionsByType(
     if (trimmed) params.set('search', trimmed);
     const res = await fetch(`${base}/v1/inspector/inspections/pool?${params}`, {
       credentials: 'include',
+      signal: AbortSignal.timeout(30_000),
     });
     if (!res.ok) {
       let detail = 'Failed to load job pool';

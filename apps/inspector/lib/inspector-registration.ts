@@ -7,6 +7,36 @@ function storageKey(email: string): string {
   return `${STORAGE_PREFIX}${email.trim().toLowerCase()}`;
 }
 
+/** Identity and bank details stay in the form until submit. They are not written to disk. */
+function withoutIdentity(data: InspectorRegistration): InspectorRegistration {
+  return {
+    ...data,
+    dateOfBirth: '',
+    residentialAddress: '',
+    abn: undefined,
+    licenceNumber: undefined,
+    licenceType: '',
+    licenceExpiry: undefined,
+    bankAccountName: '',
+    bankBsb: '',
+    bankAccountNumber: '',
+  };
+}
+
+function storesIdentity(data: InspectorRegistration): boolean {
+  return Boolean(
+    data.dateOfBirth?.trim() ||
+      data.residentialAddress?.trim() ||
+      data.abn?.trim() ||
+      data.licenceNumber?.trim() ||
+      data.licenceType?.trim() ||
+      data.licenceExpiry?.trim() ||
+      data.bankAccountName?.trim() ||
+      data.bankBsb?.trim() ||
+      data.bankAccountNumber?.trim(),
+  );
+}
+
 function migrateLegacyRegistration(email: string): InspectorRegistration | null {
   if (typeof window === 'undefined') return null;
   try {
@@ -16,9 +46,10 @@ function migrateLegacyRegistration(email: string): InspectorRegistration | null 
     if (data.email.trim().toLowerCase() !== email.trim().toLowerCase()) {
       return null;
     }
-    localStorage.setItem(storageKey(email), raw);
+    const clean = withoutIdentity(data);
+    saveInspectorRegistration(email, clean);
     localStorage.removeItem(LEGACY_STORAGE_KEY);
-    return data;
+    return clean;
   } catch {
     return null;
   }
@@ -28,7 +59,7 @@ function findRegistrationByEmail(email: string): InspectorRegistration | null {
   const normalized = email.trim().toLowerCase();
   try {
     const raw = localStorage.getItem(storageKey(normalized));
-    if (raw) return JSON.parse(raw) as InspectorRegistration;
+    if (raw) return readStoredRegistration(normalized, raw);
   } catch {
     /* fall through */
   }
@@ -42,11 +73,12 @@ function findRegistrationByEmail(email: string): InspectorRegistration | null {
       if (!raw) continue;
       const data = JSON.parse(raw) as InspectorRegistration;
       if (data.email?.trim().toLowerCase() === normalized) {
-        saveInspectorRegistration(normalized, data);
+        const clean = storesIdentity(data) ? withoutIdentity(data) : data;
+        saveInspectorRegistration(normalized, clean);
         if (key !== storageKey(normalized)) {
           localStorage.removeItem(key);
         }
-        return data;
+        return clean;
       }
     } catch {
       /* ignore malformed entries */
@@ -67,6 +99,14 @@ export function loadInspectorRegistration(
   }
 }
 
+function readStoredRegistration(email: string, raw: string): InspectorRegistration {
+  const data = JSON.parse(raw) as InspectorRegistration;
+  if (!storesIdentity(data)) return data;
+  const clean = withoutIdentity({ ...data, email });
+  localStorage.setItem(storageKey(email), JSON.stringify(clean));
+  return clean;
+}
+
 export function saveInspectorRegistration(
   email: string,
   data: InspectorRegistration,
@@ -75,7 +115,7 @@ export function saveInspectorRegistration(
   const normalized = email.trim().toLowerCase();
   localStorage.setItem(
     storageKey(normalized),
-    JSON.stringify({ ...data, email: normalized }),
+    JSON.stringify(withoutIdentity({ ...data, email: normalized })),
   );
 }
 
@@ -120,6 +160,17 @@ export function isInspectorOnboardingComplete(options: {
 export function clearInspectorRegistration(email: string): void {
   if (typeof window === 'undefined') return;
   localStorage.removeItem(storageKey(email));
+  localStorage.removeItem(LEGACY_STORAGE_KEY);
+}
+
+export function clearAllInspectorRegistrations(): void {
+  if (typeof window === 'undefined') return;
+  const keys: string[] = [];
+  for (let i = 0; i < localStorage.length; i += 1) {
+    const key = localStorage.key(i);
+    if (key === LEGACY_STORAGE_KEY || key?.startsWith(STORAGE_PREFIX)) keys.push(key);
+  }
+  for (const key of keys) localStorage.removeItem(key);
 }
 
 /** Office-created roster fields, used when the server has no registration application. */

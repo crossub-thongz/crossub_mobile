@@ -9,6 +9,7 @@ import { InspectJobRow } from '@/components/inspector/inspect-job-row';
 import { InspectNextCard } from '@/components/inspector/inspect-next-card';
 import { InspectorShell } from '@/components/layout/inspector-shell';
 import { useInspectorData } from '@/components/providers/inspector-data-provider';
+import { useDeviceLocation } from '@/lib/use-device-position';
 import {
   CORE_INSPECTION_TYPES,
   type CoreInspectionType,
@@ -54,7 +55,8 @@ export default function InspectionsPageClient() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const tab = parseTab(searchParams.get('tab') ?? searchParams.get('when'));
-  const { jobs, completedJobs, deviceLocation } = useInspectorData();
+  const { jobs, completedJobs } = useInspectorData();
+  const deviceLocation = useDeviceLocation();
 
   const setTab = (next: ScheduleTab) => {
     const params = new URLSearchParams(searchParams.toString());

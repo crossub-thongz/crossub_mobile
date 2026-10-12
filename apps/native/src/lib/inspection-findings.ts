@@ -41,7 +41,7 @@ function areaComments(area: InspectorInspectionDetail['areas'][number]): string 
     .map((item) => {
       const name = asString(item.name);
       const tags = (item.conditionTags ?? []).filter((tag) => tag.trim().length > 0);
-      const detail = asString(item.comment) || tags.join(' · ');
+      const detail = asString(item.comment) || tags.join(' Â· ');
       if (!detail) return null;
       if (name && name.toLowerCase() !== 'notes' && name.toLowerCase() !== 'issue') {
         return `${name}: ${detail}`;
@@ -49,7 +49,7 @@ function areaComments(area: InspectorInspectionDetail['areas'][number]): string 
       return detail;
     })
     .filter((comment): comment is string => Boolean(comment))
-    .join(' · ');
+    .join(' Â· ');
 }
 
 function areaPhotoUrls(area: InspectorInspectionDetail['areas'][number]): string[] {

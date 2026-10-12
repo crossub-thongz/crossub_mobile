@@ -27,7 +27,7 @@ export function openInspectionQrImageUrl(url: string, size = 256): string {
 
 export function formatOpenInspectionClock(endIso: string, nowMs: number): string {
   const end = new Date(endIso).getTime();
-  if (Number.isNaN(end)) return '—';
+  if (Number.isNaN(end)) return 'â€”';
   const diff = Math.max(0, end - nowMs);
   const totalSec = Math.floor(diff / 1000);
   const h = Math.floor(totalSec / 3600);

@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, type LucideIcon } from 'react';
-import { Maximize2, Share2, Users, X } from 'lucide-react';
+import { useState } from 'react';
+import { Maximize2, Share2, Users, X, type LucideIcon } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';

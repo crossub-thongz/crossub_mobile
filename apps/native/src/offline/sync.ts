@@ -14,7 +14,7 @@ import {
   type UploadInspectorPhoto,
 } from '@/src/api/inspector';
 import { getAccessToken } from '@/src/auth/session';
-import { getV1BaseUrl } from '@/src/config/api-url';
+import { getV1BaseUrl, isApiOriginUrl } from '@/src/config/api-url';
 import { attendanceWindowFromHours } from '@/src/lib/findings';
 import {
   compressPhotoToFile,
@@ -25,6 +25,7 @@ import {
 } from '@/src/jobs/compress-photo';
 import {
   bumpQueueAttempt,
+  markQueueItemFailed,
   enqueueOfflineAction,
   isAuthError,
   isPermanentPhotoError,
@@ -38,6 +39,8 @@ import {
   flushDraftNotifications,
   flushUploadedPhotoDrafts,
   deleteQueueItemsByLocalUri,
+  queueItemExists,
+  takeArrivedPhotos,
   applyPhotoUriRewrites,
   type OfflineAction,
   type OfflineQueueItem,
@@ -68,13 +71,14 @@ const PHOTO_UPLOAD_CONCURRENCY = 4;
 const PHOTO_COMPRESS_CONCURRENCY = 3;
 const AUTO_PHOTO_ATTEMPT_CAP = 2;
 
-let drainInFlight: Promise<{ synced: number; remaining: number }> | null = null;
+let drainInFlight: Promise<{ synced: number; remaining: number; failed: string[] }> | null = null;
 let drainAgain = false;
 let drainForce = false;
 let uploadRunId = 0;
 let photosSettled = 0;
 let settledWhenBackgrounded = 0;
 let backgroundedAt = 0;
+let photoUploadsInFlight = 0;
 
 class UploadSupersededError extends Error {
   constructor() {
@@ -114,13 +118,17 @@ export function noteAppBackgrounded() {
 }
 
 /**
- * Coming back after a few minutes with the same count means the in-flight
- * photo never finished. Drop that attempt and start the queue again.
+ * Coming back with the same count, while a photo was actually uploading,
+ * means that attempt never finished. Drop it and start the queue again.
+ * An idle queue is not stalled.
  */
 export function noteAppForegrounded() {
   const awayFor = backgroundedAt ? Date.now() - backgroundedAt : 0;
   backgroundedAt = 0;
-  const stalled = awayFor > 3_000 && photosSettled === settledWhenBackgrounded;
+  const stalled =
+    awayFor > 3_000 &&
+    photoUploadsInFlight > 0 &&
+    photosSettled === settledWhenBackgrounded;
   if (stalled) {
     uploadRunId += 1;
     drainInFlight = null;
@@ -301,10 +309,14 @@ async function replayPhotoUpload(item: OfflineQueueItem, runId: number): Promise
       return prepareStoredPhotoUpload(tempUri ?? localUri);
     });
     ensureCurrentRun(runId);
-    const uploaded = await uploadPhotoBody(item.jobId, {
-      ...prepared.body,
-      areaName: typeof payload.areaName === 'string' ? payload.areaName : undefined,
-    });
+    const uploaded = await uploadPhotoBody(
+      item.jobId,
+      {
+        ...prepared.body,
+        areaName: typeof payload.areaName === 'string' ? payload.areaName : undefined,
+      },
+      item.id,
+    );
     if (
       prepared.localUri !== localUri &&
       prepared.localUri !== tempUri &&
@@ -321,6 +333,7 @@ async function replayPhotoUpload(item: OfflineQueueItem, runId: number): Promise
 async function uploadPhotoBody(
   inspectionId: string,
   body: UploadInspectorPhoto,
+  idempotencyKey?: string,
 ): Promise<{ url?: string | null }> {
   const token = await getAccessToken();
   if (!token) throw new Error('Sign in again to upload photos.');
@@ -332,8 +345,12 @@ async function uploadPhotoBody(
   try {
     file.create({ intermediates: true });
     file.write(JSON.stringify(body));
+    const uploadUrl = `${getV1BaseUrl()}/inspector/inspections/${inspectionId}/photos/upload`;
+    if (!isApiOriginUrl(uploadUrl)) {
+      throw new Error('Photo upload was pointed at the wrong server.');
+    }
     const result = await file.upload(
-      `${getV1BaseUrl()}/inspector/inspections/${inspectionId}/photos/upload`,
+      uploadUrl,
       {
         httpMethod: 'POST',
         uploadType: UploadType.BINARY_CONTENT,
@@ -342,10 +359,13 @@ async function uploadPhotoBody(
           Authorization: `Bearer ${token}`,
           Accept: 'application/json',
           'Content-Type': 'application/json',
+          ...(idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {}),
         },
       },
     );
-    if (result.status === 401) return await uploadInspectionPhoto(inspectionId, body);
+    if (result.status === 401) {
+      return await uploadInspectionPhoto(inspectionId, body, idempotencyKey);
+    }
     if (result.status === 413) throw new Error('Photo is too large. Try snapping again.');
     if (result.status === 429 || result.status >= 500) {
       throw new Error(`Could not reach the server (${result.status}).`);
@@ -451,6 +471,7 @@ function isMissingFileError(err: unknown): boolean {
 }
 
 async function settlePhotoItem(item: OfflineQueueItem, runId: number): Promise<boolean> {
+  if (!(await queueItemExists(item.id))) return false;
   const localUri = typeof item.payload.localUri === 'string' ? item.payload.localUri : '';
   const rewritten = localUri ? applyPhotoUriRewrites(localUri) : '';
   if (isRemotePhotoUrl(localUri) || isRemotePhotoUrl(rewritten)) {
@@ -496,10 +517,17 @@ async function keepFailedPhoto(item: OfflineQueueItem, err: unknown): Promise<vo
   await bumpQueueAttempt(item.id);
 }
 
-async function drainQueue(force: boolean): Promise<{ synced: number; remaining: number }> {
+function isHttpRetryable(err: unknown): boolean {
+  const message = err instanceof Error ? err.message : String(err);
+  return /\b(429|500|502|503|504)\b/.test(message);
+}
+
+async function drainQueue(
+  force: boolean,
+): Promise<{ synced: number; remaining: number; failed: string[] }> {
   if (!(await getAccessToken())) {
     emitSyncProgress(null);
-    return { synced: 0, remaining: await pendingSyncCount() };
+    return { synced: 0, remaining: await pendingSyncCount(), failed: [] };
   }
   const queue = await loadOfflineQueue();
   const photos = queue
@@ -508,8 +536,13 @@ async function drainQueue(force: boolean): Promise<{ synced: number; remaining: 
   const photoPass = force
     ? photos
     : photos.filter((item) => item.attempts < AUTO_PHOTO_ATTEMPT_CAP);
-  const others = sortForDrain(queue.filter((item) => !isPhotoQueueAction(item.action)));
+  const others = sortForDrain(
+    queue.filter(
+      (item) => !isPhotoQueueAction(item.action) && (force || !item.lastError),
+    ),
+  );
   let synced = 0;
+  const failed: string[] = [];
   let notedUpload = false;
   let stopPhotos = false;
 
@@ -525,10 +558,9 @@ async function drainQueue(force: boolean): Promise<{ synced: number; remaining: 
     };
     publish();
 
-    const pullNew = async () => {
+    const pullNew = () => {
       if (runId !== uploadRunId) return;
-      const latest = await loadOfflineQueue();
-      const fresh = latest
+      const fresh = takeArrivedPhotos()
         .filter((item) => isPhotoQueueAction(item.action))
         .filter((item) => force || item.attempts < AUTO_PHOTO_ATTEMPT_CAP)
         .filter((item) => !started.has(item.id))
@@ -544,14 +576,15 @@ async function drainQueue(force: boolean): Promise<{ synced: number; remaining: 
     await Promise.all(
       Array.from({ length: PHOTO_UPLOAD_CONCURRENCY }, async () => {
         while (!stopPhotos && runId === uploadRunId) {
-          await pullNew();
+          pullNew();
           const item = pending.shift();
           if (!item) {
             await new Promise((resolve) => setTimeout(resolve, 350));
-            await pullNew();
+            pullNew();
             if (pending.length === 0) return;
             continue;
           }
+          photoUploadsInFlight += 1;
           try {
             ensureCurrentRun(runId);
             const noted = await settlePhotoItem(item, runId);
@@ -566,6 +599,7 @@ async function drainQueue(force: boolean): Promise<{ synced: number; remaining: 
             }
             await keepFailedPhoto(item, err);
           } finally {
+            photoUploadsInFlight = Math.max(0, photoUploadsInFlight - 1);
             if (!stopPhotos && runId === uploadRunId) {
               completed += 1;
               publish();
@@ -594,26 +628,34 @@ async function drainQueue(force: boolean): Promise<{ synced: number; remaining: 
         synced += 1;
         await yieldToUi();
       } catch (err) {
-        if (isAuthError(err) || isRetryableNetworkError(err)) break;
-        break;
+        if (isAuthError(err)) break;
+        if (isRetryableNetworkError(err)) {
+          await bumpQueueAttempt(item.id);
+          if (isHttpRetryable(err)) continue;
+          break;
+        }
+        const message = err instanceof Error ? err.message : 'The server rejected this change.';
+        await markQueueItemFailed(item.id, message);
+        failed.push(message);
       }
     }
   }
-  return { synced, remaining: await pendingSyncCount() };
+  return { synced, remaining: await pendingSyncCount(), failed };
 }
 
 export async function syncOfflineQueue(options?: {
   force?: boolean;
-}): Promise<{ synced: number; remaining: number }> {
+}): Promise<{ synced: number; remaining: number; failed: string[] }> {
   if (options?.force) drainForce = true;
   if (drainInFlight) {
     drainAgain = true;
     return drainInFlight;
   }
-  let run!: Promise<{ synced: number; remaining: number }>;
+  let run!: Promise<{ synced: number; remaining: number; failed: string[] }>;
   run = (async () => {
     let synced = 0;
     let remaining = await pendingSyncCount();
+    let failed: string[] = [];
     try {
       do {
         drainAgain = false;
@@ -622,8 +664,9 @@ export async function syncOfflineQueue(options?: {
         const pass = await drainQueue(force);
         synced += pass.synced;
         remaining = pass.remaining;
+        failed = failed.concat(pass.failed);
       } while (drainAgain && run === drainInFlight);
-      return { synced, remaining };
+      return { synced, remaining, failed };
     } finally {
       if (drainInFlight === run) {
         drainInFlight = null;
@@ -639,7 +682,7 @@ export async function syncOfflineQueue(options?: {
 /** Push the existing queue first so a restart does not stall behind recover. */
 export async function flushOfflineWork(options?: {
   force?: boolean;
-}): Promise<{ synced: number; remaining: number }> {
+}): Promise<{ synced: number; remaining: number; failed: string[] }> {
   try {
     const first = await syncOfflineQueue(options);
     try {
@@ -651,6 +694,7 @@ export async function flushOfflineWork(options?: {
     return {
       synced: first.synced + second.synced,
       remaining: second.remaining,
+      failed: first.failed.concat(second.failed),
     };
   } finally {
     emitSyncProgress(null);

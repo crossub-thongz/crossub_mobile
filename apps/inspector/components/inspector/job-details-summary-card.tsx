@@ -7,6 +7,7 @@ import { PayBreakdown } from '@/components/inspector/pay-breakdown';
 import { PropertyThumb } from '@/components/inspector/property-thumb';
 import { Button } from '@/components/ui/button';
 import { useInspectorData } from '@/components/providers/inspector-data-provider';
+import { useDeviceLocation } from '@/lib/use-device-position';
 import { formatJobRefId } from '@/lib/job-cancellation';
 import { inspectTypeLabel } from '@/lib/inspect-type-visual';
 import { buildMapUrl } from '@/lib/navigation';
@@ -15,7 +16,8 @@ import type { InspectionJob } from '@/lib/types';
 import { formatScheduleWhen } from '@/lib/utils';
 
 export function JobDetailsSummaryCard({ job }: { job: InspectionJob }) {
-  const { deviceLocation, profile } = useInspectorData();
+  const { profile } = useInspectorData();
+  const deviceLocation = useDeviceLocation();
   const { street, locality } = propertyAddressLines(job);
   const directionsHref = buildMapUrl(
     'google',

@@ -110,7 +110,9 @@ export function AccountProvider({ children }: { children: ReactNode }) {
       setDraft(nextDraft);
       const serverReg = await submitInspectorRegistration(body);
       const confirmed: RegistrationDraft = {
-        ...nextDraft,
+        mobile: nextDraft.mobile,
+        serviceRegions: nextDraft.serviceRegions,
+        tribunalQualified: nextDraft.tribunalQualified,
         submittedStatus:
           serverReg.registrationStatus === 'approved' ? 'approved' : 'pending_review',
       };

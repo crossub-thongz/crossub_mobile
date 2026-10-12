@@ -36,11 +36,6 @@ export function readUpstreamSetCookies(headers: Headers): string[] {
     if (cookies.length > 0) return cookies;
   }
 
-  if (typeof headers.getAll === 'function') {
-    const all = headers.getAll('set-cookie');
-    if (all.length > 0) return all;
-  }
-
   const single = headers.get('set-cookie');
   return single ? [single] : [];
 }

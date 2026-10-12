@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { memo, useState } from 'react';
 import Link from 'next/link';
 import {
   Calendar,
@@ -14,6 +14,7 @@ import {
 
 import { Button } from '@/components/ui/button';
 import { useInspectorData } from '@/components/providers/inspector-data-provider';
+import { useDeviceLocation } from '@/lib/use-device-position';
 import {
   CORE_INSPECTION_TYPES,
   INSPECTION_TYPE_LABEL,
@@ -37,7 +38,7 @@ const TYPE_ICON = {
   tribunal: Home,
 } as const;
 
-export function JobCard({
+export const JobCard = memo(function JobCard({
   job,
   showActions,
   origin,
@@ -47,7 +48,8 @@ export function JobCard({
   showActions?: boolean;
   origin?: GeoPoint | null;
 }) {
-  const { deviceLocation, receivingJobs, acceptJob } = useInspectorData();
+  const { receivingJobs, acceptJob } = useInspectorData();
+  const deviceLocation = useDeviceLocation();
   const [accepting, setAccepting] = useState(false);
   const poolPreview = Boolean(showActions && isPoolJob(job));
   const detailHref = jobDetail(job.id);
@@ -183,4 +185,4 @@ export function JobCard({
       )}
     </article>
   );
-}
+});

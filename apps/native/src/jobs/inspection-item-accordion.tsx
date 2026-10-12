@@ -94,6 +94,20 @@ export function InspectionItemAccordion({
   const icon = inspectionItemIcon(name);
   const rootRef = useRef<View>(null);
   const [photoRevision, setPhotoRevision] = useState(0);
+  const [commentText, setCommentText] = useState(comment);
+  const commentTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const commentItem = useRef(name);
+  useEffect(() => {
+    if (commentItem.current !== name) {
+      if (commentTimer.current) clearTimeout(commentTimer.current);
+      commentTimer.current = null;
+      commentItem.current = name;
+      setCommentText(comment);
+      return;
+    }
+    if (commentTimer.current) return;
+    setCommentText(comment);
+  }, [name, comment]);
   useEffect(() => subscribeDraftsChanged(() => setPhotoRevision((value) => value + 1)), []);
   const resolvedPhotos = photoUrls
     .filter(Boolean)
@@ -290,8 +304,16 @@ export function InspectionItemAccordion({
           <View>
             <Text style={styles.commentsLabel}>COMMENTS</Text>
             <AppTextInput
-              value={comment}
-              onChangeText={(value) => onChangeComment(value.slice(0, COMMENT_MAX))}
+              value={commentText}
+              onChangeText={(value) => {
+                const next = value.slice(0, COMMENT_MAX);
+                setCommentText(next);
+                if (commentTimer.current) clearTimeout(commentTimer.current);
+                commentTimer.current = setTimeout(() => {
+                  commentTimer.current = null;
+                  onChangeComment(next);
+                }, 500);
+              }}
               editable={!busy}
               placeholder="Describe the issue or leave blank if all good..."
               placeholderTextColor={colors.muted}
@@ -300,7 +322,7 @@ export function InspectionItemAccordion({
               style={styles.comment}
             />
             <Text style={styles.counter}>
-              {comment.length}/{COMMENT_MAX}
+              {commentText.length}/{COMMENT_MAX}
             </Text>
           </View>
 

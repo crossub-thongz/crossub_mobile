@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Linking,
@@ -294,6 +294,22 @@ export function OpenViewingScreen({
     return () => clearInterval(timer);
   }, []);
 
+  const finishRef = useRef<(early: boolean) => void>(() => undefined);
+  const sessionCancelled = viewing?.sessionStatus === 'cancelled';
+  const sessionEnded =
+    !sessionCancelled &&
+    (viewing?.sessionStatus === 'closed' || Boolean(viewing?.closedAt));
+  const sessionLive =
+    !sessionEnded &&
+    !sessionCancelled &&
+    (viewing?.sessionStatus === 'open' || Boolean(viewing?.openedAt));
+
+  useEffect(() => {
+    if (!job || !viewing || !sessionLive || sessionEnded || busy) return;
+    if (new Date(viewing.endTime).getTime() > Date.now()) return;
+    finishRef.current(false);
+  }, [now, viewing, job, sessionLive, sessionEnded, busy]);
+
   useEffect(() => {
     if (!id) return;
     let active = true;
@@ -410,13 +426,9 @@ export function OpenViewingScreen({
       setBusy(null);
     }
   };
-
-  useEffect(() => {
-    if (!viewing || !live || ended || busy) return;
-    if (new Date(viewing.endTime).getTime() > Date.now()) return;
-    void finish(false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [now, viewing?.endTime, live, ended]);
+  finishRef.current = (early) => {
+    void finish(early);
+  };
 
   return (
     <View style={styles.safe}>

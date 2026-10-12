@@ -66,7 +66,13 @@ import {
   type ItemConditionKey,
   type ItemConditionMarks,
 } from '@/lib/item-condition-marks';
-import { moveIndex, rekeyRecord, renameCustomArea } from '@/lib/inspection-layout-edit';
+import {
+  moveIndex,
+  moveSetupArea,
+  rekeyRecord,
+  removeSetupArea,
+  renameSetupArea,
+} from '@/lib/inspection-layout-edit';
 import {
   draftNeedsLayoutSeed,
   layoutTemplateFromProperty,
@@ -317,52 +323,19 @@ export default function IngoingInspectionPage() {
 
   const handleRemoveSetupArea = (name: string) => {
     setDraft((prev) => {
-      const nextSelected = removeSelectedAreaName(
-        prev.selectedAreaNames,
-        name,
-        prev.entries,
-        prev.customAreas ?? [],
-      );
-      const nextCustom = (prev.customAreas ?? []).filter(
-        (item) => item.name.trim().toLowerCase() !== name.trim().toLowerCase(),
-      );
-      return {
-        ...prev,
-        selectedAreaNames: nextSelected,
-        customAreas: nextCustom,
-        entries: omitNamedRecordKey(prev.entries, name),
-        areaIndex: Math.min(prev.areaIndex, Math.max(nextSelected.length - 1, 0)),
-      };
+      const { records, ...rest } = removeSetupArea(prev, name, prev.entries);
+      return { ...rest, entries: records };
     });
   };
 
   const handleMoveSetupArea = (from: number, to: number) => {
-    setDraft((prev) => ({
-      ...prev,
-      selectedAreaNames: moveIndex(
-        effectiveSelectedAreaNames(
-          prev.selectedAreaNames,
-          prev.entries,
-          prev.customAreas ?? [],
-        ),
-        from,
-        to,
-      ),
-    }));
+    setDraft((prev) => moveSetupArea(prev, from, to, prev.entries));
   };
 
   const handleRenameSetupArea = (from: string, to: string) => {
-    if (from === to) return;
     setDraft((prev) => {
-      const nextSelected = (prev.selectedAreaNames ?? []).map((name) =>
-        name === from ? to : name,
-      );
-      return {
-        ...prev,
-        selectedAreaNames: nextSelected,
-        customAreas: renameCustomArea(prev.customAreas ?? [], from, to),
-        entries: rekeyRecord(prev.entries, from, to),
-      };
+      const { records, ...rest } = renameSetupArea(prev, from, to, prev.entries);
+      return { ...rest, entries: records };
     });
   };
 

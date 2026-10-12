@@ -1,0 +1,17 @@
+{
+  "name": "@crossub/inspector-core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Shared inspector rules used by the website and the phone app. No React.",
+  "exports": {
+    "./item-condition-marks": "./src/item-condition-marks.ts",
+    "./travel": "./src/travel.ts",
+    "./special-reporting": "./src/special-reporting.ts",
+    "./inspector-registration": "./src/inspector-registration.ts",
+    "./inspector-access-level": "./src/inspector-access-level.ts"
+  },
+  "scripts": {
+    "test": "node --experimental-strip-types --test src/*.test.ts"
+  }
+}

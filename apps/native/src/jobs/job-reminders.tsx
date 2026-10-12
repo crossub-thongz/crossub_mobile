@@ -52,7 +52,7 @@ export function JobReminders() {
       {upcoming.map((job) => (
         <Pressable key={job.id} onPress={() => router.push(jobDetail(job.id))}>
           <Text style={styles.row} numberOfLines={1}>
-            {formatInspectTime(job.scheduledTime)} · {job.propertyAddress}
+            {formatInspectTime(job.scheduledTime)} Â· {job.propertyAddress}
           </Text>
         </Pressable>
       ))}

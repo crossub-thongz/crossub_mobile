@@ -36,7 +36,7 @@ function readZoomCaps(track: MediaStreamTrack): ZoomCaps | null {
 
 async function applyTrackZoom(track: MediaStreamTrack, zoom: number) {
   try {
-    await track.applyConstraints({ advanced: [{ zoom }] } as MediaTrackConstraints);
+    await track.applyConstraints({ advanced: [{ zoom }] } as unknown as MediaTrackConstraints);
   } catch {
     try {
       await track.applyConstraints({ zoom } as unknown as MediaTrackConstraints);

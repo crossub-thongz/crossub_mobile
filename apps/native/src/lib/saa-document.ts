@@ -2,7 +2,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 
 import { fetchWithBearer } from '@/src/api/client';
-import { getApiOrigin } from '@/src/config/api-url';
+import { getApiOrigin, isApiOriginUrl } from '@/src/config/api-url';
 import { INSPECTOR_SAA_PORTAL_QUERY } from '@/src/lib/system-access-agreement';
 
 function bytesToBase64(bytes: Uint8Array): string {
@@ -19,7 +19,7 @@ function documentUrl(documentPath?: string): string {
   const fallback = `/api/auth/system-access-agreement/document?${INSPECTOR_SAA_PORTAL_QUERY}`;
   const path = documentPath?.trim();
   if (!path) return `${origin}${fallback}`;
-  if (path.startsWith('http')) return path;
+  if (path.startsWith('http')) return isApiOriginUrl(path) ? path : `${origin}${fallback}`;
   if (path.startsWith('/api/')) return `${origin}${path}`;
   if (path.startsWith('/auth/')) return `${origin}/api${path}`;
   return `${origin}${path.startsWith('/') ? path : `/${path}`}`;

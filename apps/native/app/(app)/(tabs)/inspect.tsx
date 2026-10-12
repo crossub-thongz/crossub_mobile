@@ -1,7 +1,8 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import {
   ActivityIndicator,
+  FlatList,
   NativeScrollEvent,
   NativeSyntheticEvent,
   Pressable,
@@ -34,66 +35,70 @@ function parseTab(value: string | string[] | undefined): ScheduleTab {
   return 'today';
 }
 
-function InspectPage({
+function InspectJobList({
+  width,
   jobs,
   nextJob,
   origin,
   loading,
+  refreshing,
+  onRefresh,
   emptyTitle,
   emptyDescription,
   heading,
-  completed,
   onOpen,
   onAction,
 }: {
+  width: number;
   jobs: InspectionJob[];
   nextJob?: InspectionJob | null;
   origin?: GeoPoint | null;
   loading: boolean;
+  refreshing: boolean;
+  onRefresh: () => void;
   emptyTitle: string;
   emptyDescription: string;
   heading: string;
-  completed?: boolean;
   onOpen: (id: string) => void;
   onAction: (href: string) => void;
 }) {
-  const listWithoutHero = nextJob ? jobs.filter((job) => job.id !== nextJob.id) : jobs;
-
+  const rows = nextJob ? jobs.filter((job) => job.id !== nextJob.id) : jobs;
   return (
-    <View style={styles.page}>
-      {nextJob ? (
-        <InspectNextCard
-          job={nextJob}
-          origin={origin}
-          onOpen={() => onOpen(nextJob.id)}
-          onAction={onAction}
-        />
-      ) : null}
-      {jobs.length === 0 ? (
-        loading ? (
-          <ActivityIndicator color={colors.primary} style={{ marginTop: 32 }} />
-        ) : (
-          <EmptyState
-            icon="clipboard-outline"
-            title={emptyTitle}
-            description={emptyDescription}
-          />
-        )
-      ) : (
-        <>
-          {!completed ? <Text style={styles.section}>{heading}</Text> : null}
-          {(nextJob ? listWithoutHero : jobs).map((job) => (
-            <InspectJobRow
-              key={job.id}
-              job={job}
-              completed={completed}
-              onOpen={() => onOpen(job.id)}
+    <FlatList
+      style={{ width }}
+      data={rows}
+      keyExtractor={(item) => item.id}
+      contentContainerStyle={[styles.list, styles.page]}
+      keyboardShouldPersistTaps="handled"
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
+      }
+      ListHeaderComponent={
+        <View>
+          {nextJob ? (
+            <InspectNextCard
+              job={nextJob}
+              origin={origin}
+              onOpen={() => onOpen(nextJob.id)}
               onAction={onAction}
             />
-          ))}
-        </>
+          ) : null}
+          {rows.length > 0 ? <Text style={styles.section}>{heading}</Text> : null}
+        </View>
+      }
+      ListEmptyComponent={
+        jobs.length === 0 ? (
+          loading ? (
+            <ActivityIndicator color={colors.primary} style={{ marginTop: 32 }} />
+          ) : (
+            <EmptyState icon="clipboard-outline" title={emptyTitle} description={emptyDescription} />
+          )
+        ) : null
+      }
+      renderItem={({ item }) => (
+        <InspectJobRow job={item} onOpen={onOpen} onAction={onAction} />
       )}
-    </View>
+    />
   );
 }
 
@@ -155,8 +160,11 @@ export default function InspectScreen() {
     return remaining[0] ?? todaysJobs[0] ?? null;
   }, [todaysJobs]);
 
-  const goJob = (id: string) => router.push(jobDetail(id) as never);
-  const goHref = (href: string) => router.push(href as never);
+  const goJob = useCallback((id: string) => router.push(jobDetail(id) as never), [router]);
+  const goHref = useCallback((href: string) => router.push(href as never), [router]);
+  const onRefresh = useCallback(() => {
+    void refresh();
+  }, [refresh]);
 
   return (
     <View style={styles.safe}>
@@ -201,79 +209,46 @@ export default function InspectScreen() {
         style={styles.pager}
         contentOffset={{ x: scheduleIndex * width, y: 0 }}
       >
-        <ScrollView
-          style={{ width }}
-          contentContainerStyle={styles.list}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={() => {
-                void refresh();
-              }}
-              tintColor={colors.primary}
-            />
-          }
-        >
-          <InspectPage
-            jobs={todaysJobs}
-            nextJob={nextJob}
-            origin={deviceLocation}
-            loading={loading}
-            emptyTitle="No inspections today"
-            emptyDescription="Accepted jobs scheduled for today will show here."
-            heading={`Today - ${todaysJobs.length} inspection${todaysJobs.length === 1 ? '' : 's'}`}
-            onOpen={goJob}
-            onAction={goHref}
-          />
-        </ScrollView>
-        <ScrollView
-          style={{ width }}
-          contentContainerStyle={styles.list}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={() => {
-                void refresh();
-              }}
-              tintColor={colors.primary}
-            />
-          }
-        >
-          <InspectPage
-            jobs={upcomingJobs}
-            origin={deviceLocation}
-            loading={loading}
-            emptyTitle="No upcoming inspections"
-            emptyDescription="Jobs scheduled after today will show here."
-            heading={`Upcoming - ${upcomingJobs.length} inspection${upcomingJobs.length === 1 ? '' : 's'}`}
-            onOpen={goJob}
-            onAction={goHref}
-          />
-        </ScrollView>
-        <ScrollView
-          style={{ width }}
-          contentContainerStyle={styles.list}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={() => {
-                void refresh();
-              }}
-              tintColor={colors.primary}
-            />
-          }
-        >
-          <InspectPage
-            jobs={overdueJobs}
-            origin={deviceLocation}
-            loading={loading}
-            emptyTitle="No overdue inspections"
-            emptyDescription="Jobs that were not finished after their scheduled date will show here."
-            heading={`Overdue - ${overdueJobs.length} inspection${overdueJobs.length === 1 ? '' : 's'}`}
-            onOpen={goJob}
-            onAction={goHref}
-          />
-        </ScrollView>
+        <InspectJobList
+          width={width}
+          jobs={todaysJobs}
+          nextJob={nextJob}
+          origin={deviceLocation}
+          loading={loading}
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          emptyTitle="No inspections today"
+          emptyDescription="Accepted jobs scheduled for today will show here."
+          heading={`Today - ${todaysJobs.length} inspection${todaysJobs.length === 1 ? '' : 's'}`}
+          onOpen={goJob}
+          onAction={goHref}
+        />
+        <InspectJobList
+          width={width}
+          jobs={upcomingJobs}
+          origin={deviceLocation}
+          loading={loading}
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          emptyTitle="No upcoming inspections"
+          emptyDescription="Jobs scheduled after today will show here."
+          heading={`Upcoming - ${upcomingJobs.length} inspection${upcomingJobs.length === 1 ? '' : 's'}`}
+          onOpen={goJob}
+          onAction={goHref}
+        />
+        <InspectJobList
+          width={width}
+          jobs={overdueJobs}
+          origin={deviceLocation}
+          loading={loading}
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          emptyTitle="No overdue inspections"
+          emptyDescription="Jobs that were not finished after their scheduled date will show here."
+          heading={`Overdue - ${overdueJobs.length} inspection${overdueJobs.length === 1 ? '' : 's'}`}
+          onOpen={goJob}
+          onAction={goHref}
+        />
       </ScrollView>
 
       <View style={styles.float}>

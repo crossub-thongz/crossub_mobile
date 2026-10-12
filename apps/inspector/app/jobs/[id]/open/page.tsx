@@ -128,7 +128,7 @@ export default function OpenInspectionPage() {
   const returnPending =
     Boolean(job?.keyAccess) &&
     workflowFinished &&
-    !isKeyReturnComplete(job) &&
+    Boolean(job && !isKeyReturnComplete(job)) &&
     !isCompleted;
   const canCompleteEarly =
     Boolean(viewing?.canCompleteEarly) && !isCompleted && !workflowFinished;
@@ -175,7 +175,7 @@ export default function OpenInspectionPage() {
       setCompleting(true);
       try {
         const needsKeyReturn =
-          Boolean(job?.keyAccess) && !isKeyReturnComplete(job);
+          Boolean(job?.keyAccess && job && !isKeyReturnComplete(job));
 
         if (needsKeyReturn) {
           const outcome = finishInspectionWorkflow(id);
