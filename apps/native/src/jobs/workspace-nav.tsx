@@ -3,15 +3,16 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { jobInspectionContinuing } from '@/src/lib/inspection-job-cta';
 import { isInspectionWorkflowFinished } from '@/src/lib/key-access';
+import { inspectionHasNswSpecialReporting } from '@/src/lib/special-reporting';
 import type { InspectionJob } from '@/src/lib/types';
 import { colors } from '@/src/theme';
 import { useInspections } from '@/src/inspections/inspections-context';
 
-export type WorkspaceTab = 'details' | 'handover' | 'areas' | 'start';
+export type WorkspaceTab = 'details' | 'handover' | 'areas' | 'start' | 'special';
 
 export function parseWorkspaceTab(value: string | string[] | undefined): WorkspaceTab {
   const raw = Array.isArray(value) ? value[0] : value;
-  if (raw === 'handover' || raw === 'areas' || raw === 'start') return raw;
+  if (raw === 'handover' || raw === 'areas' || raw === 'start' || raw === 'special') return raw;
   return 'details';
 }
 
@@ -24,31 +25,37 @@ export function JobWorkspaceNav({
   job,
   active,
   onSelect,
-  allowInspection = false,
 }: {
   job: InspectionJob;
   active: WorkspaceTab;
   onSelect: (tab: WorkspaceTab) => void;
-  /** Keep Areas and Continue inspection available, for example while photos are still sending. */
-  allowInspection?: boolean;
 }) {
   const { getDraft } = useInspections();
   const draft = getDraft(job.id);
   const continuing = jobInspectionContinuing(job, draft);
-  const finished = isInspectionWorkflowFinished(job, draft) && !allowInspection;
+  const submitted = job.status === 'completed' || job.status === 'awaiting_approval';
   const items: { id: WorkspaceTab; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
     { id: 'details', label: 'Job Details', icon: 'document-text-outline' },
     { id: 'handover', label: 'Handover', icon: 'key-outline' },
   ];
-  if (!finished && job.type !== 'open') {
+  if (!submitted && job.type !== 'open') {
     items.push({ id: 'areas', label: 'Areas', icon: 'grid-outline' });
   }
-  if (!finished) {
+  if (!submitted) {
     items.push({
       id: 'start',
       label: continuing ? 'Continue Inspection' : 'Start Inspection',
       icon: 'play',
     });
+  }
+  const reportingStarted = Boolean(
+    draft?.specialReportingComplete ||
+      draft?.specialReporting ||
+      draft?.workflowStep === 'special' ||
+      isInspectionWorkflowFinished(job, draft),
+  );
+  if (!submitted && inspectionHasNswSpecialReporting(job.type) && reportingStarted) {
+    items.push({ id: 'special', label: 'Special reporting', icon: 'clipboard-outline' });
   }
 
   return (
@@ -62,7 +69,7 @@ export function JobWorkspaceNav({
             style={[styles.item, on && styles.itemOn]}
           >
             <Ionicons name={item.icon} size={16} color={on ? colors.primary : colors.muted} />
-            <Text style={[styles.label, on && styles.labelOn]} numberOfLines={1}>
+            <Text style={[styles.label, on && styles.labelOn]} numberOfLines={2}>
               {item.label}
             </Text>
           </Pressable>
@@ -75,6 +82,8 @@ export function JobWorkspaceNav({
 const styles = StyleSheet.create({
   nav: {
     flexDirection: 'row',
+    flexGrow: 0,
+    alignItems: 'flex-start',
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
@@ -88,6 +97,6 @@ const styles = StyleSheet.create({
     borderBottomColor: 'transparent',
   },
   itemOn: { borderBottomColor: colors.primary },
-  label: { color: colors.muted, fontSize: 10, fontWeight: '500' },
+  label: { color: colors.muted, fontSize: 10, fontWeight: '500', textAlign: 'center' },
   labelOn: { color: colors.primary },
 });

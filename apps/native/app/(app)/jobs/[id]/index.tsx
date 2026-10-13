@@ -56,6 +56,7 @@ import {
   applyKeyCollection,
 } from '@/src/lib/key-access';
 import { formatJobRefId, propertyAddressLines } from '@/src/lib/property-address';
+import { mergeSpecialReporting } from '@/src/lib/special-reporting';
 import { jobHistory } from '@/src/lib/routes';
 import { colors } from '@/src/theme';
 
@@ -79,8 +80,17 @@ export default function JobDetailsScreen() {
   const { syncNow } = useOffline();
   const [jobPhotosQueued, setJobPhotosQueued] = useState(false);
   const autoSyncJob = useRef<string | null>(null);
-  const { getJob, getDraft, upsertJob, claim, claimingId, refresh, deviceLocation, jobsHydrated } =
-    useInspections();
+  const {
+    getJob,
+    getDraft,
+    setDraft,
+    upsertJob,
+    claim,
+    claimingId,
+    refresh,
+    deviceLocation,
+    jobsHydrated,
+  } = useInspections();
   const cached = getJob(id);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -128,6 +138,18 @@ export default function JobDetailsScreen() {
 
   const selectTab = useCallback(
     (next: WorkspaceTab, extras?: { keys?: 'collect' | 'return' }) => {
+      if (id && (next === 'start' || next === 'special')) {
+        const current = getDraft(id);
+        if (current && next === 'special' && current.workflowStep !== 'special') {
+          setDraft(id, {
+            ...current,
+            workflowStep: 'special',
+            specialReporting: mergeSpecialReporting(current.specialReporting),
+          });
+        } else if (current && next === 'start' && current.workflowStep === 'special') {
+          setDraft(id, { ...current, workflowStep: 'areas' });
+        }
+      }
       const nextKeys = extras?.keys ?? (next === 'handover' ? keysPhase : undefined);
       if (extras?.keys) setKeysPhase(extras.keys);
       setTab(next);
@@ -136,7 +158,7 @@ export default function JobDetailsScreen() {
         keys: nextKeys ?? '',
       });
     },
-    [keysPhase, router],
+    [getDraft, id, keysPhase, router, setDraft],
   );
 
   const routedJob = getJob(id) ?? cached;
@@ -171,12 +193,11 @@ export default function JobDetailsScreen() {
   }, [id, jobPhotosQueued, routedFinished, routedDraft?.specialReportingComplete, routedJob?.status, syncNow]);
 
   useEffect(() => {
-    if (!routedFinished || jobPhotosQueued || (tab !== 'areas' && tab !== 'start')) return;
-    selectTab(
-      routedJob?.keyAccess ? 'handover' : 'details',
-      routedJob?.keyAccess ? { keys: 'return' } : undefined,
-    );
-  }, [routedFinished, jobPhotosQueued, routedJob?.keyAccess, tab, selectTab]);
+    const submitted =
+      routedJob?.status === 'completed' || routedJob?.status === 'awaiting_approval';
+    if (!submitted || (tab !== 'areas' && tab !== 'start' && tab !== 'special')) return;
+    selectTab('details');
+  }, [routedJob?.status, tab, selectTab]);
 
   const job = routedJob;
   if (!job) {
@@ -195,6 +216,8 @@ export default function JobDetailsScreen() {
   const primary = jobPrimaryAction(job, started);
   const keyCollectDone = isKeyCollectComplete(job);
   const keyReturnDone = isKeyReturnComplete(job);
+  const reportSubmitted =
+    job.status === 'completed' || job.status === 'awaiting_approval';
   const inspectionFinished = isInspectionWorkflowFinished(job, draft);
   const paymentBlocked = Boolean(job.awaitingAgentPayment);
   const keysBlocked = Boolean(job.keyAccess && !keyCollectDone);
@@ -293,15 +316,10 @@ export default function JobDetailsScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['bottom']}>
       <Stack.Screen options={{ title }} />
-      <JobWorkspaceNav
-        job={job}
-        active={tab}
-        onSelect={selectTab}
-        allowInspection={!inspectionFinished || jobPhotosQueued}
-      />
+      <JobWorkspaceNav job={job} active={tab} onSelect={selectTab} />
       <PendingSyncBanner inset />
-      {jobPhotosQueued && tab !== 'areas' && tab !== 'start' ? (
-        <SyncPendingButton hint="You can open Areas or Continue inspection while the photos send." />
+      {jobPhotosQueued && tab !== 'areas' && tab !== 'start' && tab !== 'special' ? (
+        <SyncPendingButton hint="Areas, Continue inspection, and Special reporting stay open while the photos send." />
       ) : null}
       {tab === 'handover' && id ? (
         <JobHandoverPanel
@@ -311,13 +329,16 @@ export default function JobDetailsScreen() {
           onFinished={() => router.replace('/')}
         />
       ) : null}
-      {tab === 'areas' && job.type !== 'open' && (!inspectionFinished || jobPhotosQueued) ? (
+      {tab === 'areas' && job.type !== 'open' && !reportSubmitted ? (
         <FieldWorkflowScreen type={job.type} view="areas" onChangeTab={selectTab} />
       ) : null}
-      {tab === 'start' && job.type === 'open' && (!inspectionFinished || jobPhotosQueued) ? (
+      {tab === 'start' && job.type === 'open' && !reportSubmitted ? (
         <OpenViewingScreen onChangeTab={selectTab} />
       ) : null}
-      {tab === 'start' && job.type !== 'open' && (!inspectionFinished || jobPhotosQueued) ? (
+      {tab === 'start' && job.type !== 'open' && !reportSubmitted ? (
+        <FieldWorkflowScreen type={job.type} view="inspect" onChangeTab={selectTab} />
+      ) : null}
+      {tab === 'special' && job.type !== 'open' && !reportSubmitted ? (
         <FieldWorkflowScreen type={job.type} view="inspect" onChangeTab={selectTab} />
       ) : null}
       {tab === 'details' ? (
