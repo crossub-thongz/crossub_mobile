@@ -1,7 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -28,7 +28,10 @@ import { JobLookupFallback } from '@/src/jobs/job-lookup-fallback';
 import { JobSummaryCard } from '@/src/jobs/job-summary-card';
 import { JobPayBreakdown, JobTravelCard } from '@/src/jobs/job-travel-pay';
 import { OpenViewingScreen } from '@/src/jobs/open-viewing-screen';
+import { jobHasQueuedPhotos, subscribeQueueChanged } from '@/src/offline/db';
+import { useOffline } from '@/src/offline/offline-context';
 import { PendingSyncBanner } from '@/src/offline/pending-sync-banner';
+import { SyncPendingButton } from '@/src/offline/sync-pending-button';
 import {
   JobWorkspaceNav,
   parseKeysPhase,
@@ -73,6 +76,9 @@ export default function JobDetailsScreen() {
     keys?: string;
   }>();
   const router = useRouter();
+  const { syncNow } = useOffline();
+  const [jobPhotosQueued, setJobPhotosQueued] = useState(false);
+  const autoSyncJob = useRef<string | null>(null);
   const { getJob, getDraft, upsertJob, claim, claimingId, refresh, deviceLocation, jobsHydrated } =
     useInspections();
   const cached = getJob(id);
@@ -140,12 +146,37 @@ export default function JobDetailsScreen() {
     : false;
 
   useEffect(() => {
-    if (!routedFinished || (tab !== 'areas' && tab !== 'start')) return;
+    if (!id) return;
+    let cancelled = false;
+    const check = () => {
+      void jobHasQueuedPhotos(id).then((queued) => {
+        if (!cancelled) setJobPhotosQueued(queued);
+      });
+    };
+    check();
+    const unsubscribe = subscribeQueueChanged(check);
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
+  }, [id]);
+
+  useEffect(() => {
+    const reportingDone = Boolean(routedDraft?.specialReportingComplete || routedFinished);
+    if (!id || !jobPhotosQueued || !reportingDone) return;
+    if (routedJob?.status === 'completed' || routedJob?.status === 'awaiting_approval') return;
+    if (autoSyncJob.current === id) return;
+    autoSyncJob.current = id;
+    void syncNow(true);
+  }, [id, jobPhotosQueued, routedFinished, routedDraft?.specialReportingComplete, routedJob?.status, syncNow]);
+
+  useEffect(() => {
+    if (!routedFinished || jobPhotosQueued || (tab !== 'areas' && tab !== 'start')) return;
     selectTab(
       routedJob?.keyAccess ? 'handover' : 'details',
       routedJob?.keyAccess ? { keys: 'return' } : undefined,
     );
-  }, [routedFinished, routedJob?.keyAccess, tab, selectTab]);
+  }, [routedFinished, jobPhotosQueued, routedJob?.keyAccess, tab, selectTab]);
 
   const job = routedJob;
   if (!job) {
@@ -262,8 +293,16 @@ export default function JobDetailsScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['bottom']}>
       <Stack.Screen options={{ title }} />
-      <JobWorkspaceNav job={job} active={tab} onSelect={selectTab} />
+      <JobWorkspaceNav
+        job={job}
+        active={tab}
+        onSelect={selectTab}
+        allowInspection={!inspectionFinished || jobPhotosQueued}
+      />
       <PendingSyncBanner inset />
+      {jobPhotosQueued && tab !== 'areas' && tab !== 'start' ? (
+        <SyncPendingButton hint="You can open Areas or Continue inspection while the photos send." />
+      ) : null}
       {tab === 'handover' && id ? (
         <JobHandoverPanel
           id={id}
@@ -272,13 +311,13 @@ export default function JobDetailsScreen() {
           onFinished={() => router.replace('/')}
         />
       ) : null}
-      {tab === 'areas' && job.type !== 'open' && !inspectionFinished ? (
+      {tab === 'areas' && job.type !== 'open' && (!inspectionFinished || jobPhotosQueued) ? (
         <FieldWorkflowScreen type={job.type} view="areas" onChangeTab={selectTab} />
       ) : null}
-      {tab === 'start' && job.type === 'open' && !inspectionFinished ? (
+      {tab === 'start' && job.type === 'open' && (!inspectionFinished || jobPhotosQueued) ? (
         <OpenViewingScreen onChangeTab={selectTab} />
       ) : null}
-      {tab === 'start' && job.type !== 'open' && !inspectionFinished ? (
+      {tab === 'start' && job.type !== 'open' && (!inspectionFinished || jobPhotosQueued) ? (
         <FieldWorkflowScreen type={job.type} view="inspect" onChangeTab={selectTab} />
       ) : null}
       {tab === 'details' ? (

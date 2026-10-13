@@ -24,15 +24,18 @@ export function JobWorkspaceNav({
   job,
   active,
   onSelect,
+  allowInspection = false,
 }: {
   job: InspectionJob;
   active: WorkspaceTab;
   onSelect: (tab: WorkspaceTab) => void;
+  /** Keep Areas and Continue inspection available, for example while photos are still sending. */
+  allowInspection?: boolean;
 }) {
   const { getDraft } = useInspections();
   const draft = getDraft(job.id);
   const continuing = jobInspectionContinuing(job, draft);
-  const finished = isInspectionWorkflowFinished(job, draft);
+  const finished = isInspectionWorkflowFinished(job, draft) && !allowInspection;
   const items: { id: WorkspaceTab; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
     { id: 'details', label: 'Job Details', icon: 'document-text-outline' },
     { id: 'handover', label: 'Handover', icon: 'key-outline' },

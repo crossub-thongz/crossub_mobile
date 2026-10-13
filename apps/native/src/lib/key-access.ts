@@ -206,7 +206,6 @@ export function isInspectionWorkflowFinished(
   if (job.status === 'completed' || job.status === 'awaiting_approval') return true;
   if (job.workflowData?.inspectionFinished === true) return true;
   if (draft?.inspectionFinished === true) return true;
-  if (draft?.specialReportingComplete === true) return true;
   return false;
 }
 

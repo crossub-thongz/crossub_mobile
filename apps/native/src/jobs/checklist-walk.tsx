@@ -23,6 +23,7 @@ import { JobCamera } from '@/src/jobs/job-camera';
 import { SpecialReportingForm } from '@/src/jobs/special-reporting-form';
 import { resolveAreaDefinition, type CustomAreaDefinition } from '@/src/lib/custom-inspection-areas';
 import { findingsAreaFromSections } from '@/src/lib/inspection-findings-items';
+import { inspectionHasNswSpecialReporting } from '@/src/lib/special-reporting';
 import { moveIndex, rekeyRecord } from '@/src/lib/inspection-layout-edit';
 import {
   allGoodMarks,
@@ -39,7 +40,7 @@ import {
 } from '@/src/lib/special-reporting';
 import { useInspections } from '@/src/inspections/inspections-context';
 import type { RoutineAreaIssueDraft, RoutineExecutionDraft } from '@/src/lib/types';
-import { discardLocalPhoto } from '@/src/offline/db';
+import { discardLocalPhoto, jobHasQueuedPhotos } from '@/src/offline/db';
 import { SyncPendingButton } from '@/src/offline/sync-pending-button';
 import { queueInspectionFindings, queueInspectionPhotoBatch } from '@/src/offline/sync';
 import { upsertPhotoUrl } from '@/src/offline/queued-photo';
@@ -151,7 +152,14 @@ export function ChecklistWalk({
   const [itemsDragging, setItemsDragging] = useState(false);
   const [ingoingFromReference, setIngoingFromReference] = useState(false);
   const seededRef = useRef(false);
-  const { refreshPending } = useOffline();
+  const { refreshPending, syncNow } = useOffline();
+  const aliveRef = useRef(true);
+  useEffect(() => {
+    aliveRef.current = true;
+    return () => {
+      aliveRef.current = false;
+    };
+  }, []);
   const { draftsHydrated } = useInspections();
   const currentName = names[areaIndex];
   const issue = currentName
@@ -372,7 +380,6 @@ export function ChecklistWalk({
       ...draftRef.current,
       workflowStep: 'special',
       specialReporting: mergeSpecialReporting(draftRef.current.specialReporting),
-      specialReportingComplete: false,
     });
   };
 
@@ -449,8 +456,42 @@ export function ChecklistWalk({
         );
         return;
       }
+      if (await jobHasQueuedPhotos(inspectionId)) {
+        persist({
+          ...draftRef.current,
+          workflowStep: 'special',
+          specialReportingComplete: true,
+          inspectionFinished: false,
+        });
+        setError(null);
+        void syncNow(true)
+          .then(async () => {
+            if (!aliveRef.current) return;
+            if (draftRef.current.workflowStep !== 'special') return;
+            if (await jobHasQueuedPhotos(inspectionId)) {
+              setError(
+                'Some photos are still on this phone. You can go back to areas, then return here and tap Finalise.',
+              );
+              return;
+            }
+            persist({
+              ...draftRef.current,
+              workflowStep: 'areas',
+              specialReportingComplete: true,
+              inspectionFinished: true,
+            });
+            await onAfterFindings();
+          })
+          .catch(() => {
+            if (!aliveRef.current) return;
+            setError(
+              'Photos are still on this phone. Go back to areas if you want to keep working, then tap Finalise to send them again.',
+            );
+          });
+        return;
+      }
       persist({
-        ...draft,
+        ...draftRef.current,
         workflowStep: 'areas',
         specialReportingComplete: true,
         inspectionFinished: true,
@@ -470,6 +511,7 @@ export function ChecklistWalk({
 
   if (draft.workflowStep === 'special') {
     return (
+      <View style={styles.screen}>
       <SpecialReportingForm
         value={mergeSpecialReporting(draft.specialReporting)}
         onChange={(specialReporting) => persist({ ...draft, specialReporting })}
@@ -487,6 +529,8 @@ export function ChecklistWalk({
           void finalize();
         }}
       />
+      <SyncPendingButton hint="Back to areas stays available while the photos send. Special reporting is under the same inspection." />
+      </View>
     );
   }
 
@@ -523,6 +567,12 @@ export function ChecklistWalk({
     <View style={styles.screen}>
       {names.length > 0 ? (
         <InspectionAreaNav names={names} areaIndex={areaIndex} isComplete={areaComplete} onGoToArea={goArea} />
+      ) : null}
+      {inspectionHasNswSpecialReporting(type) &&
+      (draft.specialReportingComplete || draft.specialReporting) ? (
+        <Pressable onPress={goSpecial} style={styles.specialLink} accessibilityRole="button">
+          <Text style={styles.specialLinkText}>Special reporting</Text>
+        </Pressable>
       ) : null}
       {error ? <Text style={styles.error}>{error}</Text> : null}
       {librarySave && librarySave.completed < librarySave.total ? (
@@ -744,7 +794,13 @@ export function ChecklistWalk({
         )}
       </ScrollView>
       </View>
-      <SyncPendingButton />
+      <SyncPendingButton
+        hint={
+          draft.specialReportingComplete && !draft.inspectionFinished
+            ? 'You can go back to areas or special reporting while the photos send.'
+            : undefined
+        }
+      />
       {names.length > 0 ? (
         <InspectionAreaActionBar
           checked={issue.available === false ? 0 : checkedCount}
@@ -796,6 +852,8 @@ const styles = StyleSheet.create({
   inner: { padding: 16, paddingBottom: 32, gap: 16 },
   body: { color: colors.muted, fontSize: 14, lineHeight: 20 },
   error: { color: colors.destructive, fontSize: 13, paddingHorizontal: 16, paddingTop: 8 },
+  specialLink: { paddingHorizontal: 16, paddingTop: 10 },
+  specialLinkText: { color: colors.primary, fontSize: 14, fontWeight: '700' },
   hint: { color: colors.muted, fontSize: 11, lineHeight: 16 },
   label: { color: colors.text, fontSize: 13, fontWeight: '600', marginBottom: 6 },
   row: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },

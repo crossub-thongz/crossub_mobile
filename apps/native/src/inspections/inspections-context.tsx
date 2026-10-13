@@ -24,6 +24,7 @@ import {
 import { useAuth } from '@/src/auth/auth-context';
 import { isCoreInspectionType } from '@/src/constants/inspection';
 import {
+  byRecentJob,
   byScheduleTime,
   isOverdueInspection,
   isPoolJob,
@@ -445,25 +446,23 @@ export function InspectionsProvider({ children }: { children: ReactNode }) {
     () => pendingJobs.filter(isTodaysInspection).sort(byScheduleTime),
     [pendingJobs],
   );
+  const awaitingApprovalJobs = useMemo(
+    () => assignedCore.filter((job) => job.status === 'awaiting_approval').sort(byRecentJob),
+    [assignedCore],
+  );
   const upcomingJobs = useMemo(
-    () => pendingJobs.filter(isUpcomingInspection).sort(byScheduleTime),
-    [pendingJobs],
+    () => [
+      ...awaitingApprovalJobs,
+      ...pendingJobs.filter(isUpcomingInspection).sort(byScheduleTime),
+    ],
+    [awaitingApprovalJobs, pendingJobs],
   );
   const overdueJobs = useMemo(
     () => pendingJobs.filter(isOverdueInspection).sort(byScheduleTime),
     [pendingJobs],
   );
   const completedJobs = useMemo(
-    () =>
-      assignedCore
-        .filter(
-          (job) => job.status === 'completed' || job.status === 'awaiting_approval',
-        )
-        .sort(
-          (a, b) =>
-            new Date(b.scheduledTime || b.scheduledDate).getTime() -
-            new Date(a.scheduledTime || a.scheduledDate).getTime(),
-        ),
+    () => assignedCore.filter((job) => job.status === 'completed').sort(byRecentJob),
     [assignedCore],
   );
 

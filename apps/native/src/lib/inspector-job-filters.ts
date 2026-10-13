@@ -24,7 +24,11 @@ export function isPoolJob(job: InspectionJob): boolean {
 }
 
 export function isTodaysInspection(job: InspectionJob): boolean {
-  return isActiveInspectJob(job) && isToday(jobScheduleIso(job));
+  return (
+    isActiveInspectJob(job) &&
+    job.status !== 'awaiting_approval' &&
+    isToday(jobScheduleIso(job))
+  );
 }
 
 export function isUpcomingInspection(job: InspectionJob): boolean {
@@ -48,4 +52,15 @@ export function byScheduleTime(a: InspectionJob, b: InspectionJob): number {
     new Date(a.scheduledTime || a.scheduledDate).getTime() -
     new Date(b.scheduledTime || b.scheduledDate).getTime()
   );
+}
+
+function recentStamp(job: InspectionJob): number {
+  const raw = job.approvedAt || job.scheduledTime || job.scheduledDate || job.createdAt || '';
+  const time = new Date(raw).getTime();
+  return Number.isNaN(time) ? 0 : time;
+}
+
+/** Newest approval, then newest appointment. */
+export function byRecentJob(a: InspectionJob, b: InspectionJob): number {
+  return recentStamp(b) - recentStamp(a);
 }

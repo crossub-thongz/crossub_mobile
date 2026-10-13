@@ -114,7 +114,6 @@ export default function InspectScreen() {
     upcomingJobs,
     overdueJobs,
     completedJobs,
-    pendingJobs,
     loading,
     refreshing,
     error,
@@ -231,7 +230,7 @@ export default function InspectScreen() {
           refreshing={refreshing}
           onRefresh={onRefresh}
           emptyTitle="No upcoming inspections"
-          emptyDescription="Jobs scheduled after today will show here."
+          emptyDescription="Jobs scheduled after today, and reports waiting for approval, will show here."
           heading={`Upcoming - ${upcomingJobs.length} inspection${upcomingJobs.length === 1 ? '' : 's'}`}
           onOpen={goJob}
           onAction={goHref}
@@ -259,7 +258,7 @@ export default function InspectScreen() {
           style={[styles.floatBtn, tab !== 'completed' && styles.floatOn]}
         >
           <Text style={[styles.floatText, tab !== 'completed' && styles.floatTextOn]}>
-            Active ({pendingJobs.length})
+            Active ({todaysJobs.length + upcomingJobs.length + overdueJobs.length})
           </Text>
         </Pressable>
         <Pressable

@@ -71,7 +71,7 @@ export function FieldWorkflowScreen({
   const { id, view: viewParam } = useLocalSearchParams<{ id: string; view?: string }>();
   const router = useRouter();
   const { getJob, getDraft, setDraft, patchJob, upsertJob, refresh, jobsHydrated, draftsHydrated } = useInspections();
-  const { refreshPending } = useOffline();
+  const { refreshPending, syncNow } = useOffline();
   const job = getJob(id);
   const view = viewProp ?? (type === 'open' ? 'inspect' : parseView(viewParam));
   const [busy, setBusy] = useState<string | null>(null);
@@ -468,10 +468,8 @@ export function FieldWorkflowScreen({
         return;
       }
       if (await jobHasQueuedPhotos(id)) {
-        Alert.alert(
-          'Photos still uploading',
-          'Wait until the queued photos finish, then complete the report.',
-        );
+        void syncNow(true);
+        setError('Sending photos. You can keep working in the areas until they finish.');
         return;
       }
       if (job.keyAccess && !job.keyAccess.returnComplete && kind === 'routine') {
@@ -545,10 +543,8 @@ export function FieldWorkflowScreen({
             customAreas={draft.customAreas ?? []}
             onAfterFindings={async () => {
               if (await jobHasQueuedPhotos(id)) {
-                Alert.alert(
-                  'Photos still uploading',
-                  'Wait until the queued photos finish, then complete the report.',
-                );
+                void syncNow(true);
+                setError('Sending photos. You can go back to areas while they finish, then finalise again.');
                 return;
               }
               if (job.keyAccess && !job.keyAccess.returnComplete) {

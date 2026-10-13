@@ -115,7 +115,7 @@ export default function HistoryScreen() {
 
   return (
     <View style={styles.safe}>
-      <AppHeader title="Job history" backHref="/" />
+      <AppHeader title="Job history" backHref="/inspect" />
       <FlatList
         data={loading && completedJobs.length === 0 ? [] : filtered}
         keyExtractor={(item) => item.id}

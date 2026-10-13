@@ -3,6 +3,7 @@ import { Image } from 'expo-image';
 import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  FlatList,
   Linking,
   Modal,
   Pressable,
@@ -93,6 +94,7 @@ export function JobCamera({
   const readyRef = useRef(false);
   const snappingRef = useRef(false);
   const persistTailRef = useRef(Promise.resolve());
+  const stripRef = useRef<FlatList<LocalPhoto>>(null);
   const [permission, requestPermission] = useCameraPermissions();
   const [busy, setBusy] = useState(false);
   const [ready, setReady] = useState(false);
@@ -100,6 +102,7 @@ export function JobCamera({
   const [error, setError] = useState<string | null>(null);
   const [lens, setLens] = useState<Lens>(1);
   const [shots, setShots] = useState<LocalPhoto[]>([]);
+  const [reviewUri, setReviewUri] = useState<string | null>(null);
   const burst = mode === 'burst';
   const jobIdRef = useRef(jobId);
   const uploadAreaNameRef = useRef(uploadAreaName);
@@ -123,6 +126,7 @@ export function JobCamera({
     cancelledRef.current = false;
     setError(null);
     setLens(1);
+    setReviewUri(null);
   }, [visible]);
 
   useEffect(() => {
@@ -193,7 +197,15 @@ export function JobCamera({
     handedOffRef.current = false;
     pendingRef.current.clear();
     setShotList([]);
+    setReviewUri(null);
     onClose();
+  };
+
+  const removeShot = (uri: string) => {
+    const next = shotsRef.current.filter((shot) => shot.uri !== uri);
+    setShotList(next);
+    setReviewUri((current) => (current === uri ? null : current));
+    void dropQueuedShot(uri);
   };
 
   const queueCompress = (captured: LocalPhoto) => {
@@ -203,8 +215,17 @@ export function JobCamera({
           if (cancelledRef.current) void dropQueuedShot(photo.uri);
           return photo;
         }
+        const stillThere = shotsRef.current.some(
+          (shot) => shot.uri === captured.uri || shot.uri === photo.uri,
+        );
+        if (!stillThere) {
+          void dropQueuedShot(photo.uri);
+          if (photo.uri !== captured.uri) void deleteLocalPhoto(captured.uri);
+          return photo;
+        }
         if (photo.uri !== captured.uri) {
           replaceShot(captured.uri, photo);
+          setReviewUri((current) => (current === captured.uri ? photo.uri : current));
           void deleteLocalPhoto(captured.uri);
         }
         return photo;
@@ -312,7 +333,16 @@ export function JobCamera({
     }
   };
 
+  useEffect(() => {
+    if (shots.length === 0) return;
+    const frame = requestAnimationFrame(() => {
+      stripRef.current?.scrollToEnd({ animated: true });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [shots.length]);
+
   const shutterDisabled = busy || !ready || room < 1;
+  const reviewed = reviewUri ? shots.find((shot) => shot.uri === reviewUri) : undefined;
 
   return (
     <Modal
@@ -419,15 +449,42 @@ export function JobCamera({
             </View>
             {burst && shots.length > 0 ? (
               <View style={styles.strip}>
-                <Image
-                  source={{ uri: shots[shots.length - 1].uri }}
-                  style={styles.thumb}
-                  contentFit="cover"
-                  cachePolicy="memory"
-                  recyclingKey={shots[shots.length - 1].uri}
-                  transition={0}
+                <FlatList
+                  ref={stripRef}
+                  horizontal
+                  data={shots}
+                  keyExtractor={(item) => item.uri}
+                  showsHorizontalScrollIndicator={false}
+                  keyboardShouldPersistTaps="handled"
+                  contentContainerStyle={styles.stripInner}
+                  renderItem={({ item }) => (
+                    <View style={styles.thumbWrap}>
+                      <Pressable
+                        onPress={() => setReviewUri(item.uri)}
+                        accessibilityRole="button"
+                        accessibilityLabel="View photo"
+                      >
+                        <Image
+                          source={{ uri: item.uri }}
+                          style={styles.thumb}
+                          contentFit="cover"
+                          cachePolicy="memory"
+                          recyclingKey={item.uri}
+                          transition={0}
+                        />
+                      </Pressable>
+                      <Pressable
+                        onPress={() => removeShot(item.uri)}
+                        hitSlop={8}
+                        accessibilityRole="button"
+                        accessibilityLabel="Remove photo"
+                        style={styles.thumbRemove}
+                      >
+                        <Text style={styles.thumbRemoveText}>x</Text>
+                      </Pressable>
+                    </View>
+                  )}
                 />
-                <Text style={styles.stripCount}>{shots.length}</Text>
               </View>
             ) : null}
             <View
@@ -482,11 +539,45 @@ export function JobCamera({
               {burst ? (
                 <Text style={styles.hint}>
                   {shots.length > 0
-                    ? `Tap Use ${shots.length} to attach these photos.`
+                    ? 'Shutter takes another. Slide the photos, tap one to view it, or tap x to remove it.'
                     : 'Snap photos with the shutter, then attach them.'}
                 </Text>
               ) : null}
             </View>
+            {reviewed ? (
+              <View style={styles.review}>
+                <Image
+                  source={{ uri: reviewed.uri }}
+                  style={styles.reviewImage}
+                  contentFit="contain"
+                  cachePolicy="memory"
+                  recyclingKey={reviewed.uri}
+                />
+                <View
+                  style={[
+                    styles.reviewBar,
+                    { paddingBottom: Math.max(insets.bottom, 16) + thumbLift },
+                  ]}
+                >
+                  <Pressable
+                    onPress={() => setReviewUri(null)}
+                    style={styles.reviewKeep}
+                    accessibilityRole="button"
+                    accessibilityLabel="Keep shooting"
+                  >
+                    <Text style={styles.reviewKeepText}>Keep shooting</Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => removeShot(reviewed.uri)}
+                    style={styles.reviewRemove}
+                    accessibilityRole="button"
+                    accessibilityLabel="Remove photo"
+                  >
+                    <Text style={styles.reviewRemoveText}>Remove</Text>
+                  </Pressable>
+                </View>
+              </View>
+            ) : null}
           </>
         ) : null}
       </View>
@@ -616,16 +707,53 @@ const styles = StyleSheet.create({
   lensText: { color: '#f4f4f4', fontWeight: '700', fontSize: 13 },
   lensTextOn: { color: '#111111' },
   strip: {
-    height: 72,
+    height: 84,
     backgroundColor: '#111111',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingHorizontal: 16,
   },
-  stripCount: { color: '#f4f4f4', fontSize: 16, fontWeight: '700' },
-  stripInner: { paddingHorizontal: 16, paddingVertical: 8, gap: 8 },
-  thumb: { width: 56, height: 56, borderRadius: 6, backgroundColor: '#333333' },
+  stripInner: { paddingHorizontal: 16, paddingVertical: 10, alignItems: 'center' },
+  thumbWrap: { width: 64, height: 64, marginRight: 8 },
+  thumb: { width: 64, height: 64, borderRadius: 6, backgroundColor: '#333333' },
+  thumbRemove: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#111111',
+    borderWidth: 1,
+    borderColor: '#f4f4f4',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  thumbRemoveText: { color: '#f4f4f4', fontSize: 16, lineHeight: 18, fontWeight: '700' },
+  review: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    backgroundColor: '#000000',
+    zIndex: 5,
+  },
+  reviewImage: { flex: 1 },
+  reviewBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    paddingTop: 16,
+    backgroundColor: '#111111',
+  },
+  reviewKeep: {
+    backgroundColor: '#00d4a4',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  reviewKeepText: { color: '#111111', fontWeight: '700' },
+  reviewRemove: { paddingHorizontal: 16, paddingVertical: 12 },
+  reviewRemoveText: { color: '#f07171', fontWeight: '700' },
   hint: {
     color: '#b8b8b8',
     fontSize: 11,
