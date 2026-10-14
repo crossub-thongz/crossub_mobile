@@ -371,6 +371,40 @@ export async function requestPasswordReset(email: string): Promise<void> {
   }
 }
 
+function resetLinkProblem(body: unknown): 'used' | 'expired' | 'invalid' | null {
+  if (!body || typeof body !== 'object' || !('reason' in body)) return null;
+  const reason = (body as { reason?: unknown }).reason;
+  if (reason === 'used' || reason === 'expired' || reason === 'invalid') return reason;
+  return null;
+}
+
+export function resetLinkMessage(state: 'used' | 'expired' | 'invalid'): string {
+  if (state === 'used') return 'This link has already been used to reset the password.';
+  if (state === 'expired') return 'This reset link has expired.';
+  return 'This reset link is invalid.';
+}
+
+export async function resetPasswordLinkState(
+  token: string,
+): Promise<'valid' | 'used' | 'expired' | 'invalid'> {
+  let res: Response;
+  try {
+    res = await fetch(authUrl('/auth/reset-password/status'), {
+      method: 'POST',
+      headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token }),
+    });
+  } catch {
+    return 'valid';
+  }
+  if (!res.ok) return 'valid';
+  const body = (await res.json().catch(() => null)) as { state?: unknown } | null;
+  if (body?.state === 'used' || body?.state === 'expired' || body?.state === 'invalid') {
+    return body.state;
+  }
+  return 'valid';
+}
+
 export async function resetPasswordWithToken(token: string, newPassword: string): Promise<void> {
   let res: Response;
   try {
@@ -383,7 +417,9 @@ export async function resetPasswordWithToken(token: string, newPassword: string)
     throw new Error(`Could not reach Nest at ${getApiOrigin()}. Check EXPO_PUBLIC_API_URL.`);
   }
   if (res.status === 401) {
-    throw new Error('This reset link is invalid or has expired.');
+    const body = await res.json().catch(() => null);
+    const reason = resetLinkProblem(body);
+    throw new Error(resetLinkMessage(reason ?? 'expired'));
   }
   if (!res.ok) {
     throw new Error(await readApiMessage(res, 'Unable to reset password. Please try again.'));

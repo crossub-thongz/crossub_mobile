@@ -1,11 +1,11 @@
 import { Link, useLocalSearchParams, useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { AppTextInput } from '@/src/ui/app-text-input';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { resetPasswordWithToken } from '@/src/api/client';
+import { resetPasswordLinkState, resetPasswordWithToken } from '@/src/api/client';
 import { PASSWORD_MAX, PASSWORD_MIN } from '@/src/constants/auth';
 
 export default function ResetPasswordScreen() {
@@ -18,6 +18,28 @@ export default function ResetPasswordScreen() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [linkProblem, setLinkProblem] = useState<string | null>(null);
+  const [checking, setChecking] = useState(Boolean(token));
+
+  useEffect(() => {
+    if (!token) return;
+    let cancelled = false;
+    void (async () => {
+      const state = await resetPasswordLinkState(token);
+      if (cancelled) return;
+      if (state === 'used') {
+        setLinkProblem('This link has already been used to reset the password. Sign in with that password, or request a new link.');
+      } else if (state === 'expired') {
+        setLinkProblem('This reset link has expired. Request a new one to choose a password.');
+      } else if (state === 'invalid') {
+        setLinkProblem('This reset link is invalid. Request a new one to choose a password.');
+      }
+      setChecking(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
 
   const onSubmit = async () => {
     if (!token) {
@@ -42,23 +64,57 @@ export default function ResetPasswordScreen() {
       await resetPasswordWithToken(token, newPassword);
       router.replace('/login');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to reset password. Please try again.');
+      const message = err instanceof Error ? err.message : 'Unable to reset password. Please try again.';
+      if (
+        message.includes('already been used') ||
+        message.includes('expired') ||
+        message.includes('invalid')
+      ) {
+        setLinkProblem(message);
+        return;
+      }
+      setError(message);
     } finally {
       setSubmitting(false);
     }
   };
 
-  if (!token) {
+  if (!token || linkProblem) {
     return (
       <SafeAreaView style={styles.safe}>
         <View style={styles.inner}>
-          <Text style={styles.title}>Invalid reset link</Text>
-          <Text style={styles.sub}>Request a new password reset email to continue.</Text>
-          <Link href="/forgot-password" asChild>
+          <Text style={styles.title}>
+            {!token
+              ? 'This reset link is invalid'
+              : linkProblem?.includes('already been used')
+                ? 'This link has already been used'
+                : linkProblem?.includes('expired')
+                  ? 'This reset link has expired'
+                  : 'This reset link is invalid'}
+          </Text>
+          <Text style={styles.sub}>
+            {linkProblem ?? 'Request a new password reset email to continue.'}
+          </Text>
+          <Link href="/login" asChild>
             <Pressable style={styles.button}>
-              <Text style={styles.buttonText}>Request reset link</Text>
+              <Text style={styles.buttonText}>Sign in</Text>
             </Pressable>
           </Link>
+          <Link href="/forgot-password" asChild>
+            <Pressable style={[styles.button, styles.secondaryButton]}>
+              <Text style={styles.secondaryButtonText}>Request a new link</Text>
+            </Pressable>
+          </Link>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (checking) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <View style={styles.inner}>
+          <Text style={styles.sub}>Checking this link…</Text>
         </View>
       </SafeAreaView>
     );
@@ -176,6 +232,8 @@ const styles = StyleSheet.create({
   buttonPressed: { opacity: 0.85 },
   buttonDisabled: { opacity: 0.6 },
   buttonText: { color: '#0b0f10', fontSize: 16, fontWeight: '700' },
+  secondaryButton: { backgroundColor: 'transparent', borderWidth: 1, borderColor: '#1c2326', marginTop: 12 },
+  secondaryButtonText: { color: '#ffffff', fontSize: 16, fontWeight: '700' },
   meta: { color: '#6b7280', fontSize: 12, marginTop: 20, textAlign: 'center' },
   link: { color: '#00d4a4' },
 });
