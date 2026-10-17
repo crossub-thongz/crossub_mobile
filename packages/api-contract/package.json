@@ -1,6 +1,6 @@
 {
   "name": "@crossub-thongz/api-contract",
-  "version": "0.17.0",
+  "version": "0.26.0",
   "private": false,
   "description": "CROSSUB mobile API contract — OpenAPI types + a typed openapi-fetch client for the /api/v1 facades.",
   "license": "UNLICENSED",
