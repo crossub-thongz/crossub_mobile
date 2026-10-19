@@ -21,6 +21,7 @@ import {
   setInspectorPoolAvailability,
   type InspectorInspection,
 } from '@/src/api/inspector';
+import { useAccount } from '@/src/account/account-context';
 import { useAuth } from '@/src/auth/auth-context';
 import { isCoreInspectionType } from '@/src/constants/inspection';
 import {
@@ -136,6 +137,7 @@ function mergePreservedJobState(
 
 export function InspectionsProvider({ children }: { children: ReactNode }) {
   const { status } = useAuth();
+  const { selfManaged } = useAccount();
   const [jobs, setJobs] = useState<InspectionJob[]>([]);
   const [pool, setPool] = useState<InspectionJob[]>([]);
   const [drafts, setDrafts] = useState<Record<string, RoutineExecutionDraft>>({});
@@ -149,6 +151,7 @@ export function InspectionsProvider({ children }: { children: ReactNode }) {
   const receivingRef = useRef(receivingJobs);
   receivingRef.current = receivingJobs;
   const selfManagedRef = useRef(false);
+  selfManagedRef.current = selfManaged;
   const acceptDraftsRef = useRef(true);
   const deviceLocation = useDeviceLocation({
     enabled: status === 'authed',
@@ -225,7 +228,7 @@ export function InspectionsProvider({ children }: { children: ReactNode }) {
       let receiving = receivingOverride ?? receivingRef.current;
       if (mode === 'initial' && receivingOverride == null) {
         const profile = await fetchInspectorProfile().catch(() => null);
-        selfManagedRef.current = Boolean(profile?.roster?.agencyId);
+        if (profile?.roster?.agencyId) selfManagedRef.current = true;
         receiving = !selfManagedRef.current && profile?.roster?.receivingPoolJobs !== false;
         setReceivingJobs(receiving);
         receivingRef.current = receiving;
@@ -258,13 +261,24 @@ export function InspectionsProvider({ children }: { children: ReactNode }) {
       ) {
         setPool(cachedPool);
       }
-      setError(apiErrorMessage(err, 'Could not load inspections.'));
+      if (selfManagedRef.current) setError(null);
+      else setError(apiErrorMessage(err, 'Could not load inspections.'));
     } finally {
       setLoading(false);
       setRefreshing(false);
       setJobsHydrated(true);
     }
   }, []);
+
+  useEffect(() => {
+    if (!selfManaged) return;
+    setReceivingJobs(false);
+    receivingRef.current = false;
+    setPool([]);
+    setError((message) =>
+      message?.includes('approved inspector roster') ? null : message,
+    );
+  }, [selfManaged]);
 
   useEffect(() => {
     if (status === 'guest') {

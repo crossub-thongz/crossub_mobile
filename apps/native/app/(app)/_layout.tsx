@@ -13,8 +13,8 @@ import { colors } from '@/src/theme';
 
 export default function AppLayout() {
   return (
-    <InspectionsProvider>
-      <AccountProvider>
+    <AccountProvider>
+      <InspectionsProvider>
         <OnboardingGate />
         <LedgerProvider>
           <InboxProvider>
@@ -50,7 +50,7 @@ export default function AppLayout() {
             </View>
           </InboxProvider>
         </LedgerProvider>
-      </AccountProvider>
-    </InspectionsProvider>
+      </InspectionsProvider>
+    </AccountProvider>
   );
 }

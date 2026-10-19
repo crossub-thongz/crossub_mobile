@@ -27,7 +27,7 @@ function isExempt(pathname: string): boolean {
 
 export function OnboardingGate() {
   const { user, status } = useAuth();
-  const { registrationComplete, registrationResolved, loading } = useAccount();
+  const { registrationComplete, registrationResolved, loading, selfManaged } = useAccount();
   const pathname = usePathname();
   const router = useRouter();
   const leftOnboarding = useRef(false);
@@ -56,13 +56,24 @@ export function OnboardingGate() {
       return;
     }
 
-    if (!leftOnboarding.current && pathname === registerPath) {
+    const homePath = selfManaged ? '/inspect' : '/';
+    const onLanding = pathname === registerPath || pathname === '/';
+    if (!leftOnboarding.current && onLanding && pathname !== homePath) {
       leftOnboarding.current = true;
-      router.replace('/');
+      router.replace(homePath);
       return;
     }
     leftOnboarding.current = true;
-  }, [status, user, loading, registrationResolved, registrationComplete, pathname, router]);
+  }, [
+    status,
+    user,
+    loading,
+    registrationResolved,
+    registrationComplete,
+    selfManaged,
+    pathname,
+    router,
+  ]);
 
   return null;
 }

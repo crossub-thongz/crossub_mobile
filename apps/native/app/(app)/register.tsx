@@ -21,8 +21,14 @@ import { useScrollEndPadding } from '@/src/ui/use-scroll-end-padding';
 export default function RegisterScreen() {
   const router = useRouter();
   const { user, refreshUser } = useAuth();
-  const { registration, draft, registrationComplete, registrationResolved, saveRegistration } =
-    useAccount();
+  const {
+    registration,
+    draft,
+    registrationComplete,
+    registrationResolved,
+    selfManaged,
+    saveRegistration,
+  } = useAccount();
   const scrollEndPadding = useScrollEndPadding();
   const rosterOnlyComplete = registrationComplete && !registration;
   const [mobile, setMobile] = useState('');
@@ -42,8 +48,8 @@ export default function RegisterScreen() {
 
   useEffect(() => {
     if (!registrationResolved || !rosterOnlyComplete) return;
-    router.replace('/');
-  }, [registrationResolved, rosterOnlyComplete, router]);
+    router.replace(selfManaged ? '/inspect' : '/');
+  }, [registrationResolved, rosterOnlyComplete, selfManaged, router]);
 
   useEffect(() => {
     setMobile(draft?.mobile ?? registration?.mobile ?? '');

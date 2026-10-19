@@ -37,6 +37,14 @@
     }
   },
   "submit": {
+    "staging": {
+      "ios": {
+        "ascAppId": "6822973115",
+        "appleTeamId": "KQ997HDJ7H",
+        "companyName": "CROSSUB PROPERTY MANAGEMENT PTY LTD",
+        "groups": ["Dev Test"]
+      }
+    },
     "preview": {
       "android": {
         "track": "internal",
