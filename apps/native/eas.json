@@ -1,7 +1,8 @@
 {
   "cli": {
     "version": ">= 16.0.0",
-    "appVersionSource": "remote"
+    "appVersionSource": "remote",
+    "requireCommit": false
   },
   "build": {
     "development": {
@@ -13,6 +14,15 @@
       "channel": "preview",
       "android": {
         "buildType": "apk"
+      }
+    },
+    "staging": {
+      "autoIncrement": true,
+      "distribution": "store",
+      "channel": "staging",
+      "env": {
+        "APP_VARIANT": "staging",
+        "EXPO_PUBLIC_API_URL": "https://crossub-api-staging.onrender.com"
       }
     },
     "production": {
