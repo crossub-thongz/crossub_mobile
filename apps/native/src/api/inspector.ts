@@ -600,30 +600,6 @@ export async function releaseOpenBatch(
   }
 }
 
-const AGENT_ROLES = new Set(['ACCOUNT_MANAGER', 'ACCOUNT_MANAGER_FULL']);
-
-export function isAgentRole(role: string | null | undefined): boolean {
-  return Boolean(role && AGENT_ROLES.has(role));
-}
-
-/**
- * Agency name for an agent login, or null when this session cannot open the
- * agent portal. Any agency counts: Level 1, Level 2, and Self-Manage agents
- * inspect their own book and do not apply to the CROSSUB inspector roster.
- */
-export async function fetchSelfManagedAgencyName(): Promise<string | null> {
-  try {
-    const { data, error, response } = await crossub.GET('/agent/agencies', {
-      params: { query: { page: 1, pageSize: 50 } },
-    });
-    if (error || !response.ok || !data || data.items.length === 0) return null;
-    const selfManaged = data.items.find((item) => item.portalServiceLevel === 'SELF_MANAGED');
-    return (selfManaged ?? data.items[0])?.name ?? null;
-  } catch {
-    return null;
-  }
-}
-
 /** Profile + registration (`GET /api/v1/inspector/profile`). */
 export async function fetchInspectorProfile(): Promise<InspectorProfileDto> {
   const { data, error, response } = await crossub.GET('/inspector/profile');

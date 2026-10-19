@@ -12,6 +12,7 @@ import {
 } from '@/src/api/inspector';
 import { getDeviceId } from '@/src/auth/session';
 import { INSPECTION_PAY_LABEL, isCoreInspectionType } from '@/src/constants/inspection';
+import { useAccount } from '@/src/account/account-context';
 import { useInspections } from '@/src/inspections/inspections-context';
 import { AreaSetupPanel } from '@/src/jobs/area-setup-panel';
 import { CancelTaskSheet } from '@/src/jobs/cancel-task-sheet';
@@ -70,6 +71,7 @@ export function FieldWorkflowScreen({
 }) {
   const { id, view: viewParam } = useLocalSearchParams<{ id: string; view?: string }>();
   const router = useRouter();
+  const { selfManaged } = useAccount();
   const { getJob, getDraft, setDraft, patchJob, upsertJob, refresh, jobsHydrated, draftsHydrated } = useInspections();
   const { refreshPending, syncNow } = useOffline();
   const job = getJob(id);
@@ -567,10 +569,13 @@ export function FieldWorkflowScreen({
                 status: completed.status === 'COMPLETED' ? 'completed' : job.status,
               });
               await refresh();
+              const agencyReport = selfManaged && (job.type === 'ingoing' || job.type === 'outgoing');
               celebrate(
-                `${INSPECTION_PAY_LABEL[job.type] ?? job.type} report sent for account manager review`,
+                `${INSPECTION_PAY_LABEL[job.type] ?? job.type} report sent for ${
+                  agencyReport ? 'agency' : 'account manager'
+                } review`,
                 'home',
-                'Awaiting approval',
+                agencyReport ? 'Awaiting agency approval' : 'Awaiting approval',
               );
             }}
           />
@@ -772,11 +777,12 @@ export function FieldWorkflowScreen({
         visible={cancelOpen}
         inspectionId={id}
         urgent={job.priority === 'urgent'}
+        allowReleaseToPool={!selfManaged}
         onClose={() => setCancelOpen(false)}
         onReleased={() => {
           setCancelOpen(false);
           void refresh();
-          router.replace('/');
+          router.replace(selfManaged ? '/inspect' : '/');
         }}
       />
       {Celebration}

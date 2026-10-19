@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 
 import { JobReminders } from '@/src/jobs/job-reminders';
+import { useAccount } from '@/src/account/account-context';
 import { useInspections } from '@/src/inspections/inspections-context';
 import { PendingSyncBanner } from '@/src/offline/pending-sync-banner';
 import { INSPECTION_PAY_LABEL } from '@/src/constants/inspection';
@@ -35,7 +36,8 @@ function DashboardRow({
   onDetails: () => void;
 }) {
   const { getDraft } = useInspections();
-  const action = jobPrimaryAction(job, jobInspectionStarted(job, getDraft(job.id)));
+  const { selfManaged } = useAccount();
+  const action = jobPrimaryAction(job, jobInspectionStarted(job, getDraft(job.id)), selfManaged);
   const agent = job.agentCompany || job.agentName || '—';
   return (
     <View style={[styles.dashRow, last && styles.dashRowLast]}>

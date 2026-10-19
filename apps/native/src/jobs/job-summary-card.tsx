@@ -21,7 +21,7 @@ export function JobSummaryCard({
 }) {
   const { deviceLocation } = useInspections();
   const { user } = useAuth();
-  const { profile } = useAccount();
+  const { profile, selfManaged } = useAccount();
   const inspectorName = user
     ? displayName(user)
     : displayName(profile ?? {});
@@ -31,7 +31,7 @@ export function JobSummaryCard({
       <PropertyHeaderBody job={job} inspectorName={inspectorName} />
       <DirectionsButton job={job} origin={deviceLocation} />
       <JobTravelCard job={job} deviceLocation={deviceLocation} />
-      {showPayout ? (
+      {showPayout && !selfManaged ? (
         <View style={styles.payout}>
           <Text style={styles.payoutLabel}>Job payout</Text>
           <JobPayBreakdown

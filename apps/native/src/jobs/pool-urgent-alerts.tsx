@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useAccount } from '@/src/account/account-context';
 import { useInspections } from '@/src/inspections/inspections-context';
 import { formatInspectTime } from '@/src/lib/datetime';
 import { jobDetail } from '@/src/lib/routes';
@@ -26,6 +27,7 @@ type Toast = {
  * First pool snapshot is seeded without toasting so already-urgent jobs do not flood.
  */
 export function PoolUrgentAlerts() {
+  const { selfManaged } = useAccount();
   const { pool, receivingJobs, loading } = useInspections();
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -54,7 +56,7 @@ export function PoolUrgentAlerts() {
   }, []);
 
   useEffect(() => {
-    if (!receivingJobs) {
+    if (selfManaged || !receivingJobs) {
       hydratedRef.current = false;
       previousPriorityRef.current.clear();
       setToast(null);
@@ -111,7 +113,7 @@ export function PoolUrgentAlerts() {
       );
       moreTimer.current = setTimeout(() => setMore(null), MORE_MS);
     }
-  }, [pool, receivingJobs, loading]);
+  }, [selfManaged, pool, receivingJobs, loading]);
 
   if (!toast && !more) return null;
 

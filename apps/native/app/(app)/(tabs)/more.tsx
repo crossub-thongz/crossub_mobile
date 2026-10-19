@@ -30,7 +30,8 @@ export default function MoreScreen() {
   const router = useRouter();
   const pathname = usePathname();
   const { user, logout } = useAuth();
-  const { registration, profile, accessLevel, tribunalQualified, selfManaged } = useAccount();
+  const { registration, profile, accessLevel, tribunalQualified, selfManaged, agencyName } =
+    useAccount();
   const { completedJobs } = useInspections();
   const { weeklyEarnings, unclaimedEarnings } = useLedger();
   const { pendingSync } = useOffline();
@@ -60,7 +61,11 @@ export default function MoreScreen() {
               {name}
             </Text>
             <View style={styles.tags}>
-              {approved ? (
+              {selfManaged ? (
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText}>{agencyName ?? 'Your agency'}</Text>
+                </View>
+              ) : approved ? (
                 <View style={styles.badge}>
                   <Text style={styles.badgeText}>{REGISTRATION_STATUS_LABEL.approved}</Text>
                 </View>
@@ -71,11 +76,7 @@ export default function MoreScreen() {
                   </Text>
                 </View>
               ) : null}
-              {selfManaged ? (
-                <View style={styles.badge}>
-                  <Text style={styles.badgeText}>Inspect (Self-Manage)</Text>
-                </View>
-              ) : (
+              {selfManaged ? null : (
                 <View style={[styles.tribunalTag, tribunalQualified && styles.tribunalTagOn]}>
                   <Ionicons
                     name="scale-outline"
@@ -102,17 +103,20 @@ export default function MoreScreen() {
         </View>
 
         <View style={styles.stats}>
+          {selfManaged ? null : (
           <View style={styles.stat}>
             <Ionicons name="wallet-outline" size={16} color={colors.primary} />
             <Text style={styles.statValue}>{formatCurrency(weeklyEarnings)}</Text>
             <Text style={styles.statLabel}>This week</Text>
             <Text style={styles.statHint}>${INSPECTOR_HOURLY_RATE_AUD}/hr guideline</Text>
           </View>
+          )}
           <View style={styles.stat}>
             <Ionicons name="time-outline" size={16} color={colors.primary} />
             <Text style={styles.statValue}>{weekJobs.length}</Text>
             <Text style={styles.statLabel}>Completed inspections</Text>
           </View>
+          {selfManaged ? null : (
           <View style={styles.stat}>
             <Ionicons name="wallet-outline" size={16} color={colors.amber} />
             <Text style={[styles.statValue, { color: colors.amber }]}>
@@ -120,6 +124,7 @@ export default function MoreScreen() {
             </Text>
             <Text style={styles.statLabel}>Unclaimed payments</Text>
           </View>
+          )}
         </View>
 
         {MORE_NAV_SECTIONS.map((section) => {

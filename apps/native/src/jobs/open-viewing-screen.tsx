@@ -21,6 +21,7 @@ import {
   type InspectorOpenViewing,
   type InspectorOpenViewingVisitor,
 } from '@/src/api/inspector';
+import { useAccount } from '@/src/account/account-context';
 import { useInspections } from '@/src/inspections/inspections-context';
 import { CancelTaskSheet } from '@/src/jobs/cancel-task-sheet';
 import { JobLookupFallback } from '@/src/jobs/job-lookup-fallback';
@@ -273,6 +274,7 @@ export function OpenViewingScreen({
 }) {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const { selfManaged } = useAccount();
   const { getJob, upsertJob, patchJob, refresh, jobsHydrated } = useInspections();
   const job = getJob(id);
   const [viewing, setViewing] = useState<InspectorOpenViewing | null>(null);
@@ -582,11 +584,12 @@ export function OpenViewingScreen({
         visible={cancelOpen}
         inspectionId={id}
         urgent={job.priority === 'urgent'}
+        allowReleaseToPool={!selfManaged}
         onClose={() => setCancelOpen(false)}
         onReleased={() => {
           setCancelOpen(false);
           void refresh();
-          router.replace('/pool');
+          router.replace(selfManaged ? '/inspect' : '/pool');
         }}
       />
       {Celebration}

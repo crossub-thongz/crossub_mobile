@@ -3,6 +3,7 @@ import { memo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { INSPECTION_TYPE_LABEL, isCoreInspectionType } from '@/src/constants/inspection';
+import { useAccount } from '@/src/account/account-context';
 import { useInspections } from '@/src/inspections/inspections-context';
 import {
   inspectListCtaLabel,
@@ -34,10 +35,11 @@ export const InspectJobRow = memo(function InspectJobRow({
   onAction: (href: string) => void;
 }) {
   const { getDraft } = useInspections();
+  const { selfManaged } = useAccount();
   const draft = getDraft(job.id);
   const visual = typeAccent[job.type];
   const { street, locality } = propertyAddressLines(job);
-  const action = jobPrimaryAction(job, jobInspectionStarted(job, draft));
+  const action = jobPrimaryAction(job, jobInspectionStarted(job, draft), selfManaged);
   const typeLabel = isCoreInspectionType(job.type)
     ? INSPECTION_TYPE_LABEL[job.type]
     : job.type.toUpperCase();

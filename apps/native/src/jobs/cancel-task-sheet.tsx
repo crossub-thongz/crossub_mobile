@@ -22,17 +22,21 @@ export function CancelTaskSheet({
   visible,
   inspectionId,
   urgent,
+  allowReleaseToPool = true,
   onClose,
   onReleased,
 }: {
   visible: boolean;
   inspectionId: string;
   urgent?: boolean;
+  allowReleaseToPool?: boolean;
   onClose: () => void;
   onReleased: () => void;
 }) {
   const [reason, setReason] = useState('');
-  const [mode, setMode] = useState<'flag_admin' | 'release_pool'>('release_pool');
+  const [mode, setMode] = useState<'flag_admin' | 'release_pool'>(
+    allowReleaseToPool ? 'release_pool' : 'flag_admin',
+  );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const reasonRef = useRef<TextInput>(null);
@@ -101,6 +105,7 @@ export function CancelTaskSheet({
           >
             <Text style={styles.optionText}>Flag cancellation to Admin</Text>
           </Pressable>
+          {allowReleaseToPool ? (
           <Pressable
             onPress={() => {
               dismissKeyboard();
@@ -110,6 +115,7 @@ export function CancelTaskSheet({
           >
             <Text style={styles.optionText}>Release task back to job pool</Text>
           </Pressable>
+          ) : null}
           {error ? <Text style={styles.error}>{error}</Text> : null}
           <View style={styles.row}>
             <Pressable

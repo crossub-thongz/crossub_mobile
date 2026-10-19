@@ -52,9 +52,18 @@ export function inspectListCtaLabel(
   return compact ? 'Start' : 'Start Inspection';
 }
 
+export function approvalPendingLabel(agencyMode: boolean): string {
+  return agencyMode ? 'Pending agency approval' : 'Pending Approval';
+}
+
+export function approvalAwaitingLabel(agencyMode: boolean): string {
+  return agencyMode ? 'Awaiting agency approval' : 'Awaiting approval';
+}
+
 export function jobPrimaryAction(
   job: InspectionJob,
   started: boolean,
+  agencyMode = false,
 ): JobPrimaryAction {
   if (job.status === 'completed') {
     return { label: 'View report', href: jobHistory(job.id), disabled: false };
@@ -63,7 +72,7 @@ export function jobPrimaryAction(
     return { label: 'Re-Open', href: jobInspect(job.id, job.type), disabled: false };
   }
   if (job.status === 'awaiting_approval') {
-    return { label: 'Pending Approval', href: jobDetail(job.id), disabled: true };
+    return { label: approvalPendingLabel(agencyMode), href: jobDetail(job.id), disabled: true };
   }
   if (job.awaitingAgentPayment) {
     return { label: 'Awaiting payment', href: jobDetail(job.id), disabled: true };

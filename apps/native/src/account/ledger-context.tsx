@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from 'react';
 
+import { useAccount } from '@/src/account/account-context';
 import { fetchInspectorJobs } from '@/src/api/inspector';
 import { useAuth } from '@/src/auth/auth-context';
 import { isThisWeek } from '@/src/lib/datetime';
@@ -27,6 +28,7 @@ const LedgerContext = createContext<LedgerContextValue | undefined>(undefined);
 
 export function LedgerProvider({ children }: { children: ReactNode }) {
   const { status } = useAuth();
+  const { selfManaged, registrationResolved } = useAccount();
   const [earnings, setEarnings] = useState<EarningsRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -34,6 +36,13 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
   const load = useCallback(async () => {
     if (status !== 'authed') {
       setEarnings([]);
+      setLoading(false);
+      return;
+    }
+    if (!registrationResolved) return;
+    if (selfManaged) {
+      setEarnings([]);
+      setError(null);
       setLoading(false);
       return;
     }
@@ -48,7 +57,7 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false);
     }
-  }, [status]);
+  }, [status, selfManaged, registrationResolved]);
 
   useEffect(() => {
     void load();

@@ -10,8 +10,6 @@ import {
 
 import {
   fetchInspectorProfile,
-  fetchSelfManagedAgencyName,
-  isAgentRole,
   submitInspectorRegistration,
   type InspectorProfileDto,
   type InspectorRegistrationStatusDto,
@@ -34,7 +32,7 @@ type AccountContextValue = {
   draft: RegistrationDraft | null;
   accessLevel: InspectorAccessLevel;
   tribunalQualified: boolean;
-  /** Agent login linked as this agency’s inspector. Pool and tribunal stay off. */
+  /** Signed-in user is this Self-Manage agency’s own inspector (`roster.agencyId`). */
   selfManaged: boolean;
   agencyName: string | null;
   registrationComplete: boolean;
@@ -59,7 +57,6 @@ function isComplete(
 export function AccountProvider({ children }: { children: ReactNode }) {
   const { status, user } = useAuth();
   const [profile, setProfile] = useState<InspectorProfileDto | null>(null);
-  const [agentAgencyName, setAgentAgencyName] = useState<string | null>(null);
   const [draft, setDraft] = useState<RegistrationDraft | null>(null);
   const [loading, setLoading] = useState(true);
   const [resolved, setResolved] = useState(false);
@@ -69,7 +66,6 @@ export function AccountProvider({ children }: { children: ReactNode }) {
     if (status === 'loading') return;
     if (status !== 'authed' || !user?.email) {
       setProfile(null);
-      setAgentAgencyName(null);
       setDraft(null);
       setLoading(false);
       setResolved(true);
@@ -85,17 +81,12 @@ export function AccountProvider({ children }: { children: ReactNode }) {
       profileError = err instanceof Error ? err.message : 'Failed to load profile';
     }
     const nextDraft = await loadRegistrationDraft(user.email).catch(() => null);
-    const nextAgency =
-      isAgentRole(user.role) && !nextProfile?.roster?.agencyId
-        ? await fetchSelfManagedAgencyName()
-        : null;
     setProfile(nextProfile);
     setDraft(nextDraft);
-    setAgentAgencyName(nextAgency);
-    setError(nextAgency ? null : profileError);
+    setError(profileError);
     setLoading(false);
     setResolved(true);
-  }, [status, user?.email, user?.role]);
+  }, [status, user?.email]);
 
   useEffect(() => {
     void load();
@@ -152,10 +143,8 @@ export function AccountProvider({ children }: { children: ReactNode }) {
   const tribunalQualified = Boolean(
     registration?.tribunalQualified || profile?.roster?.tribunalQualified,
   );
-  const selfManaged = profile?.roster
-    ? Boolean(profile.roster.agencyId)
-    : Boolean(agentAgencyName);
-  const agencyName = profile?.roster?.agencyName ?? agentAgencyName;
+  const selfManaged = Boolean(profile?.roster?.agencyId);
+  const agencyName = profile?.roster?.agencyName ?? null;
 
   const value = useMemo(
     () => ({
@@ -166,7 +155,7 @@ export function AccountProvider({ children }: { children: ReactNode }) {
       tribunalQualified,
       selfManaged,
       agencyName,
-      registrationComplete: isComplete(profile, draft) || selfManaged,
+      registrationComplete: selfManaged || isComplete(profile, draft),
       registrationResolved: resolved,
       loading,
       error,

@@ -4,10 +4,12 @@ import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Tex
 import { AppTextInput } from '@/src/ui/app-text-input';
 import { useRouter } from 'expo-router';
 
+import { useAccount } from '@/src/account/account-context';
 import { fetchKeyCollection } from '@/src/api/inspector';
 import { INSPECTION_PAY_LABEL } from '@/src/constants/inspection';
 import { useInspections } from '@/src/inspections/inspections-context';
 import { formatDateTime } from '@/src/lib/datetime';
+import { approvalAwaitingLabel } from '@/src/lib/inspection-job-cta';
 import { historyProofLabel, historyProofPhotoCount } from '@/src/lib/job-history';
 import { applyKeyCollection } from '@/src/lib/key-access';
 import { jobHistory } from '@/src/lib/routes';
@@ -32,6 +34,7 @@ const HistoryRow = memo(function HistoryRow({
   job: InspectionJob;
   onOpen: (id: string) => void;
 }) {
+  const { selfManaged } = useAccount();
   const proofCount = historyProofPhotoCount(job);
   return (
     <Pressable onPress={() => onOpen(job.id)} style={styles.card}>
@@ -43,7 +46,9 @@ const HistoryRow = memo(function HistoryRow({
         </View>
         <View style={styles.statusChip}>
           <Text style={styles.statusChipText}>
-            {job.status === 'awaiting_approval' ? 'PENDING APPROVAL' : 'COMPLETED'}
+            {job.status === 'awaiting_approval'
+              ? approvalAwaitingLabel(selfManaged).toUpperCase()
+              : 'COMPLETED'}
           </Text>
         </View>
       </View>

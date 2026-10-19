@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 
 import { useLedger } from '@/src/account/ledger-context';
+import { useSelfManagedRedirect } from '@/src/account/use-self-managed-redirect';
 import { INSPECTION_PAY_LABEL, ROUTINE_OPEN_INSPECTOR_FEE_INC_GST_AUD } from '@/src/constants/inspection';
 import { formatCurrency, formatDate } from '@/src/lib/datetime';
 import type { InspectionType } from '@/src/lib/types';
@@ -25,6 +26,7 @@ const TYPE_COLOR: Record<InspectionType, string> = {
 };
 
 export default function EarningsScreen() {
+  const blocked = useSelfManagedRedirect();
   const {
     earnings,
     weeklyEarnings,
@@ -35,6 +37,7 @@ export default function EarningsScreen() {
     refresh,
   } = useLedger();
   const scrollEndPadding = useScrollEndPadding();
+  if (blocked) return null;
 
   return (
     <View style={styles.safe}>

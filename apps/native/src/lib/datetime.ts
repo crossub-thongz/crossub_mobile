@@ -93,7 +93,12 @@ export function displayName(user: {
   return name || user.email || 'Inspector';
 }
 
-export function headerBadge(role?: string | null, accessLevel = 1): string {
+export function headerBadge(
+  role?: string | null,
+  accessLevel = 1,
+  agencyName?: string | null,
+): string {
+  if (agencyName) return agencyName;
   if (role === 'SUPER_ADMIN') return 'Admin';
   if (role === 'HR') return 'HR';
   return `Level ${accessLevel}`;

@@ -41,7 +41,7 @@ export function AppHeader({
   const pathname = usePathname();
   const { height: windowHeight } = useWindowDimensions();
   const { user, logout } = useAuth();
-  const { accessLevel, selfManaged } = useAccount();
+  const { accessLevel, selfManaged, agencyName } = useAccount();
   const moreNav = useMemo(
     () => moreNavForLevel(accessLevel, { selfManaged }),
     [accessLevel, selfManaged],
@@ -142,13 +142,15 @@ export function AppHeader({
               <View style={styles.avatarRing}>
                 <Text style={styles.avatarText}>{initials}</Text>
               </View>
-              {selfManaged ? null : (
-                <View style={styles.levelChip}>
-                  <Text style={styles.levelText} numberOfLines={1}>
-                    {headerBadge(user?.role, accessLevel)}
-                  </Text>
-                </View>
-              )}
+              <View style={styles.levelChip}>
+                <Text style={styles.levelText} numberOfLines={1}>
+                  {headerBadge(
+                    user?.role,
+                    accessLevel,
+                    selfManaged ? (agencyName ?? 'Your agency') : null,
+                  )}
+                </Text>
+              </View>
             </View>
             <View style={styles.homeCopy}>
               <Text style={styles.hello} numberOfLines={1}>
@@ -162,11 +164,6 @@ export function AppHeader({
               <Text style={styles.date} numberOfLines={1}>
                 {formatLongDate()}
               </Text>
-              {selfManaged ? (
-                <Text style={styles.viewLabel} numberOfLines={1}>
-                  Inspect (Self-Manage)
-                </Text>
-              ) : null}
             </View>
           </Pressable>
           {actions}
@@ -346,7 +343,6 @@ const styles = StyleSheet.create({
   hello: { color: colors.muted, fontSize: 13, fontWeight: '600' },
   homeName: { color: colors.text, fontSize: 18, fontWeight: '700', marginTop: 1 },
   date: { color: colors.muted, fontSize: 13, marginTop: 2 },
-  viewLabel: { color: colors.primary, fontSize: 12, fontWeight: '700', marginTop: 2 },
   workspaceRow: {
     height: 56,
     flexDirection: 'row',

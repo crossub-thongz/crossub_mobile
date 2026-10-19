@@ -119,9 +119,9 @@ export default function LoginScreen() {
             )}
           </Pressable>
 
-          <Text style={styles.meta}>
+          {/* <Text style={styles.meta}>
             Nest {origin} · POST /api/v1/auth/login · Bearer tokens in SecureStore
-          </Text>
+          </Text> */}
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>

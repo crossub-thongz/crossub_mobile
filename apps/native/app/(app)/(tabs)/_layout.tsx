@@ -68,7 +68,7 @@ export default function TabsLayout() {
         name="inspect"
         options={{
           title: 'Inspect',
-          tabBarAccessibilityLabel: selfManaged ? 'Inspect (Self-Manage)' : 'Inspect',
+          tabBarAccessibilityLabel: 'Inspect',
           tabBarBadge: todaysJobs.length > 0 ? todaysJobs.length : undefined,
           tabBarIcon: ({ color, focused }) => (
             <Ionicons name={focused ? 'clipboard' : 'clipboard-outline'} color={color} size={20} />

@@ -20,6 +20,7 @@ import {
   fetchInspection,
   fetchKeyCollection,
 } from '@/src/api/inspector';
+import { useAccount } from '@/src/account/account-context';
 import { useInspections } from '@/src/inspections/inspections-context';
 import { CancelTaskSheet } from '@/src/jobs/cancel-task-sheet';
 import { FieldWorkflowScreen } from '@/src/jobs/field-workflow';
@@ -41,6 +42,7 @@ import {
 import { formatDate, formatScheduleWhen } from '@/src/lib/datetime';
 import { jobLookupMiss } from '@/src/lib/job-lookup';
 import {
+  approvalPendingLabel,
   jobInspectionStarted,
   jobPrimaryAction,
 } from '@/src/lib/inspection-job-cta';
@@ -77,6 +79,7 @@ export default function JobDetailsScreen() {
     keys?: string;
   }>();
   const router = useRouter();
+  const { selfManaged } = useAccount();
   const { syncNow } = useOffline();
   const [jobPhotosQueued, setJobPhotosQueued] = useState(false);
   const autoSyncJob = useRef<string | null>(null);
@@ -213,7 +216,7 @@ export default function JobDetailsScreen() {
   const poolPreview = isPoolJob(job);
   const draft = getDraft(job.id);
   const started = jobInspectionStarted(job, draft);
-  const primary = jobPrimaryAction(job, started);
+  const primary = jobPrimaryAction(job, started, selfManaged);
   const keyCollectDone = isKeyCollectComplete(job);
   const keyReturnDone = isKeyReturnComplete(job);
   const reportSubmitted =
@@ -232,7 +235,7 @@ export default function JobDetailsScreen() {
     : returnPending
       ? 'Return keys'
       : job.status === 'awaiting_approval'
-        ? 'Pending Approval'
+        ? approvalPendingLabel(selfManaged)
         : job.status === 'completed'
           ? 'View inspection report'
           : handoverNext
@@ -271,7 +274,7 @@ export default function JobDetailsScreen() {
     setBusy(true);
     try {
       await declineInspection(job.id);
-      router.replace('/pool');
+      router.replace(selfManaged ? '/inspect' : '/pool');
     } catch (err) {
       Alert.alert('Could not decline', err instanceof Error ? err.message : 'Try again.');
     } finally {
@@ -387,11 +390,13 @@ export default function JobDetailsScreen() {
           </View>
           <Text style={styles.meta}>{formatScheduleWhen(job.scheduledTime)}</Text>
           <Text style={styles.meta}>Job #{formatJobRefId(job.id)}</Text>
+          {selfManaged ? null : (
           <JobPayBreakdown
             hours={job.estimatedHours}
             laborAmount={job.laborAmount}
             durationLabel={job.durationLabel}
           />
+          )}
         </View>
 
         <JobTravelCard job={job} deviceLocation={deviceLocation} />
@@ -456,11 +461,12 @@ export default function JobDetailsScreen() {
         visible={cancelOpen}
         inspectionId={job.id}
         urgent={job.priority === 'urgent'}
+        allowReleaseToPool={!selfManaged}
         onClose={() => setCancelOpen(false)}
         onReleased={() => {
           setCancelOpen(false);
           void refresh();
-          router.replace('/');
+          router.replace(selfManaged ? '/inspect' : '/');
         }}
       />
       </>

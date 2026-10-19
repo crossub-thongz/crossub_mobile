@@ -25,7 +25,7 @@ export type MoreNavItem = {
   subtitle: string;
   icon: MoreIcon;
   section: 'work' | 'account' | 'support';
-  need?: 'open' | 'tribunal';
+  need?: 'open' | 'tribunal' | 'earnings' | 'availability' | 'register';
 };
 
 export const MORE_NAV_SECTIONS: { id: MoreNavItem['section']; title: string }[] = [
@@ -49,6 +49,7 @@ export const MORE_NAV_ITEMS: MoreNavItem[] = [
     subtitle: 'Select the times you can take jobs',
     icon: 'time-outline',
     section: 'work',
+    need: 'availability',
   },
   {
     href: historyPath,
@@ -63,6 +64,7 @@ export const MORE_NAV_ITEMS: MoreNavItem[] = [
     subtitle: 'History, payouts, unclaimed payments',
     icon: 'card-outline',
     section: 'work',
+    need: 'earnings',
   },
   {
     href: keyManagementPath,
@@ -92,6 +94,7 @@ export const MORE_NAV_ITEMS: MoreNavItem[] = [
     subtitle: 'Licence, bank, and approval status',
     icon: 'shield-checkmark-outline',
     section: 'account',
+    need: 'register',
   },
   {
     href: messagesPath,
@@ -128,7 +131,16 @@ export function moreNavForLevel(
   options?: { selfManaged?: boolean },
 ): MoreNavItem[] {
   return MORE_NAV_ITEMS.filter((item) => {
-    if (options?.selfManaged && (item.need === 'open' || item.need === 'tribunal')) return false;
+    if (
+      options?.selfManaged &&
+      (item.need === 'open' ||
+        item.need === 'tribunal' ||
+        item.need === 'earnings' ||
+        item.need === 'availability' ||
+        item.need === 'register')
+    ) {
+      return false;
+    }
     if (item.need === 'open') return inspectorLevelAllows(accessLevel, 'open');
     if (item.need === 'tribunal') return inspectorLevelAllows(accessLevel, 'tribunal');
     return true;

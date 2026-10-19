@@ -40,8 +40,17 @@ function statusLabel(status?: string | null): string | undefined {
 export default function ProfileScreen() {
   const router = useRouter();
   const { user } = useAuth();
-  const { profile, registration, draft, accessLevel, tribunalQualified, registrationComplete, loading } =
-    useAccount();
+  const {
+    profile,
+    registration,
+    draft,
+    accessLevel,
+    tribunalQualified,
+    registrationComplete,
+    selfManaged,
+    agencyName,
+    loading,
+  } = useAccount();
   const name = user ? displayName(user) : displayName(profile ?? {});
   const needsRegistration = !registrationComplete;
   const scrollEndPadding = useScrollEndPadding();
@@ -69,8 +78,13 @@ export default function ProfileScreen() {
               <Text style={styles.name}>{name}</Text>
               <InfoRow
                 label="Status"
-                value={statusLabel(registration?.registrationStatus) ?? REGISTRATION_STATUS_LABEL.approved}
+                value={
+                  selfManaged
+                    ? 'Agency inspector'
+                    : statusLabel(registration?.registrationStatus) ?? REGISTRATION_STATUS_LABEL.approved
+                }
               />
+              <InfoRow label="Agency" value={selfManaged ? (agencyName ?? 'Your agency') : null} />
               <InfoRow label="Email" value={registration?.email ?? profile?.email ?? user?.email} />
               <InfoRow label="Mobile" value={registration?.mobile ?? profile?.phone ?? draft?.mobile} />
               <InfoRow
@@ -129,6 +143,7 @@ export default function ProfileScreen() {
               </View>
             )}
 
+            {selfManaged ? null : (
             <View style={styles.card}>
               <View style={styles.cardHead}>
                 <Ionicons name="time-outline" size={16} color={colors.primary} />
@@ -142,8 +157,9 @@ export default function ProfileScreen() {
                 <Text style={styles.outlineText}>Set available times</Text>
               </Pressable>
             </View>
+            )}
 
-            {registration ? (
+            {registration && !selfManaged ? (
               <View style={styles.card}>
                 <View style={styles.cardHead}>
                   <Ionicons name="card-outline" size={16} color={colors.primary} />
@@ -185,11 +201,13 @@ export default function ProfileScreen() {
           </Pressable>
         </View>
 
+        {selfManaged ? null : (
         <Pressable onPress={() => router.push(registerPath)} style={styles.outline}>
           <Text style={styles.outlineText}>
             {needsRegistration ? 'Start registration' : registration ? 'Update registration' : 'View registration'}
           </Text>
         </Pressable>
+        )}
       </ScrollView>
     </View>
   );

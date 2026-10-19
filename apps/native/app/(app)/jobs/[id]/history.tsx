@@ -23,6 +23,7 @@ import {
   type InspectorOpenViewing,
 } from '@/src/api/inspector';
 import { INSPECTION_PAY_LABEL } from '@/src/constants/inspection';
+import { useAccount } from '@/src/account/account-context';
 import { useInspections } from '@/src/inspections/inspections-context';
 import { JobLookupFallback } from '@/src/jobs/job-lookup-fallback';
 import { OpenViewingPanels } from '@/src/jobs/open-viewing-screen';
@@ -33,6 +34,7 @@ import {
   formatScheduleWhen,
 } from '@/src/lib/datetime';
 import { mapInspectionDetail, type FindingsRoom } from '@/src/lib/inspection-findings';
+import { approvalAwaitingLabel } from '@/src/lib/inspection-job-cta';
 import { toInspectionJob } from '@/src/lib/job-map';
 import { applyKeyCollection } from '@/src/lib/key-access';
 import { formatJobRefId, googleMapsUrl, propertyAddressLines } from '@/src/lib/property-address';
@@ -122,6 +124,7 @@ function KeyPhase({
 export default function JobHistoryScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const { selfManaged } = useAccount();
   const { getJob, upsertJob, jobsHydrated } = useInspections();
   const cached = getJob(id);
   const [collection, setCollection] = useState<InspectorKeyCollection | null>(null);
@@ -265,17 +268,23 @@ export default function JobHistoryScreen() {
       <ScrollView contentContainerStyle={styles.inner}>
         <View style={styles.chipRow}>
           <Text style={styles.typeChip}>{job.type.toUpperCase()}</Text>
-          <Text style={styles.statusChip}>{job.status.replace('_', ' ')}</Text>
+          <Text style={styles.statusChip}>
+            {job.status === 'awaiting_approval'
+              ? approvalAwaitingLabel(selfManaged)
+              : job.status.replace('_', ' ')}
+          </Text>
         </View>
         <View style={styles.addressRow}>
           <View style={{ flex: 1 }}>
             <Text style={styles.street}>{street}</Text>
             {locality ? <Text style={styles.muted}>{locality}</Text> : null}
           </View>
+          {selfManaged ? null : (
           <View style={styles.feeCol}>
             <Text style={styles.fee}>{formatCurrency(job.laborAmount)}</Text>
             <Text style={styles.feeLabel}>Fee</Text>
           </View>
+          )}
         </View>
 
         {activeTab === 'job' ? (
@@ -399,6 +408,7 @@ function JobSummary({
   job: InspectionJob;
   submittedAt?: string;
 }) {
+  const { selfManaged } = useAccount();
   const { street, locality } = propertyAddressLines(job);
   return (
     <>
@@ -434,7 +444,9 @@ function JobSummary({
           <Ionicons name="compass-outline" size={16} color={colors.primary} />
           <Text style={styles.secondaryText}>Directions</Text>
         </Pressable>
-        <Text style={styles.fee}>Fee {formatCurrency(job.laborAmount)}</Text>
+        {selfManaged ? null : (
+          <Text style={styles.fee}>Fee {formatCurrency(job.laborAmount)}</Text>
+        )}
       </View>
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Agency</Text>
