@@ -30,7 +30,7 @@ export default function MoreScreen() {
   const router = useRouter();
   const pathname = usePathname();
   const { user, logout } = useAuth();
-  const { registration, profile, accessLevel, tribunalQualified } = useAccount();
+  const { registration, profile, accessLevel, tribunalQualified, selfManaged } = useAccount();
   const { completedJobs } = useInspections();
   const { weeklyEarnings, unclaimedEarnings } = useLedger();
   const { pendingSync } = useOffline();
@@ -45,7 +45,7 @@ export default function MoreScreen() {
   const weekJobs = completedJobs.filter((job) =>
     isThisWeek(job.scheduledTime || job.scheduledDate),
   );
-  const menu = moreNavForLevel(accessLevel);
+  const menu = moreNavForLevel(accessLevel, { selfManaged });
 
   return (
     <View style={styles.safe}>
@@ -71,18 +71,24 @@ export default function MoreScreen() {
                   </Text>
                 </View>
               ) : null}
-              <View style={[styles.tribunalTag, tribunalQualified && styles.tribunalTagOn]}>
-                <Ionicons
-                  name="scale-outline"
-                  size={11}
-                  color={tribunalQualified ? '#fff' : colors.muted}
-                />
-                <Text
-                  style={[styles.tribunalTagText, tribunalQualified && styles.tribunalTagTextOn]}
-                >
-                  Tribunal qualified
-                </Text>
-              </View>
+              {selfManaged ? (
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText}>Inspect (Self-Manage)</Text>
+                </View>
+              ) : (
+                <View style={[styles.tribunalTag, tribunalQualified && styles.tribunalTagOn]}>
+                  <Ionicons
+                    name="scale-outline"
+                    size={11}
+                    color={tribunalQualified ? '#fff' : colors.muted}
+                  />
+                  <Text
+                    style={[styles.tribunalTagText, tribunalQualified && styles.tribunalTagTextOn]}
+                  >
+                    Tribunal qualified
+                  </Text>
+                </View>
+              )}
             </View>
             <Text style={styles.meta} numberOfLines={1}>
               {registration?.email ?? profile?.email ?? user?.email}

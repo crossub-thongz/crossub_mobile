@@ -22,6 +22,7 @@ import {
   type OpenBatchTimeOverride,
 } from '@/src/api/inspector';
 import { useAccount } from '@/src/account/account-context';
+import { useSelfManagedRedirect } from '@/src/account/use-self-managed-redirect';
 import {
   OPEN_BATCH_EMPTY,
   OPEN_BATCH_STATE,
@@ -47,9 +48,10 @@ import { EmptyState } from '@/src/ui/empty-state';
 import { useScrollEndPadding } from '@/src/ui/use-scroll-end-padding';
 
 export default function OpenBatchScreen() {
+  const blocked = useSelfManagedRedirect();
   const { accessLevel } = useAccount();
   const { receivingJobs } = useInspections();
-  const canOpen = inspectorLevelAllows(accessLevel, 'open');
+  const canOpen = inspectorLevelAllows(accessLevel, 'open') && !blocked;
   const [overview, setOverview] = useState<OpenBatchOverview | null>(null);
   const [plan, setPlan] = useState<OpenBatchPlan | null>(null);
   const [picked, setPicked] = useState<Set<string>>(new Set());
@@ -171,6 +173,8 @@ export default function OpenBatchScreen() {
       : overview?.state === OPEN_BATCH_STATE.PAST_DEADLINE
         ? styles.bannerLate
         : styles.bannerMuted;
+
+  if (blocked) return null;
 
   return (
     <View style={styles.safe}>

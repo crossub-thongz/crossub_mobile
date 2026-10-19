@@ -32,6 +32,9 @@ type AccountContextValue = {
   draft: RegistrationDraft | null;
   accessLevel: InspectorAccessLevel;
   tribunalQualified: boolean;
+  /** Agent login linked as this agency’s inspector. Pool and tribunal stay off. */
+  selfManaged: boolean;
+  agencyName: string | null;
   registrationComplete: boolean;
   registrationResolved: boolean;
   loading: boolean;
@@ -140,6 +143,8 @@ export function AccountProvider({ children }: { children: ReactNode }) {
   const tribunalQualified = Boolean(
     registration?.tribunalQualified || profile?.roster?.tribunalQualified,
   );
+  const selfManaged = Boolean(profile?.roster?.agencyId);
+  const agencyName = profile?.roster?.agencyName ?? null;
 
   const value = useMemo(
     () => ({
@@ -148,6 +153,8 @@ export function AccountProvider({ children }: { children: ReactNode }) {
       draft,
       accessLevel,
       tribunalQualified,
+      selfManaged,
+      agencyName,
       registrationComplete: isComplete(profile, draft),
       registrationResolved: resolved,
       loading,
@@ -161,6 +168,8 @@ export function AccountProvider({ children }: { children: ReactNode }) {
       draft,
       accessLevel,
       tribunalQualified,
+      selfManaged,
+      agencyName,
       loading,
       error,
       load,

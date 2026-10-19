@@ -16,6 +16,7 @@ import {
 import { PoolJobCard } from '@/src/inspections/pool-job-card';
 import { POOL_SORT_LABEL, PoolLocationBar } from '@/src/inspections/pool-location-bar';
 import { useAccount } from '@/src/account/account-context';
+import { useSelfManagedRedirect } from '@/src/account/use-self-managed-redirect';
 import { setPoolScreenFocused, useInspections } from '@/src/inspections/inspections-context';
 import {
   CORE_INSPECTION_TYPES,
@@ -40,6 +41,7 @@ type PoolFilter = 'all' | CoreInspectionType;
 
 export default function PoolScreen() {
   const router = useRouter();
+  const blocked = useSelfManagedRedirect();
   const { accessLevel } = useAccount();
   const {
     pool,
@@ -213,6 +215,8 @@ export default function PoolScreen() {
       />
     );
   }
+
+  if (blocked) return null;
 
   return (
     <View style={styles.safe}>

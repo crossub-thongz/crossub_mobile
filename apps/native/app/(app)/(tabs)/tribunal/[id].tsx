@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { useAccount } from '@/src/account/account-context';
+import { useSelfManagedRedirect } from '@/src/account/use-self-managed-redirect';
 import { fetchInspectorTribunalCase } from '@/src/api/inspector';
 import { formatCurrency, formatDate } from '@/src/lib/datetime';
 import { inspectorLevelAllows } from '@/src/lib/inspector-access-level';
@@ -25,8 +26,9 @@ function CheckRow({ label, on }: { label: string; on: boolean }) {
 export default function TribunalDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
+  const blocked = useSelfManagedRedirect();
   const { accessLevel } = useAccount();
-  const allowed = inspectorLevelAllows(accessLevel, 'tribunal');
+  const allowed = inspectorLevelAllows(accessLevel, 'tribunal') && !blocked;
   const [hearing, setHearing] = useState<TribunalHearing | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

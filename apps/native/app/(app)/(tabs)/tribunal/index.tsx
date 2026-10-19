@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 
 import { useAccount } from '@/src/account/account-context';
+import { useSelfManagedRedirect } from '@/src/account/use-self-managed-redirect';
 import { fetchInspectorTribunalCases } from '@/src/api/inspector';
 import { formatDate } from '@/src/lib/datetime';
 import { inspectorLevelAllows } from '@/src/lib/inspector-access-level';
@@ -22,8 +23,9 @@ import { EmptyState } from '@/src/ui/empty-state';
 
 export default function TribunalListScreen() {
   const router = useRouter();
+  const blocked = useSelfManagedRedirect();
   const { accessLevel } = useAccount();
-  const allowed = inspectorLevelAllows(accessLevel, 'tribunal');
+  const allowed = inspectorLevelAllows(accessLevel, 'tribunal') && !blocked;
   const [hearings, setHearings] = useState<TribunalHearing[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

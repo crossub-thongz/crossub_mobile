@@ -12,8 +12,10 @@ const TAB_BAR_HEIGHT = 49;
 
 export default function TabsLayout() {
   const { pool, todaysJobs } = useInspections();
-  const { accessLevel } = useAccount();
-  const showTribunal = inspectorLevelAllows(accessLevel, 'tribunal');
+  const { accessLevel, selfManaged, registrationResolved } = useAccount();
+  const showTribunal =
+    registrationResolved && !selfManaged && inspectorLevelAllows(accessLevel, 'tribunal');
+  const showPool = registrationResolved && !selfManaged;
   const insets = useSafeAreaInsets();
   const thumbLift = useThumbReachLift();
   const tabBarPadding = insets.bottom + thumbLift;
@@ -54,6 +56,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="pool"
         options={{
+          href: showPool ? undefined : null,
           title: 'Pool',
           tabBarBadge: pool.length > 0 ? pool.length : undefined,
           tabBarIcon: ({ color, focused }) => (
@@ -65,6 +68,7 @@ export default function TabsLayout() {
         name="inspect"
         options={{
           title: 'Inspect',
+          tabBarAccessibilityLabel: selfManaged ? 'Inspect (Self-Manage)' : 'Inspect',
           tabBarBadge: todaysJobs.length > 0 ? todaysJobs.length : undefined,
           tabBarIcon: ({ color, focused }) => (
             <Ionicons name={focused ? 'clipboard' : 'clipboard-outline'} color={color} size={20} />

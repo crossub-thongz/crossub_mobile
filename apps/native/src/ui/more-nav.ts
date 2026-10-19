@@ -123,8 +123,12 @@ export const MORE_NAV_ITEMS: MoreNavItem[] = [
   },
 ];
 
-export function moreNavForLevel(accessLevel: InspectorAccessLevel): MoreNavItem[] {
+export function moreNavForLevel(
+  accessLevel: InspectorAccessLevel,
+  options?: { selfManaged?: boolean },
+): MoreNavItem[] {
   return MORE_NAV_ITEMS.filter((item) => {
+    if (options?.selfManaged && (item.need === 'open' || item.need === 'tribunal')) return false;
     if (item.need === 'open') return inspectorLevelAllows(accessLevel, 'open');
     if (item.need === 'tribunal') return inspectorLevelAllows(accessLevel, 'tribunal');
     return true;

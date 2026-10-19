@@ -9062,6 +9062,13 @@ export interface components {
             lastKnownLongitude: number | null;
             /** Format: date-time */
             locationUpdatedAt: string | null;
+            /**
+             * @description Set for a Self-Manage agency inspector: they work only that agency’s jobs. Null for a CROSSUB inspector.
+             * Format: uuid
+             */
+            agencyId: string | null;
+            /** @description The agency name when `agencyId` is set. */
+            agencyName: string | null;
         };
         InspectorRegistrationStatusDto: {
             /** Format: uuid */

@@ -41,8 +41,11 @@ export function AppHeader({
   const pathname = usePathname();
   const { height: windowHeight } = useWindowDimensions();
   const { user, logout } = useAuth();
-  const { accessLevel } = useAccount();
-  const moreNav = useMemo(() => moreNavForLevel(accessLevel), [accessLevel]);
+  const { accessLevel, selfManaged } = useAccount();
+  const moreNav = useMemo(
+    () => moreNavForLevel(accessLevel, { selfManaged }),
+    [accessLevel, selfManaged],
+  );
   const { receivingJobs, toggleReceivingJobs } = useInspections();
   const { unreadMessages, unreadNotifications } = useInbox();
   const [moreOpen, setMoreOpen] = useState(false);
@@ -54,7 +57,7 @@ export function AppHeader({
     email: user?.email,
   });
   const isMessageThread = /\/messages\/[^/]+/.test(pathname);
-  const showReceiving = Boolean(user) && !isMessageThread;
+  const showReceiving = Boolean(user) && !isMessageThread && !selfManaged;
   const showMessages = Boolean(user) && !isMessageThread;
   const menuMaxHeight = Math.round(windowHeight * 0.78);
 
@@ -139,11 +142,13 @@ export function AppHeader({
               <View style={styles.avatarRing}>
                 <Text style={styles.avatarText}>{initials}</Text>
               </View>
-              <View style={styles.levelChip}>
-                <Text style={styles.levelText} numberOfLines={1}>
-                  {headerBadge(user?.role, accessLevel)}
-                </Text>
-              </View>
+              {selfManaged ? null : (
+                <View style={styles.levelChip}>
+                  <Text style={styles.levelText} numberOfLines={1}>
+                    {headerBadge(user?.role, accessLevel)}
+                  </Text>
+                </View>
+              )}
             </View>
             <View style={styles.homeCopy}>
               <Text style={styles.hello} numberOfLines={1}>
@@ -157,6 +162,11 @@ export function AppHeader({
               <Text style={styles.date} numberOfLines={1}>
                 {formatLongDate()}
               </Text>
+              {selfManaged ? (
+                <Text style={styles.viewLabel} numberOfLines={1}>
+                  Inspect (Self-Manage)
+                </Text>
+              ) : null}
             </View>
           </Pressable>
           {actions}
@@ -336,6 +346,7 @@ const styles = StyleSheet.create({
   hello: { color: colors.muted, fontSize: 13, fontWeight: '600' },
   homeName: { color: colors.text, fontSize: 18, fontWeight: '700', marginTop: 1 },
   date: { color: colors.muted, fontSize: 13, marginTop: 2 },
+  viewLabel: { color: colors.primary, fontSize: 12, fontWeight: '700', marginTop: 2 },
   workspaceRow: {
     height: 56,
     flexDirection: 'row',

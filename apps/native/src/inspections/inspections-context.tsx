@@ -148,6 +148,7 @@ export function InspectionsProvider({ children }: { children: ReactNode }) {
   const [receivingJobs, setReceivingJobs] = useState(true);
   const receivingRef = useRef(receivingJobs);
   receivingRef.current = receivingJobs;
+  const selfManagedRef = useRef(false);
   const acceptDraftsRef = useRef(true);
   const deviceLocation = useDeviceLocation({
     enabled: status === 'authed',
@@ -224,10 +225,12 @@ export function InspectionsProvider({ children }: { children: ReactNode }) {
       let receiving = receivingOverride ?? receivingRef.current;
       if (mode === 'initial' && receivingOverride == null) {
         const profile = await fetchInspectorProfile().catch(() => null);
-        receiving = profile?.roster?.receivingPoolJobs !== false;
+        selfManagedRef.current = Boolean(profile?.roster?.agencyId);
+        receiving = !selfManagedRef.current && profile?.roster?.receivingPoolJobs !== false;
         setReceivingJobs(receiving);
         receivingRef.current = receiving;
       }
+      if (selfManagedRef.current) receiving = false;
       const [assignedDtos, poolDtos] = await Promise.all([
         fetchInspections(),
         receiving ? fetchPoolInspections() : Promise.resolve([]),
@@ -248,7 +251,11 @@ export function InspectionsProvider({ children }: { children: ReactNode }) {
           mergePreservedJobState(cachedAssigned, previous.length > 0 ? previous : cachedAssigned),
         );
       }
-      if (cachedPool.length > 0 && (receivingOverride ?? receivingRef.current)) {
+      if (
+        cachedPool.length > 0 &&
+        !selfManagedRef.current &&
+        (receivingOverride ?? receivingRef.current)
+      ) {
         setPool(cachedPool);
       }
       setError(apiErrorMessage(err, 'Could not load inspections.'));
@@ -262,6 +269,7 @@ export function InspectionsProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (status === 'guest') {
       acceptDraftsRef.current = false;
+      selfManagedRef.current = false;
       setJobs([]);
       setPool([]);
       setDrafts({});
@@ -383,6 +391,7 @@ export function InspectionsProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const toggleReceivingJobs = useCallback(async () => {
+    if (selfManagedRef.current) return;
     const next = !receivingRef.current;
     setReceivingJobs(next);
     receivingRef.current = next;

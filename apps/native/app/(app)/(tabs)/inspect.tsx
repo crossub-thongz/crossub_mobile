@@ -14,6 +14,7 @@ import {
   View,
 } from 'react-native';
 
+import { useAccount } from '@/src/account/account-context';
 import { InspectJobRow } from '@/src/inspections/inspect-job-row';
 import { InspectNextCard } from '@/src/inspections/inspect-next-card';
 import { useInspections } from '@/src/inspections/inspections-context';
@@ -151,6 +152,7 @@ export default function InspectScreen() {
     setTab(next);
   };
 
+  const { selfManaged } = useAccount();
   const nextJob = useMemo(() => {
     const now = Date.now();
     const remaining = todaysJobs.filter(
@@ -167,7 +169,10 @@ export default function InspectScreen() {
 
   return (
     <View style={styles.safe}>
-      <AppHeader variant="workspace" title="My Inspections" />
+      <AppHeader
+        variant="workspace"
+        title={selfManaged ? 'Inspect (Self-Manage)' : 'My Inspections'}
+      />
       <View style={styles.tabs}>
         {(
           [
