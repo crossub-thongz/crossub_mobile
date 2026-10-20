@@ -7,7 +7,7 @@ import {
   yieldToUi,
   type LocalPhoto,
 } from '@/src/jobs/compress-photo';
-import { persistQueuedPhoto } from '@/src/offline/queued-photo';
+import { compressAndPersistPhoto } from '@/src/offline/queued-photo';
 
 type PickedAsset = {
   uri?: string | null;
@@ -82,17 +82,16 @@ async function pickFromFiles(limit: number): Promise<LocalPhoto[]> {
 
 async function keepPhoto(photo: LocalPhoto): Promise<LocalPhoto | null> {
   try {
-    const uri = await persistQueuedPhoto(photo.uri);
-    if (uri !== photo.uri) await deleteLocalPhoto(photo.uri);
-    return { ...photo, uri };
+    const saved = await compressAndPersistPhoto(photo);
+    if (saved.uri !== photo.uri) await deleteLocalPhoto(photo.uri);
+    return saved;
   } catch {
     return null;
   }
 }
 
 /**
- * Copy each picked file into app storage. Shrinking happens later, when the
- * photo is uploaded, so leaving this section does not cancel the save.
+ * Compress each picked file and copy it into app storage before it is recorded.
  */
 export async function pickInspectionPhotos(
   limit = INSPECTION_BURST_MAX,

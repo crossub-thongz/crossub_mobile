@@ -67,9 +67,11 @@ const DRAIN_ORDER: OfflineAction[] = [
 
 const MISSING_FILE_DROP_AFTER = 8;
 const PHOTO_UPLOAD_TIMEOUT_MS = 90_000;
+/** Three to five at once. Four uses the uplink without opening one request per photo. */
 const PHOTO_UPLOAD_CONCURRENCY = 4;
 const PHOTO_COMPRESS_CONCURRENCY = 2;
-const AUTO_PHOTO_ATTEMPT_CAP = 2;
+/** First try plus later tries. Each failure waits longer before the photo is queued again. */
+const AUTO_PHOTO_ATTEMPT_CAP = 5;
 
 let drainInFlight: Promise<{ synced: number; remaining: number; failed: string[] }> | null = null;
 let drainAgain = false;
@@ -79,7 +81,6 @@ let photosSettled = 0;
 let settledWhenBackgrounded = 0;
 let backgroundedAt = 0;
 let photoUploadsInFlight = 0;
-let photoCaptureActive = false;
 let resumeSyncWhenOnline = false;
 
 /** A sync the inspector started was interrupted. Continue it when the network returns. */
@@ -89,15 +90,6 @@ export function noteSyncShouldResume(should: boolean) {
 
 export function syncShouldResume(): boolean {
   return resumeSyncWhenOnline;
-}
-
-/** Pause photo uploads while the camera is open so a long burst does not encode and upload at the same time. */
-export function setPhotoCaptureActive(active: boolean) {
-  photoCaptureActive = active;
-}
-
-export function isPhotoCaptureActive(): boolean {
-  return photoCaptureActive;
 }
 
 class UploadSupersededError extends Error {
@@ -230,8 +222,13 @@ function createLimiter(limit: number) {
 const compressPhoto = createLimiter(PHOTO_COMPRESS_CONCURRENCY);
 
 function scheduleSyncOfflineQueue() {
-  if (photoCaptureActive) return;
   void syncOfflineQueue().catch(() => undefined);
+}
+
+/** 1s, 2s, 4s, 8s. A failed photo waits before it takes another upload slot. */
+function photoRetryDelayMs(attempt: number): number {
+  const step = Math.min(4, Math.max(1, attempt));
+  return 1000 * 2 ** (step - 1);
 }
 
 async function withTimeout<T>(work: Promise<T>, ms: number, label: string): Promise<T> {
@@ -518,24 +515,30 @@ async function settlePhotoItem(item: OfflineQueueItem, runId: number): Promise<b
   return true;
 }
 
-async function keepFailedPhoto(item: OfflineQueueItem, err: unknown): Promise<void> {
-  if (err instanceof UploadSupersededError) return;
+type PhotoFailure = 'skip' | 'drop' | 'retry';
+
+async function keepFailedPhoto(item: OfflineQueueItem, err: unknown): Promise<PhotoFailure> {
+  if (err instanceof UploadSupersededError) return 'skip';
   if (isMissingFileError(err)) {
     const attempts = await bumpQueueAttempt(item.id);
+    item.attempts = attempts;
     if (attempts >= MISSING_FILE_DROP_AFTER) {
       const uri = typeof item.payload.localUri === 'string' ? item.payload.localUri : undefined;
       await deleteQueuedPhoto(uri);
       await removeQueueItem(item.id);
+      return 'drop';
     }
-    return;
+    return attempts < AUTO_PHOTO_ATTEMPT_CAP ? 'retry' : 'drop';
   }
   if (isPermanentPhotoError(err)) {
     const uri = typeof item.payload.localUri === 'string' ? item.payload.localUri : undefined;
     await deleteQueuedPhoto(uri);
     await removeQueueItem(item.id);
-    return;
+    return 'drop';
   }
-  await bumpQueueAttempt(item.id);
+  const attempts = await bumpQueueAttempt(item.id);
+  item.attempts = attempts;
+  return attempts < AUTO_PHOTO_ATTEMPT_CAP ? 'retry' : 'drop';
 }
 
 function isHttpRetryable(err: unknown): boolean {
@@ -597,10 +600,6 @@ async function drainQueue(
     await Promise.all(
       Array.from({ length: PHOTO_UPLOAD_CONCURRENCY }, async () => {
         while (!stopPhotos && runId === uploadRunId) {
-          if (photoCaptureActive) {
-            await new Promise((resolve) => setTimeout(resolve, 300));
-            continue;
-          }
           pullNew();
           const item = pending.shift();
           if (!item) {
@@ -610,22 +609,28 @@ async function drainQueue(
             continue;
           }
           photoUploadsInFlight += 1;
+          let uploaded = false;
           try {
             ensureCurrentRun(runId);
             const noted = await settlePhotoItem(item, runId);
             if (noted) notedUpload = true;
             synced += 1;
             photosSettled += 1;
+            uploaded = true;
           } catch (err) {
             if (err instanceof UploadSupersededError) return;
             if (isAuthError(err)) {
               stopPhotos = true;
               return;
             }
-            await keepFailedPhoto(item, err);
+            const outcome = await keepFailedPhoto(item, err);
+            if (outcome === 'retry' && runId === uploadRunId && !stopPhotos) {
+              await new Promise((resolve) => setTimeout(resolve, photoRetryDelayMs(item.attempts)));
+              if (runId === uploadRunId && !stopPhotos) pending.push(item);
+            }
           } finally {
             photoUploadsInFlight = Math.max(0, photoUploadsInFlight - 1);
-            if (!stopPhotos && runId === uploadRunId) {
+            if (uploaded && !stopPhotos && runId === uploadRunId) {
               completed += 1;
               publish();
             }
@@ -734,7 +739,7 @@ export async function enqueuePhotoUpload(
   options?: { drain?: boolean },
 ): Promise<string> {
   if (!localUri) throw new Error('Photo is missing from this device.');
-  const drain = options?.drain === true;
+  const drain = options?.drain !== false;
   const kickDrain = () => {
     if (drain) scheduleSyncOfflineQueue();
   };

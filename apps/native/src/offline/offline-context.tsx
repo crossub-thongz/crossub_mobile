@@ -22,7 +22,6 @@ import {
   flushOfflineWork,
   noteAppBackgrounded,
   noteAppForegrounded,
-  isPhotoCaptureActive,
   noteSyncShouldResume,
   subscribeSyncProgress,
   syncOfflineQueue,
@@ -105,7 +104,7 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (status !== 'authed') return;
     const sub = Network.addNetworkStateListener((state) => {
-      if (state.isConnected && syncShouldResume() && !isPhotoCaptureActive()) {
+      if (state.isConnected && syncShouldResume()) {
         void syncNow().catch(() => undefined);
       }
     });

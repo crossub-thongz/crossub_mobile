@@ -6,19 +6,22 @@ import { readLocalFileBase64, resolveLocalFileUri } from '@/src/lib/local-file';
 
 /**
  * Longest edge for inspection evidence.
- * 1600px at quality 0.72 keeps close-up damage readable. One pass only:
- * a second encode makes a large batch much slower.
+ * A report of 1,500 photos has to land around 40–70 MB, so each JPEG is kept
+ * under 46 KB (1,500 × 46 KB ≈ 69 MB). 1024px is enough for a crack or a meter
+ * in the report cell. The first encode does the resize; later passes only run
+ * when that file is still over the cap.
  */
-export const INSPECTION_PHOTO_MAX_EDGE = 1600;
-/** Cap each JPEG at 220 KB so detail is not crushed to hit a tiny file. */
-export const INSPECTION_PHOTO_MAX_BYTES = 220_000;
+export const INSPECTION_PHOTO_MAX_EDGE = 1024;
+/** Cap each JPEG so 1,500 photos stay inside a 70 MB report. */
+export const INSPECTION_PHOTO_MAX_BYTES = 46_000;
 export const INSPECTION_BURST_MAX = 80;
 
-const START_QUALITY = 0.72;
-const MIN_QUALITY = 0.65;
-const MIN_EDGE = 1280;
-const QUALITY_STEP = 0.1;
-const EDGE_SCALE = 0.78;
+const START_QUALITY = 0.45;
+const MIN_QUALITY = 0.32;
+const MIN_EDGE = 768;
+const QUALITY_STEP = 0.08;
+const EDGE_SCALE = 0.8;
+const MAX_ENCODE_ATTEMPTS = 4;
 
 export type LocalPhoto = {
   uri: string;
@@ -88,7 +91,7 @@ export async function compressPhotoToFile(photo: LocalPhoto): Promise<LocalPhoto
   let edge = INSPECTION_PHOTO_MAX_EDGE;
   let current = sourcePhoto.uri;
 
-  for (let attempt = 0; attempt < 1; attempt += 1) {
+  for (let attempt = 0; attempt < MAX_ENCODE_ATTEMPTS; attempt += 1) {
     await yieldToUi();
     let result: { uri: string; width: number; height: number };
     try {
@@ -117,8 +120,10 @@ export async function compressPhotoToFile(photo: LocalPhoto): Promise<LocalPhoto
     if (size > 0 && size <= INSPECTION_PHOTO_MAX_BYTES) break;
     if (quality > MIN_QUALITY + 0.01) {
       quality = Math.max(MIN_QUALITY, quality - QUALITY_STEP);
-    } else {
+    } else if (edge > MIN_EDGE) {
       edge = Math.max(MIN_EDGE, Math.round(edge * EDGE_SCALE));
+    } else {
+      break;
     }
   }
 

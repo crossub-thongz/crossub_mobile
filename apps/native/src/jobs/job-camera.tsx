@@ -19,13 +19,9 @@ import {
   type LocalPhoto,
 } from '@/src/jobs/compress-photo';
 import { pickInspectionPhotos } from '@/src/jobs/pick-inspection-photos';
-import {
-  isDurableLocalPhoto,
-  localPhotoExists,
-  persistQueuedPhoto,
-} from '@/src/offline/queued-photo';
+import { compressAndPersistPhoto, localPhotoExists } from '@/src/offline/queued-photo';
 import { applyPhotoUriRewrites, deleteQueueItemsByLocalUri } from '@/src/offline/db';
-import { enqueuePhotoUpload, setPhotoCaptureActive } from '@/src/offline/sync';
+import { enqueuePhotoUpload } from '@/src/offline/sync';
 import { isRemotePhotoUrl } from '@/src/lib/local-file';
 import { useThumbReachLift } from '@/src/ui/use-scroll-end-padding';
 
@@ -114,14 +110,6 @@ export function JobCamera({
 
   useEffect(() => {
     if (!visible) return;
-    setPhotoCaptureActive(true);
-    return () => {
-      setPhotoCaptureActive(false);
-    };
-  }, [visible]);
-
-  useEffect(() => {
-    if (!visible) return;
     handedOffRef.current = false;
     cancelledRef.current = false;
     setError(null);
@@ -158,11 +146,7 @@ export function JobCamera({
     }
     let photo = captured;
     try {
-      const keepLocal =
-        isDurableLocalPhoto(captured.uri) && (await localPhotoExists(captured.uri));
-      photo = keepLocal
-        ? captured
-        : { ...captured, uri: await persistQueuedPhoto(captured.uri) };
+      photo = await compressAndPersistPhoto(captured);
     } catch (err) {
       const uploaded = applyPhotoUriRewrites(captured.uri);
       if (isRemotePhotoUrl(uploaded)) return { ...captured, uri: uploaded };
@@ -209,7 +193,7 @@ export function JobCamera({
   };
 
   const queueCompress = (captured: LocalPhoto) => {
-    const job = persistTailRef.current.then(() => persistAndQueue(captured, false))
+    const job = persistTailRef.current.then(() => persistAndQueue(captured, true))
       .then((photo) => {
         if (cancelledRef.current || handedOffRef.current) {
           if (cancelledRef.current) void dropQueuedShot(photo.uri);
@@ -287,7 +271,7 @@ export function JobCamera({
         height: picture.height ?? 0,
       };
       if (!burst) {
-        const photo = await persistAndQueue(captured, false);
+        const photo = await persistAndQueue(captured, true);
         if (photo.uri !== captured.uri) await deleteLocalPhoto(captured.uri);
         handedOffRef.current = true;
         onCapture?.(photo);
@@ -319,7 +303,7 @@ export function JobCamera({
       const picked = await pickInspectionPhotos(remaining);
       if (picked.length === 0) return;
       if (!burst) {
-        const photo = await persistAndQueue(picked[0], false);
+        const photo = await persistAndQueue(picked[0], true);
         handedOffRef.current = true;
         setShotList([]);
         onCapture?.(photo);
