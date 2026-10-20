@@ -1,6 +1,7 @@
 import type { components } from '@crossub-thongz/api-contract';
 
-import { apiErrorMessage, crossub } from '@/src/api/client';
+import { apiErrorMessage, crossub, fetchWithBearer } from '@/src/api/client';
+import { getV1BaseUrl } from '@/src/config/api-url';
 import {
   INSPECTION_STATUS,
   OUTSTANDING_STATUSES,
@@ -468,6 +469,17 @@ export async function replyInspectorMessage(
     throwIfFailed(error, response, 'Failed to send message');
   }
   return data;
+}
+
+/** Clear the thread badge (`PATCH /api/v1/inspector/messages/{threadId}/read`). */
+export async function markInspectorMessageRead(threadId: string): Promise<void> {
+  const response = await fetchWithBearer(
+    `${getV1BaseUrl()}/inspector/messages/${encodeURIComponent(threadId)}/read`,
+    { method: 'PATCH' },
+  );
+  if (!response.ok) {
+    throwIfFailed(undefined, response, 'Failed to mark message read');
+  }
 }
 
 export async function fetchInspectorNotifications(): Promise<InspectorNotificationDto[]> {

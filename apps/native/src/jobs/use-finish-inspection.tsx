@@ -17,18 +17,23 @@ export function useFinishInspection({
   onHome: () => void;
   onKeys: () => void;
 }): {
+  beginSubmit: () => void;
+  cancelSubmit: () => void;
   celebrate: (
     successMessage: string,
     redirect?: OverlayState['redirect'],
     title?: string,
+    after?: () => void,
   ) => void;
   celebrating: boolean;
   Celebration: ReactNode;
 } {
   const [overlay, setOverlay] = useState<OverlayState | null>(null);
+  const [submitting, setSubmitting] = useState(false);
   const overlayRef = useRef(overlay);
   overlayRef.current = overlay;
   const pendingRedirectRef = useRef<OverlayState['redirect'] | null>(null);
+  const afterRef = useRef<(() => void) | null>(null);
   const navigationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const onHomeRef = useRef(onHome);
   const onKeysRef = useRef(onKeys);
@@ -42,6 +47,9 @@ export function useFinishInspection({
     }
     pendingRedirectRef.current = null;
     setOverlay(null);
+    const after = afterRef.current;
+    afterRef.current = null;
+    after?.();
     if (redirect === 'keys') onKeysRef.current();
     else onHomeRef.current();
   }, []);
@@ -70,13 +78,24 @@ export function useFinishInspection({
     [],
   );
 
+  const beginSubmit = useCallback(() => {
+    setSubmitting(true);
+  }, []);
+
+  const cancelSubmit = useCallback(() => {
+    setSubmitting(false);
+  }, []);
+
   const celebrate = useCallback(
     (
       successMessage: string,
       redirect: OverlayState['redirect'] = 'home',
       title = 'Inspection complete',
+      after?: () => void,
     ) => {
+      afterRef.current = after ?? null;
       pendingRedirectRef.current = redirect;
+      setSubmitting(false);
       setOverlay({ title, subtitle: successMessage, redirect });
       scheduleNavigation(redirect);
     },
@@ -87,13 +106,20 @@ export function useFinishInspection({
     () => (
       <InspectionCompleteOverlay
         open={overlay != null}
+        submitting={submitting && overlay == null}
         title={overlay?.title ?? ''}
         subtitle={overlay?.subtitle}
         onDone={dismissOverlay}
       />
     ),
-    [overlay, dismissOverlay],
+    [overlay, submitting, dismissOverlay],
   );
 
-  return { celebrate, celebrating: overlay != null, Celebration };
+  return {
+    beginSubmit,
+    cancelSubmit,
+    celebrate,
+    celebrating: overlay != null || submitting,
+    Celebration,
+  };
 }

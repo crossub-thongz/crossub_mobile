@@ -84,7 +84,7 @@ export function FieldWorkflowScreen({
   const [cancelOpen, setCancelOpen] = useState(false);
   const [areasDragging, setAreasDragging] = useState(false);
   const inspectScrollRef = useRef<ScrollView>(null);
-  const { celebrate, Celebration } = useFinishInspection({
+  const { beginSubmit, cancelSubmit, celebrate, Celebration } = useFinishInspection({
     onHome: () => router.replace('/'),
     onKeys: () => {
       if (onChangeTab) onChangeTab('handover', { keys: 'return' });
@@ -486,11 +486,19 @@ export function FieldWorkflowScreen({
         );
         return;
       }
+      beginSubmit();
       const completed = await completeInspection(id, attendanceWindowFromHours(job.estimatedHours));
-      upsertJob({ ...job, status: completed.status === 'COMPLETED' ? 'completed' : job.status });
-      await refresh();
-      celebrate('Routine report sent to agent and landlord');
+      celebrate(
+        'Routine report sent to agent and landlord',
+        'home',
+        'Inspection complete',
+        () => {
+          upsertJob({ ...job, status: completed.status === 'COMPLETED' ? 'completed' : job.status });
+          void refresh();
+        },
+      );
     } catch (err) {
+      cancelSubmit();
       setError(
         err instanceof Error
           ? err.message
@@ -560,23 +568,31 @@ export function FieldWorkflowScreen({
                 );
                 return;
               }
-              const completed = await completeInspection(
-                id,
-                attendanceWindowFromHours(job.estimatedHours),
-              );
-              upsertJob({
-                ...job,
-                status: completed.status === 'COMPLETED' ? 'completed' : job.status,
-              });
-              await refresh();
-              const agencyReport = selfManaged && (job.type === 'ingoing' || job.type === 'outgoing');
-              celebrate(
-                `${INSPECTION_PAY_LABEL[job.type] ?? job.type} report sent for ${
-                  agencyReport ? 'agency' : 'account manager'
-                } review`,
-                'home',
-                agencyReport ? 'Awaiting agency approval' : 'Awaiting approval',
-              );
+              try {
+                beginSubmit();
+                const completed = await completeInspection(
+                  id,
+                  attendanceWindowFromHours(job.estimatedHours),
+                );
+                const agencyReport = selfManaged && (job.type === 'ingoing' || job.type === 'outgoing');
+                celebrate(
+                  `${INSPECTION_PAY_LABEL[job.type] ?? job.type} report sent for ${
+                    agencyReport ? 'agency' : 'account manager'
+                  } review`,
+                  'home',
+                  agencyReport ? 'Awaiting agency approval' : 'Awaiting approval',
+                  () => {
+                    upsertJob({
+                      ...job,
+                      status: completed.status === 'COMPLETED' ? 'completed' : job.status,
+                    });
+                    void refresh();
+                  },
+                );
+              } catch (err) {
+                cancelSubmit();
+                throw err;
+              }
             }}
           />
         </View>

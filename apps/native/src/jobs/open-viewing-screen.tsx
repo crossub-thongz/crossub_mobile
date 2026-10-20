@@ -283,7 +283,7 @@ export function OpenViewingScreen({
   const [busy, setBusy] = useState<string | null>(null);
   const [now, setNow] = useState(Date.now());
   const [cancelOpen, setCancelOpen] = useState(false);
-  const { celebrate, celebrating, Celebration } = useFinishInspection({
+  const { beginSubmit, cancelSubmit, celebrate, celebrating, Celebration } = useFinishInspection({
     onHome: () => router.replace('/'),
     onKeys: () => {
       if (onChangeTab) onChangeTab('handover', { keys: 'return' });
@@ -404,25 +404,33 @@ export function OpenViewingScreen({
         const dto = await acceptInspection(id);
         upsertJob({ ...job, status: 'in_progress', id: dto.id });
       }
+      beginSubmit();
       if (job.keyAccess && !isKeyReturnComplete(job)) {
         await completeInspection(id, { startTime, endTime }).catch(() => undefined);
-        patchJob(id, { workflowData: buildInspectionFinishedPatch(job.workflowData) });
         celebrate(
           'Return the keys to complete this task.',
           'keys',
           'Viewing ended',
+          () => {
+            patchJob(id, { workflowData: buildInspectionFinishedPatch(job.workflowData) });
+          },
         );
         return;
       }
       const completed = await completeInspection(id, { startTime, endTime });
-      upsertJob({ ...job, status: completed.status === 'COMPLETED' ? 'completed' : job.status });
-      await refresh();
       celebrate(
         early
           ? 'Open inspection finished early.'
           : 'Viewing window ended - job completed automatically.',
+        'home',
+        'Inspection complete',
+        () => {
+          upsertJob({ ...job, status: completed.status === 'COMPLETED' ? 'completed' : job.status });
+          void refresh();
+        },
       );
     } catch (err) {
+      cancelSubmit();
       setError(err instanceof Error ? err.message : 'Could not complete this open inspection.');
     } finally {
       setBusy(null);

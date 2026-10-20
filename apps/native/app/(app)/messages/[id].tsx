@@ -30,7 +30,7 @@ function cleanDisplayName(name: string): string {
 export default function MessageThreadScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { user } = useAuth();
-  const { messages, getThreadMessages, sendReply } = useInbox();
+  const { messages, getThreadMessages, markThreadRead, sendReply } = useInbox();
   const thread = messages.find((item) => item.id === id);
   const threadMessages = id ? getThreadMessages(id) : [];
   const [draft, setDraft] = useState('');
@@ -38,6 +38,13 @@ export default function MessageThreadScreen() {
   const [keyboardOpen, setKeyboardOpen] = useState(false);
   const insets = useSafeAreaInsets();
   const scroller = useRef<ScrollView>(null);
+
+  const markedReadRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!id || !thread || thread.unread <= 0 || markedReadRef.current === id) return;
+    markedReadRef.current = id;
+    markThreadRead(id);
+  }, [id, thread, markThreadRead]);
 
   useEffect(() => {
     scroller.current?.scrollToEnd({ animated: true });

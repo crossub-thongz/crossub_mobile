@@ -1,38 +1,55 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { colors } from '@/src/theme';
 
 export function InspectionCompleteOverlay({
   open,
+  submitting = false,
   title,
   subtitle,
   onDone,
 }: {
   open: boolean;
+  submitting?: boolean;
   title: string;
   subtitle?: string;
   onDone: () => void;
 }) {
+  const visible = open || submitting;
   return (
     <Modal
-      visible={open}
+      visible={visible}
       transparent
       animationType="fade"
       statusBarTranslucent
-      onRequestClose={onDone}
+      onRequestClose={submitting ? undefined : onDone}
     >
-      <View style={styles.backdrop} accessibilityViewIsModal accessibilityLabel={title}>
+      <View
+        style={styles.backdrop}
+        accessibilityViewIsModal
+        accessibilityLabel={submitting ? 'Submitting report' : title}
+      >
         <View style={styles.body}>
           <View style={styles.ring}>
             <View style={styles.pulse} />
-            <Ionicons name="checkmark-circle" size={64} color={colors.primary} />
+            {submitting ? (
+              <ActivityIndicator size="large" color={colors.primary} />
+            ) : (
+              <Ionicons name="checkmark-circle" size={64} color={colors.primary} />
+            )}
           </View>
-          <Text style={styles.title}>{title}</Text>
-          {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
-          <Pressable onPress={onDone} style={styles.cta}>
-            <Text style={styles.ctaText}>Continue</Text>
-          </Pressable>
+          <Text style={styles.title}>{submitting ? 'Submitting report' : title}</Text>
+          <Text style={styles.subtitle}>
+            {submitting
+              ? 'Your photos are already uploaded. The report is being built.'
+              : subtitle}
+          </Text>
+          {submitting ? null : (
+            <Pressable onPress={onDone} style={styles.cta}>
+              <Text style={styles.ctaText}>Continue</Text>
+            </Pressable>
+          )}
         </View>
       </View>
     </Modal>

@@ -13,6 +13,7 @@ import {
   createInspectorMessage,
   fetchInspectorMessages,
   fetchInspectorNotifications,
+  markInspectorMessageRead,
   markInspectorNotificationRead,
   replyInspectorMessage,
 } from '@/src/api/inspector';
@@ -35,6 +36,7 @@ type InboxContextValue = {
   error: string | null;
   refresh: () => Promise<void>;
   getThreadMessages: (id: string) => ThreadMessage[];
+  markThreadRead: (id: string) => void;
   markNotificationRead: (id: string) => void;
   createThread: (input: {
     subject: string;
@@ -127,6 +129,13 @@ export function InboxProvider({ children }: { children: ReactNode }) {
     [threadMessages],
   );
 
+  const markThreadRead = useCallback((id: string) => {
+    setMessages((current) =>
+      current.map((item) => (item.id === id ? { ...item, unread: 0 } : item)),
+    );
+    void markInspectorMessageRead(id).catch(() => undefined);
+  }, []);
+
   const markNotificationRead = useCallback((id: string) => {
     setNotifications((current) =>
       current.map((item) => (item.id === id ? { ...item, read: true } : item)),
@@ -218,6 +227,7 @@ export function InboxProvider({ children }: { children: ReactNode }) {
       error,
       refresh,
       getThreadMessages,
+      markThreadRead,
       markNotificationRead,
       createThread,
       sendReply,
@@ -232,6 +242,7 @@ export function InboxProvider({ children }: { children: ReactNode }) {
       error,
       refresh,
       getThreadMessages,
+      markThreadRead,
       markNotificationRead,
       createThread,
       sendReply,
