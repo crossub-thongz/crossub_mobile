@@ -19,6 +19,7 @@ import { attendanceWindowFromHours } from '@/src/lib/findings';
 import {
   compressPhotoToFile,
   deleteLocalPhoto,
+  isBlankPhotoFile,
   prepareStoredPhotoUpload,
   yieldToUi,
   type LocalPhoto,
@@ -54,6 +55,7 @@ import {
   repairQueuedPhotoUri,
   writeQueuedPhotoFromBase64,
 } from '@/src/offline/queued-photo';
+import { discardBlankPhoto } from '@/src/offline/blank-photo';
 import { recoverUnsentPhotos } from '@/src/offline/recover-unsent-photos';
 import { sameLocalPhotoUri } from '@/src/lib/local-file';
 
@@ -65,7 +67,6 @@ const DRAIN_ORDER: OfflineAction[] = [
   'key_custody',
 ];
 
-const MISSING_FILE_DROP_AFTER = 8;
 const PHOTO_UPLOAD_TIMEOUT_MS = 90_000;
 /** Three to five at once. Four uses the uplink without opening one request per photo. */
 const PHOTO_UPLOAD_CONCURRENCY = 4;
@@ -498,6 +499,10 @@ async function settlePhotoItem(item: OfflineQueueItem, runId: number): Promise<b
     await removeQueueItem(item.id);
     return Boolean(localUri && remote && localUri !== remote);
   }
+  if (localUri && (await isBlankPhotoFile(localUri))) {
+    await discardBlankPhoto(localUri, item.id);
+    return false;
+  }
   const remoteUrl = await withTimeout(
     item.action === 'key_photo' ? replayKeyPhoto(item) : replayPhotoUpload(item, runId),
     PHOTO_UPLOAD_TIMEOUT_MS,
@@ -519,26 +524,31 @@ type PhotoFailure = 'skip' | 'drop' | 'retry';
 
 async function keepFailedPhoto(item: OfflineQueueItem, err: unknown): Promise<PhotoFailure> {
   if (err instanceof UploadSupersededError) return 'skip';
+  const uri = typeof item.payload.localUri === 'string' ? item.payload.localUri : '';
+  if (uri && (await isBlankPhotoFile(uri))) {
+    await discardBlankPhoto(uri, item.id);
+    return 'drop';
+  }
   if (isMissingFileError(err)) {
     const attempts = await bumpQueueAttempt(item.id);
     item.attempts = attempts;
-    if (attempts >= MISSING_FILE_DROP_AFTER) {
-      const uri = typeof item.payload.localUri === 'string' ? item.payload.localUri : undefined;
-      await deleteQueuedPhoto(uri);
+    if (attempts >= AUTO_PHOTO_ATTEMPT_CAP) {
+      await deleteQueuedPhoto(uri || undefined);
       await removeQueueItem(item.id);
       return 'drop';
     }
-    return attempts < AUTO_PHOTO_ATTEMPT_CAP ? 'retry' : 'drop';
+    return 'retry';
   }
   if (isPermanentPhotoError(err)) {
-    const uri = typeof item.payload.localUri === 'string' ? item.payload.localUri : undefined;
-    await deleteQueuedPhoto(uri);
+    await deleteQueuedPhoto(uri || undefined);
     await removeQueueItem(item.id);
     return 'drop';
   }
   const attempts = await bumpQueueAttempt(item.id);
   item.attempts = attempts;
-  return attempts < AUTO_PHOTO_ATTEMPT_CAP ? 'retry' : 'drop';
+  if (attempts < AUTO_PHOTO_ATTEMPT_CAP) return 'retry';
+  await removeQueueItem(item.id);
+  return 'drop';
 }
 
 function isHttpRetryable(err: unknown): boolean {
@@ -739,6 +749,10 @@ export async function enqueuePhotoUpload(
   options?: { drain?: boolean },
 ): Promise<string> {
   if (!localUri) throw new Error('Photo is missing from this device.');
+  if (await isBlankPhotoFile(localUri)) {
+    await discardBlankPhoto(localUri);
+    throw new Error('That shot came out blank.');
+  }
   const drain = options?.drain !== false;
   const kickDrain = () => {
     if (drain) scheduleSyncOfflineQueue();
@@ -753,6 +767,10 @@ export async function enqueuePhotoUpload(
     isDurableLocalPhoto(localUri) && (await localPhotoExists(localUri))
       ? localUri
       : await persistPhotoPayload(localUri);
+  if (await isBlankPhotoFile(durable)) {
+    await discardBlankPhoto(durable);
+    throw new Error('That shot came out blank.');
+  }
   if (isRemotePhotoUrl(applyPhotoUriRewrites(durable))) return applyPhotoUriRewrites(durable);
   if (await queueHasLocalUri(durable, inspectionId)) {
     kickDrain();

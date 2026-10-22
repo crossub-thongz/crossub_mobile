@@ -310,9 +310,9 @@ export function JobHandoverPanel({
     return subscribeDraftsChanged((rewrite) => {
       if (!rewrite) return;
       setPhotoUrls((current) =>
-        current.map((url) => {
+        current.flatMap((url) => {
           const next = applyPhotoUriRewrites(url);
-          return typeof next === 'string' ? next : url;
+          return typeof next === 'string' && next ? [next] : [];
         }),
       );
     });
@@ -321,7 +321,9 @@ export function JobHandoverPanel({
   useEffect(() => {
     if (hydratedKey !== formKey || !id || phaseDone) return;
     const draft: HandoverFormDraft = {
-      photoUrls,
+      photoUrls: photoUrls
+        .map((url) => applyPhotoUriRewrites(url))
+        .filter((url): url is string => typeof url === 'string' && url.length > 0),
       party,
       condition,
       keySets,

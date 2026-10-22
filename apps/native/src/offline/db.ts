@@ -97,6 +97,20 @@ export function flushDraftNotifications(): void {
 let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
 const appliedPhotoUriRewrites: Array<{ from: string; to: string }> = [];
 const rewriteByUri = new Map<string, string>();
+const droppedPhotoUris = new Set<string>();
+
+/** A blank capture is removed from drafts so a later save cannot queue it again. */
+export function rememberDroppedPhotoUri(uri: string): void {
+  if (!uri || isRemotePhotoUrl(uri)) return;
+  for (const key of localFileCandidates(uri)) droppedPhotoUris.add(key);
+  notifyDraftsChanged({ from: uri, to: '' });
+}
+
+function isDroppedPhotoUri(uri: string): boolean {
+  if (!uri || droppedPhotoUris.size === 0) return false;
+  if (droppedPhotoUris.has(uri)) return true;
+  return localFileCandidates(uri).some((key) => droppedPhotoUris.has(key));
+}
 
 function indexPhotoUriRewrite(from: string, to: string) {
   rewriteByUri.set(from, to);
@@ -288,7 +302,10 @@ function uploadedUrlFor(uri: string): string | null {
 }
 
 function rewritePhotoTree(value: unknown): unknown {
-  if (typeof value === 'string') return uploadedUrlFor(value) ?? value;
+  if (typeof value === 'string') {
+    if (isDroppedPhotoUri(value)) return '';
+    return uploadedUrlFor(value) ?? value;
+  }
   if (Array.isArray(value)) return value.map((item) => rewritePhotoTree(item));
   if (value && typeof value === 'object') {
     const next: Record<string, unknown> = {};

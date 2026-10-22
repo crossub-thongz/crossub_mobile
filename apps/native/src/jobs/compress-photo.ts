@@ -15,6 +15,8 @@ export const INSPECTION_PHOTO_MAX_EDGE = 1024;
 /** Cap each JPEG so 1,500 photos stay inside a 70 MB report. */
 export const INSPECTION_PHOTO_MAX_BYTES = 46_000;
 export const INSPECTION_BURST_MAX = 80;
+/** A real camera JPEG is larger than this. An empty camera buffer is not. */
+export const MIN_USABLE_PHOTO_BYTES = 1024;
 
 const START_QUALITY = 0.45;
 const MIN_QUALITY = 0.32;
@@ -50,6 +52,22 @@ async function fileSize(uri: string): Promise<number> {
     // Missing file is treated as unknown size.
   }
   return 0;
+}
+
+/**
+ * True when the file is on disk but too small to be a photo.
+ * A missing file is not blank — it may still be copying.
+ */
+export async function isBlankPhotoFile(uri: string): Promise<boolean> {
+  if (!uri || uri.startsWith('http://') || uri.startsWith('https://')) return false;
+  try {
+    const info = await FileSystem.getInfoAsync(uri);
+    if (!info.exists) return false;
+    if (!('size' in info) || typeof info.size !== 'number') return true;
+    return info.size < MIN_USABLE_PHOTO_BYTES;
+  } catch {
+    return false;
+  }
 }
 
 function resizeActions(

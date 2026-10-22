@@ -1,7 +1,12 @@
 import * as FileSystem from 'expo-file-system/legacy';
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 
-import { compressPhotoToFile, deleteLocalPhoto, type LocalPhoto } from '@/src/jobs/compress-photo';
+import {
+  compressPhotoToFile,
+  deleteLocalPhoto,
+  isBlankPhotoFile,
+  type LocalPhoto,
+} from '@/src/jobs/compress-photo';
 import {
   asFileUri,
   isDurableLocalPhoto,
@@ -187,10 +192,17 @@ export async function writeQueuedPhotoFromBase64(contentBase64: string): Promise
   return dest;
 }
 
-/** Compress, then copy into Documents. A failed encode still keeps the original file. */
+/** Compress, then copy into Documents. A blank buffer is not kept. */
 export async function compressAndPersistPhoto(photo: LocalPhoto): Promise<LocalPhoto> {
+  if (await isBlankPhotoFile(photo.uri)) {
+    throw new Error('That shot came out blank.');
+  }
   try {
     const compressed = await compressPhotoToFile(photo);
+    if (await isBlankPhotoFile(compressed.uri)) {
+      if (compressed.uri !== photo.uri) await deleteLocalPhoto(compressed.uri);
+      throw new Error('That shot came out blank.');
+    }
     const durable = await persistQueuedPhoto(compressed.uri);
     if (
       compressed.uri !== durable &&
@@ -200,7 +212,9 @@ export async function compressAndPersistPhoto(photo: LocalPhoto): Promise<LocalP
       await deleteLocalPhoto(compressed.uri);
     }
     return { ...compressed, uri: durable };
-  } catch {
+  } catch (err) {
+    if (err instanceof Error && err.message.includes('blank')) throw err;
+    if (await isBlankPhotoFile(photo.uri)) throw err;
     try {
       const durable = await persistQueuedPhoto(photo.uri);
       return { ...photo, uri: durable };

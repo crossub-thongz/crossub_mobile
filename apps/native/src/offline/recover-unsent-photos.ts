@@ -1,6 +1,7 @@
 import { photoAreaName } from '@/src/constants/inspection-areas';
 import { isDurableLocalPhoto, photoFileName, sameLocalPhotoUri } from '@/src/lib/local-file';
-import { yieldToUi } from '@/src/jobs/compress-photo';
+import { isBlankPhotoFile, yieldToUi } from '@/src/jobs/compress-photo';
+import { discardBlankPhoto } from '@/src/offline/blank-photo';
 import type { RoutineExecutionDraft } from '@/src/lib/types';
 import {
   enqueueOfflineAction,
@@ -46,6 +47,10 @@ async function enqueueLocalPhoto(
 ): Promise<number> {
   if (!url || isRemotePhotoUrl(url)) return 0;
   if (isRemotePhotoUrl(applyPhotoUriRewrites(url))) return 0;
+  if (await isBlankPhotoFile(url)) {
+    await discardBlankPhoto(url);
+    return 0;
+  }
   if (alreadyQueued(uris, url)) return 0;
   let durable = url;
   try {
@@ -61,6 +66,10 @@ async function enqueueLocalPhoto(
     return 0;
   }
   if (!durable || isRemotePhotoUrl(durable) || alreadyQueued(uris, durable)) return 0;
+  if (await isBlankPhotoFile(durable)) {
+    await discardBlankPhoto(durable);
+    return 0;
+  }
   if (isRemotePhotoUrl(applyPhotoUriRewrites(durable))) return 0;
   await enqueueOfflineAction(jobId, action, { localUri: durable, ...extra });
   uris.add(durable);

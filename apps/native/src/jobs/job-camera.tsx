@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   INSPECTION_BURST_MAX,
   deleteLocalPhoto,
+  isBlankPhotoFile,
   type LocalPhoto,
 } from '@/src/jobs/compress-photo';
 import { pickInspectionPhotos } from '@/src/jobs/pick-inspection-photos';
@@ -150,6 +151,7 @@ export function JobCamera({
     } catch (err) {
       const uploaded = applyPhotoUriRewrites(captured.uri);
       if (isRemotePhotoUrl(uploaded)) return { ...captured, uri: uploaded };
+      if (await isBlankPhotoFile(captured.uri)) throw err;
       if (await localPhotoExists(captured.uri)) return captured;
       throw err;
     }
@@ -214,6 +216,10 @@ export function JobCamera({
         }
         return photo;
       })
+      .catch((err: unknown) => {
+        if (!cancelledRef.current && !handedOffRef.current) removeShot(captured.uri);
+        throw err;
+      })
       .finally(() => {
         pendingRef.current.delete(captured.uri);
       });
@@ -253,7 +259,6 @@ export function JobCamera({
           picture = await cameraRef.current.takePictureAsync({
             quality: 0.4,
             exif: false,
-            skipProcessing: true,
           });
           lastError = undefined;
           break;
@@ -265,6 +270,11 @@ export function JobCamera({
       }
       if (lastError) throw lastError;
       if (!picture?.uri) throw new Error('Camera did not return a photo.');
+      if (await isBlankPhotoFile(picture.uri)) {
+        await deleteLocalPhoto(picture.uri);
+        setError('That shot came out blank. Tap the shutter again.');
+        return;
+      }
       const captured: LocalPhoto = {
         uri: picture.uri,
         width: picture.width ?? 0,
