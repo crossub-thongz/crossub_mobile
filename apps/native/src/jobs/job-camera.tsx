@@ -1,11 +1,11 @@
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import { Image } from 'expo-image';
 import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
   Linking,
   Modal,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -24,6 +24,7 @@ import { compressAndPersistPhoto, localPhotoExists } from '@/src/offline/queued-
 import { applyPhotoUriRewrites, deleteQueueItemsByLocalUri } from '@/src/offline/db';
 import { enqueuePhotoUpload } from '@/src/offline/sync';
 import { isRemotePhotoUrl } from '@/src/lib/local-file';
+import { LocalPhotoView } from '@/src/ui/local-photo-view';
 import { useThumbReachLift } from '@/src/ui/use-scroll-end-padding';
 
 type Lens = 0.5 | 1 | 2;
@@ -66,6 +67,15 @@ function cameraErrorMessage(err: unknown, fallback: string): string {
 }
 
 function zoomForLens(lens: Lens): number {
+  // Android CameraX turns this 0–1 value into max(1, value × maxZoom).
+  // 0 and 0.08 both land on 1×, so the 0.5 and 1 buttons did not move the picture.
+  // 0 is the widest view the module allows. The other two stay above that floor
+  // on phones whose max zoom is about 4 or higher.
+  if (Platform.OS === 'android') {
+    if (lens === 0.5) return 0;
+    if (lens === 2) return 0.45;
+    return 0.3;
+  }
   if (lens === 0.5) return 0;
   if (lens === 2) return 0.45;
   return 0.08;
@@ -84,6 +94,7 @@ export function JobCamera({
   const insets = useSafeAreaInsets();
   const thumbLift = useThumbReachLift();
   const cameraRef = useRef<CameraView>(null);
+  const zoomNudgeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const shotsRef = useRef<LocalPhoto[]>([]);
   const pendingRef = useRef<Map<string, Promise<LocalPhoto>>>(new Map());
   const handedOffRef = useRef(false);
@@ -98,6 +109,7 @@ export function JobCamera({
   const [stalled, setStalled] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lens, setLens] = useState<Lens>(1);
+  const [zoomNudge, setZoomNudge] = useState(0);
   const [shots, setShots] = useState<LocalPhoto[]>([]);
   const [reviewUri, setReviewUri] = useState<string | null>(null);
   const burst = mode === 'burst';
@@ -115,7 +127,11 @@ export function JobCamera({
     cancelledRef.current = false;
     setError(null);
     setLens(1);
+    setZoomNudge(0);
     setReviewUri(null);
+    return () => {
+      if (zoomNudgeTimer.current) clearTimeout(zoomNudgeTimer.current);
+    };
   }, [visible]);
 
   useEffect(() => {
@@ -404,11 +420,16 @@ export function JobCamera({
               ref={cameraRef}
               style={styles.preview}
               facing="back"
-              zoom={zoomForLens(lens)}
+              zoom={Math.min(1, zoomForLens(lens) + zoomNudge)}
               onCameraReady={() => {
                 readyRef.current = true;
                 setReady(true);
                 setStalled(false);
+                if (Platform.OS !== 'android') return;
+                // The first zoom is ignored until the camera reports its zoom range.
+                if (zoomNudgeTimer.current) clearTimeout(zoomNudgeTimer.current);
+                setZoomNudge(0.001);
+                zoomNudgeTimer.current = setTimeout(() => setZoomNudge(0), 400);
               }}
             />
             {!ready ? (
@@ -441,8 +462,8 @@ export function JobCamera({
               </View>
               <View style={styles.topSpacer} />
             </View>
-            {burst && shots.length > 0 ? (
-              <View style={styles.strip}>
+            {burst && (shots.length > 0 || Platform.OS === 'android') ? (
+              <View style={styles.strip} collapsable={false}>
                 <FlatList
                   ref={stripRef}
                   horizontal
@@ -450,22 +471,16 @@ export function JobCamera({
                   keyExtractor={(item) => item.uri}
                   showsHorizontalScrollIndicator={false}
                   keyboardShouldPersistTaps="handled"
+                  removeClippedSubviews={false}
                   contentContainerStyle={styles.stripInner}
                   renderItem={({ item }) => (
-                    <View style={styles.thumbWrap}>
+                    <View style={styles.thumbWrap} collapsable={false}>
                       <Pressable
                         onPress={() => setReviewUri(item.uri)}
                         accessibilityRole="button"
                         accessibilityLabel="View photo"
                       >
-                        <Image
-                          source={{ uri: item.uri }}
-                          style={styles.thumb}
-                          contentFit="cover"
-                          cachePolicy="memory"
-                          recyclingKey={item.uri}
-                          transition={0}
-                        />
+                        <LocalPhotoView uri={item.uri} style={styles.thumb} />
                       </Pressable>
                       <Pressable
                         onPress={() => removeShot(item.uri)}
@@ -540,12 +555,10 @@ export function JobCamera({
             </View>
             {reviewed ? (
               <View style={styles.review}>
-                <Image
-                  source={{ uri: reviewed.uri }}
+                <LocalPhotoView
+                  uri={reviewed.uri}
                   style={styles.reviewImage}
                   contentFit="contain"
-                  cachePolicy="memory"
-                  recyclingKey={reviewed.uri}
                 />
                 <View
                   style={[
@@ -621,6 +634,8 @@ const styles = StyleSheet.create({
   useText: { color: '#00d4a4', fontWeight: '700' },
   footer: {
     backgroundColor: '#111111',
+    zIndex: 2,
+    elevation: 8,
   },
   bar: {
     flexDirection: 'row',
@@ -677,6 +692,8 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 12,
     right: 12,
+    zIndex: 2,
+    elevation: 8,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -703,10 +720,19 @@ const styles = StyleSheet.create({
   strip: {
     height: 84,
     backgroundColor: '#111111',
+    zIndex: 2,
+    elevation: 8,
   },
   stripInner: { paddingHorizontal: 16, paddingVertical: 10, alignItems: 'center' },
-  thumbWrap: { width: 64, height: 64, marginRight: 8 },
-  thumb: { width: 64, height: 64, borderRadius: 6, backgroundColor: '#333333' },
+  thumbWrap: {
+    width: 64,
+    height: 64,
+    marginRight: 8,
+    borderRadius: 6,
+    overflow: 'hidden',
+    backgroundColor: '#333333',
+  },
+  thumb: { width: 64, height: 64, backgroundColor: '#333333' },
   thumbRemove: {
     position: 'absolute',
     top: -4,
@@ -729,6 +755,7 @@ const styles = StyleSheet.create({
     left: 0,
     backgroundColor: '#000000',
     zIndex: 5,
+    elevation: 12,
   },
   reviewImage: { flex: 1 },
   reviewBar: {

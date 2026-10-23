@@ -1,5 +1,4 @@
 import Constants from 'expo-constants';
-import * as Notifications from 'expo-notifications';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 
@@ -7,7 +6,29 @@ import { registerDeviceToken, unregisterDeviceToken } from '@/src/api/me';
 
 const TOKEN_KEY = 'csb_push_token';
 
-if (Platform.OS !== 'web') {
+type NotificationsModule = typeof import('expo-notifications');
+
+/**
+ * Expo Go on Android throws as soon as expo-notifications is imported.
+ * A development or store build still loads it.
+ */
+function loadNotifications(): NotificationsModule | null {
+  if (Platform.OS === 'web') return null;
+  if (Platform.OS === 'android' && Constants.executionEnvironment === 'storeClient') return null;
+  try {
+    return require('expo-notifications') as NotificationsModule;
+  } catch {
+    return null;
+  }
+}
+
+const Notifications = loadNotifications();
+
+export function deviceNotifications(): NotificationsModule | null {
+  return Notifications;
+}
+
+if (Notifications) {
   Notifications.setNotificationHandler({
     handleNotification: async () => ({
       shouldShowAlert: true,
@@ -28,7 +49,7 @@ function easProjectId(): string | undefined {
 }
 
 export async function registerInspectorPush(): Promise<void> {
-  if (Platform.OS === 'web') return;
+  if (!Notifications) return;
   const existing = await Notifications.getPermissionsAsync();
   let status = existing.status;
   if (status !== 'granted') {

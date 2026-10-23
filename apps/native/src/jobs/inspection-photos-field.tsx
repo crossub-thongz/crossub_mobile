@@ -1,5 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { Image } from 'expo-image';
+import { LocalPhotoView } from '@/src/ui/local-photo-view';
 import {
   createContext,
   useContext,
@@ -23,14 +23,9 @@ import {
 import type { LocalPhoto } from '@/src/jobs/compress-photo';
 import { pickInspectionPhotos } from '@/src/jobs/pick-inspection-photos';
 import { apiErrorMessage } from '@/src/api/client';
-import { asFileUri, isRemotePhotoUrl, resolveLocalFileUri } from '@/src/lib/local-file';
 import { colors } from '@/src/theme';
 
 const CELL_GAP = 8;
-
-function photoCachePolicy(uri: string) {
-  return isRemotePhotoUrl(uri) ? ('disk' as const) : ('memory' as const);
-}
 
 function uploadAlertMessage(err: unknown): string {
   const message = apiErrorMessage(err, 'Could not add those photos. Try again.');
@@ -111,32 +106,9 @@ function PhotoThumb({
   uri: string;
   onPress: () => void;
 }) {
-  const [src, setSrc] = useState(uri);
-
-  useEffect(() => {
-    let cancelled = false;
-    setSrc(uri);
-    if (!uri || isRemotePhotoUrl(uri)) return;
-    void resolveLocalFileUri(uri).then((resolved) => {
-      if (!cancelled && resolved) setSrc(resolved);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [uri]);
-
-  const display = isRemotePhotoUrl(src) ? src : asFileUri(src);
   return (
     <Pressable onPress={onPress} style={styles.thumbBtn}>
-      <Image
-        source={{ uri: display }}
-        style={StyleSheet.absoluteFill}
-        contentFit="cover"
-        cachePolicy={photoCachePolicy(display)}
-        recyclingKey={display}
-        allowDownscaling
-        transition={0}
-      />
+      <LocalPhotoView uri={uri} style={StyleSheet.absoluteFill} />
     </Pressable>
   );
 }
@@ -176,7 +148,7 @@ function PhotoSetSheet({
           initialNumToRender={12}
           maxToRenderPerBatch={9}
           windowSize={5}
-          removeClippedSubviews
+          removeClippedSubviews={false}
           renderItem={({ item, index }) => (
             <View style={styles.allCell}>
               <PhotoThumb
@@ -339,15 +311,7 @@ export function InspectionPhotosField({
           style={styles.roll}
           accessibilityLabel={`View ${photoUrls.length} photos`}
         >
-          <Image
-            source={{ uri: coverUrl }}
-            style={styles.rollImage}
-            contentFit="cover"
-            cachePolicy={photoCachePolicy(coverUrl)}
-            recyclingKey={coverUrl}
-            allowDownscaling
-            transition={0}
-          />
+          <LocalPhotoView uri={coverUrl} style={styles.rollImage} />
           <View style={styles.rollCount} pointerEvents="none">
             <Text style={styles.rollCountText}>{photoUrls.length}</Text>
           </View>
@@ -370,14 +334,7 @@ export function InspectionPhotosField({
             <Ionicons name="close" size={20} color="#fff" />
           </Pressable>
           {previewUrl ? (
-            <Image
-              source={{ uri: previewUrl }}
-              style={styles.previewImage}
-              contentFit="contain"
-              cachePolicy={photoCachePolicy(previewUrl)}
-              recyclingKey={previewUrl}
-              transition={0}
-            />
+            <LocalPhotoView uri={previewUrl} style={styles.previewImage} contentFit="contain" />
           ) : null}
         </Pressable>
       </Modal>
@@ -472,15 +429,7 @@ export function BeforeAfterPhotoColumn({
         }
       >
         {primaryUrl ? (
-          <Image
-            source={{ uri: primaryUrl }}
-            style={styles.squareImage}
-            contentFit="cover"
-            cachePolicy={photoCachePolicy(primaryUrl)}
-            recyclingKey={primaryUrl}
-            allowDownscaling
-            transition={0}
-          />
+          <LocalPhotoView uri={primaryUrl} style={styles.squareImage} />
         ) : (
           <Text style={styles.squareLabel}>{title}</Text>
         )}
@@ -559,14 +508,7 @@ export function BeforeAfterPhotoColumn({
             </Pressable>
           ) : null}
           {previewUrl ? (
-            <Image
-              source={{ uri: previewUrl }}
-              style={styles.previewImage}
-              contentFit="contain"
-              cachePolicy={photoCachePolicy(previewUrl)}
-              recyclingKey={previewUrl}
-              transition={0}
-            />
+            <LocalPhotoView uri={previewUrl} style={styles.previewImage} contentFit="contain" />
           ) : null}
           {photoUrls.length > 1 ? (
             <Pressable
