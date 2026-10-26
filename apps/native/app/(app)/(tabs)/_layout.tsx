@@ -49,7 +49,7 @@ export default function TabsLayout() {
         options={{
           title: 'Home',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'grid' : 'grid-outline'} color={color} size={20} />
+            <Ionicons name={focused ? 'grid' : 'grid-outline'} color={typeof color === 'string' ? color : colors.muted} size={20} />
           ),
         }}
       />
@@ -60,7 +60,7 @@ export default function TabsLayout() {
           title: 'Pool',
           tabBarBadge: pool.length > 0 ? pool.length : undefined,
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'briefcase' : 'briefcase-outline'} color={color} size={20} />
+            <Ionicons name={focused ? 'briefcase' : 'briefcase-outline'} color={typeof color === 'string' ? color : colors.muted} size={20} />
           ),
         }}
       />
@@ -71,7 +71,7 @@ export default function TabsLayout() {
           tabBarAccessibilityLabel: 'Inspect',
           tabBarBadge: todaysJobs.length > 0 ? todaysJobs.length : undefined,
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'clipboard' : 'clipboard-outline'} color={color} size={20} />
+            <Ionicons name={focused ? 'clipboard' : 'clipboard-outline'} color={typeof color === 'string' ? color : colors.muted} size={20} />
           ),
         }}
       />
@@ -81,7 +81,7 @@ export default function TabsLayout() {
           href: showTribunal ? undefined : null,
           title: 'Tribunal',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'scale' : 'scale-outline'} color={color} size={20} />
+            <Ionicons name={focused ? 'scale' : 'scale-outline'} color={typeof color === 'string' ? color : colors.muted} size={20} />
           ),
         }}
       />
@@ -92,7 +92,7 @@ export default function TabsLayout() {
           tabBarIcon: ({ color, focused }) => (
             <Ionicons
               name={focused ? 'ellipsis-horizontal' : 'ellipsis-horizontal-outline'}
-              color={color}
+              color={typeof color === 'string' ? color : colors.muted}
               size={20}
             />
           ),

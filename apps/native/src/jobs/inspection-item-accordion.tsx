@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, Text, View, type ViewInstance } from 'react-native';
 
 import { AppTextInput } from '@/src/ui/app-text-input';
 
@@ -92,7 +92,7 @@ export function InspectionItemAccordion({
   const current = marks ?? emptyItemMarks();
   const status = itemMarkStatus(current);
   const icon = inspectionItemIcon(name);
-  const rootRef = useRef<View>(null);
+  const rootRef = useRef<ViewInstance>(null);
   const [photoRevision, setPhotoRevision] = useState(0);
   const [commentText, setCommentText] = useState(comment);
   const commentTimer = useRef<ReturnType<typeof setTimeout> | null>(null);

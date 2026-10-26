@@ -96,6 +96,8 @@
     "plugins": [
       "./plugins/with-ios-scene-lifecycle.js",
       "expo-router",
+      "expo-image",
+      "expo-status-bar",
       [
         "expo-splash-screen",
         {

@@ -67,14 +67,13 @@ function cameraErrorMessage(err: unknown, fallback: string): string {
 }
 
 function zoomForLens(lens: Lens): number {
-  // Android CameraX turns this 0–1 value into max(1, value × maxZoom).
-  // 0 and 0.08 both land on 1×, so the 0.5 and 1 buttons did not move the picture.
-  // 0 is the widest view the module allows. The other two stay above that floor
-  // on phones whose max zoom is about 4 or higher.
+  // Expo Go's Android camera will not go below 1×, which is this phone's standard
+  // lens. 0 is that widest view, so the 0.5 button uses it. 0.3 matched the
+  // phone camera's 2× button, and 1× sits between those two.
   if (Platform.OS === 'android') {
     if (lens === 0.5) return 0;
-    if (lens === 2) return 0.45;
-    return 0.3;
+    if (lens === 2) return 0.3;
+    return 0.22;
   }
   if (lens === 0.5) return 0;
   if (lens === 2) return 0.45;

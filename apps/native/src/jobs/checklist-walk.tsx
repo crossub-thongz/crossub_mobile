@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View, type ScrollViewInstance, type ViewInstance } from 'react-native';
 
 import { AppTextInput } from '@/src/ui/app-text-input';
 
@@ -145,8 +145,8 @@ export function ChecklistWalk({
   const [librarySave, setLibrarySave] = useState<LibrarySave | null>(null);
   const cameraTargetRef = useRef<CameraTarget | null>(null);
   const cameraAreaRef = useRef<string | null>(null);
-  const listScrollRef = useRef<ScrollView>(null);
-  const listWrapRef = useRef<View>(null);
+  const listScrollRef = useRef<ScrollViewInstance>(null);
+  const listWrapRef = useRef<ViewInstance>(null);
   const listScrollY = useRef(0);
   const listWindowY = useRef(0);
   const [itemsDragging, setItemsDragging] = useState(false);

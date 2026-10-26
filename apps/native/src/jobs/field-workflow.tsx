@@ -1,6 +1,6 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View, type ScrollViewInstance } from 'react-native';
 
 import { AppTextInput } from '@/src/ui/app-text-input';
 
@@ -83,7 +83,7 @@ export function FieldWorkflowScreen({
   const [cameraOpen, setCameraOpen] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [areasDragging, setAreasDragging] = useState(false);
-  const inspectScrollRef = useRef<ScrollView>(null);
+  const inspectScrollRef = useRef<ScrollViewInstance>(null);
   const { beginSubmit, cancelSubmit, celebrate, Celebration } = useFinishInspection({
     onHome: () => router.replace('/'),
     onKeys: () => {

@@ -293,7 +293,7 @@ export default function PoolScreen() {
           loading && pool.length === 0 && receivingJobs ? (
             <ActivityIndicator color={colors.primary} style={{ marginTop: 24 }} />
           ) : (
-            empty
+            empty ?? undefined
           )
         }
         renderItem={({ item }) => (

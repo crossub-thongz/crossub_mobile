@@ -309,6 +309,7 @@ export function InspectionPhotosField({
         <Pressable
           onPress={() => setShowAll(true)}
           style={styles.roll}
+          collapsable={false}
           accessibilityLabel={`View ${photoUrls.length} photos`}
         >
           <LocalPhotoView uri={coverUrl} style={styles.rollImage} />
@@ -597,10 +598,9 @@ const styles = StyleSheet.create({
     width: 88,
     height: 88,
     borderRadius: 10,
-    overflow: 'hidden',
     backgroundColor: colors.secondary,
   },
-  rollImage: { width: '100%', height: '100%' },
+  rollImage: { width: 88, height: 88, borderRadius: 10 },
   rollCount: {
     position: 'absolute',
     right: 6,

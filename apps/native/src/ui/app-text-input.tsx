@@ -1,5 +1,5 @@
 import { forwardRef } from 'react';
-import { TextInput, type TextInputProps } from 'react-native';
+import { TextInput, type TextInputInstance, type TextInputProps } from 'react-native';
 
 import { stripEmojis } from '@/src/lib/strip-emojis';
 
@@ -7,7 +7,7 @@ export type AppTextInputProps = TextInputProps & {
   allowEmoji?: boolean;
 };
 
-export const AppTextInput = forwardRef<TextInput, AppTextInputProps>(function AppTextInput(
+export const AppTextInput = forwardRef<TextInputInstance, AppTextInputProps>(function AppTextInput(
   { allowEmoji = false, onChangeText, value, defaultValue, ...props },
   ref,
 ) {

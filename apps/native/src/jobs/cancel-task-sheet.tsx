@@ -9,7 +9,7 @@ import {
   StyleSheet,
   Text,
   View,
-  type TextInput,
+  type TextInputInstance,
 } from 'react-native';
 
 import { releaseInspection } from '@/src/api/inspector';
@@ -39,7 +39,7 @@ export function CancelTaskSheet({
   );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const reasonRef = useRef<TextInput>(null);
+  const reasonRef = useRef<TextInputInstance>(null);
 
   const dismissKeyboard = () => {
     reasonRef.current?.blur();

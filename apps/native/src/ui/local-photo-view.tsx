@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import {
   Image as NativeImage,
   Platform,
+  StyleSheet,
   type StyleProp,
   type ImageStyle,
 } from 'react-native';
@@ -43,8 +44,23 @@ export function LocalPhotoView({
   contentFit?: 'cover' | 'contain';
 }) {
   const src = usePhotoUri(uri);
-  if (Platform.OS === 'android' && src && !isRemotePhotoUrl(src)) {
-    return <NativeImage source={{ uri: src }} style={style} resizeMode={contentFit} />;
+  const flat = StyleSheet.flatten(style);
+  const sized =
+    typeof flat?.width === 'number' &&
+    typeof flat.height === 'number' &&
+    flat.width > 0 &&
+    flat.height > 0;
+  if (Platform.OS === 'android' && src && !isRemotePhotoUrl(src) && sized) {
+    // Android leaves a percentage-sized Image blank. The handover cover is a
+    // fixed box, so draw the file at those exact pixels.
+    return (
+      <NativeImage
+        source={{ uri: src }}
+        style={style}
+        resizeMode={contentFit}
+        fadeDuration={0}
+      />
+    );
   }
   return (
     <ExpoImage

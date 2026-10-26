@@ -7,6 +7,7 @@ import {
   NativeSyntheticEvent,
   Pressable,
   ScrollView,
+  type ScrollViewInstance,
   RefreshControl,
   StyleSheet,
   Text,
@@ -93,7 +94,7 @@ function InspectJobList({
           ) : (
             <EmptyState icon="clipboard-outline" title={emptyTitle} description={emptyDescription} />
           )
-        ) : null
+        ) : undefined
       }
       renderItem={({ item }) => (
         <InspectJobRow job={item} onOpen={onOpen} onAction={onAction} />
@@ -106,7 +107,7 @@ export default function InspectScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ tab?: string }>();
   const tab = parseTab(params.tab);
-  const pagerRef = useRef<ScrollView>(null);
+  const pagerRef = useRef<ScrollViewInstance>(null);
   const skipPagerSync = useRef(false);
   const { width } = useWindowDimensions();
   const {

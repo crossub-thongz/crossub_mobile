@@ -363,7 +363,7 @@ async function uploadPhotoBody(
   );
   try {
     file.create({ intermediates: true });
-    file.write(JSON.stringify(body));
+    await file.write(JSON.stringify(body));
     const uploadUrl = `${getV1BaseUrl()}/inspector/inspections/${inspectionId}/photos/upload`;
     if (!isApiOriginUrl(uploadUrl)) {
       throw new Error('Photo upload was pointed at the wrong server.');

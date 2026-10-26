@@ -6,7 +6,7 @@ import {
   Pressable,
   StyleSheet,
   Text,
-  TextInput as RNTextInput,
+  type TextInputInstance,
   View,
   type DimensionValue,
 } from 'react-native';
@@ -52,7 +52,7 @@ export function PoolLocationBar({
   onRadiusChange: (radiusKm: PoolRadiusKm) => void;
   onSortChange: (sort: PoolSort) => void;
 }) {
-  const searchRef = useRef<RNTextInput>(null);
+  const searchRef = useRef<TextInputInstance>(null);
   const [query, setQuery] = useState('');
   const [hits, setHits] = useState<GeocodeHit[]>([]);
   const [searching, setSearching] = useState(false);

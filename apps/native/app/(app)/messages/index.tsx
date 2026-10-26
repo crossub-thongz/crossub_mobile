@@ -237,7 +237,7 @@ export default function MessagesScreen() {
               title="No messages"
               description="Tap New message to contact the office."
             />
-          ) : null
+          ) : undefined
         }
       />
     </View>
