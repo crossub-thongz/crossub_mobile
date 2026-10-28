@@ -190,7 +190,8 @@ export function DraggableNamedList({
               zIndex: dragging ? 40 : 1,
               elevation: dragging ? 18 : 0,
               overflow: 'visible',
-              transform: dragging ? undefined : [{ translateY: shift }],
+              // Android crashes if transform is removed (it arrives as null).
+              transform: [{ translateY: dragging ? 0 : shift }],
             }}
           >
           <Animated.View
@@ -200,7 +201,7 @@ export function DraggableNamedList({
               variant === 'row' && index === items.length - 1 && styles.rowLast,
               activeIndex != null && !dragging && styles.rowDim,
               dropTarget && styles.rowOver,
-              dragging && { transform: [{ translateY: dragY }] },
+              { transform: [{ translateY: dragging ? dragY : 0 }] },
               dragging && styles.rowFloating,
             ]}
           >
