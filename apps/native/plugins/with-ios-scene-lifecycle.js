@@ -1,4 +1,6 @@
-const { withAppDelegate, withInfoPlist } = require('expo/config-plugins');
+const fs = require('fs');
+const path = require('path');
+const { withAppDelegate, withFinalizedMod, withInfoPlist } = require('expo/config-plugins');
 
 const SCENE_MARKER = 'The window is created by SceneDelegate';
 
@@ -95,5 +97,26 @@ module.exports = function withIosSceneLifecycle(config) {
     mod.modResults.contents = applyAppDelegate(mod.modResults.contents);
     return mod;
   });
+  // Expo's prebuild also writes CROSSUBAPP/SceneDelegate.swift. AppDelegate.swift
+  // already declares SceneDelegate, so drop the generated file or the archive fails
+  // with "invalid redeclaration of SceneDelegate".
+  config = withFinalizedMod(config, [
+    'ios',
+    (mod) => {
+      const root = mod.modRequest.platformProjectRoot;
+      const sceneFile = path.join(root, 'CROSSUBAPP', 'SceneDelegate.swift');
+      if (fs.existsSync(sceneFile)) fs.unlinkSync(sceneFile);
+      const project = path.join(root, 'CROSSUBAPP.xcodeproj', 'project.pbxproj');
+      if (fs.existsSync(project)) {
+        const next = fs
+          .readFileSync(project, 'utf8')
+          .split('\n')
+          .filter((line) => !line.includes('SceneDelegate.swift'))
+          .join('\n');
+        fs.writeFileSync(project, next);
+      }
+      return mod;
+    },
+  ]);
   return config;
 };
