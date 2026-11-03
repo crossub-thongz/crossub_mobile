@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "CROSSUB APP",
+    "name": "CROS Inspect",
     "slug": "crossub-inspector",
     "owner": "crossub-property-management",
     "version": "0.1.0",
@@ -21,8 +21,8 @@
         "applinks:crossub-mobile-inspector-prod.onrender.com"
       ],
       "infoPlist": {
-        "CFBundleDisplayName": "CROSSUB\u00a0APP",
-        "CFBundleName": "CROSSUB APP",
+        "CFBundleDisplayName": "CROS Inspect",
+        "CFBundleName": "CROS Inspect",
         "ITSAppUsesNonExemptEncryption": false,
         "NSCameraUsageDescription": "CROSSUB Inspector needs the camera to photograph inspection evidence.",
         "NSPhotoLibraryUsageDescription": "CROSSUB Inspector needs the photo library to attach inspection evidence.",
@@ -43,11 +43,11 @@
       }
     },
     "android": {
-      "label": "CROSSUB APP",
+      "label": "CROS Inspect",
       "package": "com.crossub.inspector",
       "versionCode": 1,
       "adaptiveIcon": {
-        "backgroundColor": "#2BB5A8",
+        "backgroundColor": "#041436",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
@@ -104,12 +104,16 @@
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 220,
           "resizeMode": "contain",
-          "backgroundColor": "#2BB5A8",
+          "backgroundColor": "#041436",
+          "android": {
+            "imageWidth": 176
+          },
           "dark": {
-            "backgroundColor": "#2BB5A8"
+            "backgroundColor": "#041436"
           }
         }
       ],
+      "./plugins/with-android-splash-icon-background.js",
       "expo-font",
       "expo-web-browser",
       "expo-secure-store",
@@ -137,7 +141,7 @@
         "expo-notifications",
         {
           "icon": "./assets/images/icon.png",
-          "color": "#2BB5A8",
+          "color": "#00EAEC",
           "sounds": [],
           "defaultChannel": "report-decisions"
         }

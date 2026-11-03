@@ -1,4 +1,5 @@
 import { createCrossubClient } from '@crossub-thongz/api-contract';
+import * as FileSystem from 'expo-file-system/legacy';
 
 import { getApiOrigin, getV1BaseUrl, isApiOriginUrl } from '@/src/config/api-url';
 import {
@@ -69,6 +70,27 @@ async function refreshSession(): Promise<boolean> {
     });
   }
   return refreshInFlight;
+}
+
+/**
+ * Save a URL to disk with the bearer token. Android's fetch().arrayBuffer() returns an
+ * empty body for a large application/pdf, which the share sheet then treats as "no report".
+ */
+export async function downloadAuthorizedFile(
+  url: string,
+  dest: string,
+): Promise<{ status: number; uri: string }> {
+  const run = async () => {
+    const token = await getAccessToken();
+    const headers: Record<string, string> = { Accept: 'application/pdf, application/json' };
+    if (token) headers.Authorization = `Bearer ${token}`;
+    return FileSystem.downloadAsync(url, dest, { headers });
+  };
+  let result = await run();
+  if (result.status === 401 && !isAuthUrl(url) && (await refreshSession())) {
+    result = await run();
+  }
+  return { status: result.status, uri: result.uri };
 }
 
 export async function fetchWithBearer(
