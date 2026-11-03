@@ -47,7 +47,7 @@
       "package": "com.crossub.inspector",
       "versionCode": 1,
       "adaptiveIcon": {
-        "backgroundColor": "#041436",
+        "backgroundColor": "#FFFFFF",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
@@ -104,12 +104,12 @@
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 220,
           "resizeMode": "contain",
-          "backgroundColor": "#041436",
+          "backgroundColor": "#FFFFFF",
           "android": {
-            "imageWidth": 176
+            "imageWidth": 260
           },
           "dark": {
-            "backgroundColor": "#041436"
+            "backgroundColor": "#FFFFFF"
           }
         }
       ],
