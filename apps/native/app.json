@@ -98,6 +98,7 @@
       "expo-router",
       "expo-image",
       "expo-status-bar",
+      "./plugins/with-android-splash-icon-background.js",
       [
         "expo-splash-screen",
         {
@@ -113,7 +114,6 @@
           }
         }
       ],
-      "./plugins/with-android-splash-icon-background.js",
       "expo-font",
       "expo-web-browser",
       "expo-secure-store",
