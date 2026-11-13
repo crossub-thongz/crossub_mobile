@@ -2972,6 +2972,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/inspector/messages/{threadId}/read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Mark one of the inspector’s message threads as read. */
+        patch: operations["InspectorAccountController_markMessageThreadRead"];
+        trace?: never;
+    };
     "/inspector/notifications": {
         parameters: {
             query?: never;
@@ -3375,6 +3392,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/agent/agencies/{agencyId}/team/{userId}/modules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Choose which modules a team member may open (principal only).
+         * @description Billing is invoices and payment methods. Accounting is Self-Manage trust. A principal always keeps both.
+         */
+        patch: operations["AgentPortalController_updateTeamMemberModules"];
+        trace?: never;
+    };
     "/agent/agencies/{agencyId}/billing": {
         parameters: {
             query?: never;
@@ -3480,14 +3517,14 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List handymen saved by the signed-in agent for an assigned agency.
-         * @description Returns AgencyPreferredContractor rows created by this agent only — the same maintenance contractor records staff create in crossub_web, scoped to the creator.
+         * List the preferred handymen for an assigned agency.
+         * @description AgencyPreferredContractor rows — the same maintenance contractor records staff create in crossub_web. On a Self-Manage agency every row on the agency (the team shares its suppliers); on other plans only the rows this agent created.
          */
         get: operations["AgentPortalController_listPreferredContractors"];
         put?: never;
         /**
          * Save a handyman to the signed-in agent’s personal preferred list.
-         * @description Creates an AgencyPreferredContractor for the assigned agency — same model as crossub_web Maintenance Contractor Create. Only this agent will see the entry.
+         * @description Creates an AgencyPreferredContractor for the assigned agency — same model as crossub_web Maintenance Contractor Create. On a Self-Manage agency the whole team sees it; on other plans only this agent does.
          */
         post: operations["AgentPortalController_addPreferredContractor"];
         delete?: never;
@@ -3583,6 +3620,110 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/agent/properties/{propertyId}/contacts/{contactId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Remove a tenant or landlord contact from a property (soft archive).
+         * @description Removing the primary promotes the next contact for that role.
+         */
+        delete: operations["AgentPortalController_removePropertyContact"];
+        options?: never;
+        head?: never;
+        /**
+         * Correct a live tenant or landlord contact on a property.
+         * @description Omitted fields are left as they are. Marking primary and archiving stay with the other routes.
+         */
+        patch: operations["AgentPortalController_updatePropertyContact"];
+        trace?: never;
+    };
+    "/agent/properties/{propertyId}/contacts/{contactId}/tenant-login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Email a tenant contact their Tenant app login.
+         * @description Creates or reactivates the TENANT login and emails a temporary password. 409 when the tenant already has an active login (they use Forgot password).
+         */
+        post: operations["AgentPortalController_sendTenantLogin"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/properties/{propertyId}/tenancy/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Archive the current tenant and leave the property ready for the next tenancy.
+         * @description Files the tenancy under past tenancies, archives the tenant contacts, clears the tenant, lease dates, rent-paid-to, vacate date and bond, and sets the property Vacant. Rent stays as the asking rent. 400 when there is no current tenant.
+         */
+        post: operations["AgentPortalController_archiveTenancy"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/properties/{propertyId}/tenancy/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Put an archived tenancy back on the property (the undo for archive).
+         * @description Restores the tenant, lease dates, rent-paid-to and bond and sets the property Occupied. Does not restore the vacate date or reopen a cancelled end of lease. 400 when the property already has a tenant or the row is not restorable.
+         */
+        post: operations["AgentPortalController_restoreTenancy"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/properties/{propertyId}/tenancy/current": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Pin which tenancy the property treats as current, or clear the pin.
+         * @description 400 when the agreement is not a live one on this property.
+         */
+        put: operations["AgentPortalController_setCurrentTenancy"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/agent/properties/{propertyId}/assigned-agent": {
         parameters: {
             query?: never;
@@ -3671,6 +3812,26 @@ export interface paths {
         put?: never;
         /** Open a new leasing cycle for a managed property. */
         post: operations["AgentPortalController_createLeasingCycle"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/properties/{propertyId}/applications/{applicationId}/decision": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Approve or decline an applicant from the tenant-selection queue.
+         * @description An application under a live letting takes the letting decision (one live offer per letting). Approving on a Self-Manage property emails the owner a copy from the agency address.
+         */
+        post: operations["AgentPortalController_setApplicationDecision"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4272,6 +4433,26 @@ export interface paths {
         put?: never;
         /** Record rent, bill, or bond arrears for a managed property. */
         post: operations["AgentPortalController_addPropertyArrears"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/properties/{propertyId}/workflows/accounting/arrears/remind": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Email the tenant a reminder about open arrears.
+         * @description Sends to the tenant emails on file and records the arrears as noticed.
+         */
+        post: operations["AgentPortalController_sendPropertyArrearsReminder"];
         delete?: never;
         options?: never;
         head?: never;
@@ -5206,7 +5387,7 @@ export interface paths {
         put?: never;
         /**
          * Close a maintenance job with a reason (manual close — bypasses the completion gates).
-         * @description For a job that should not proceed (duplicate, raised in error, resolved by the tenant…). A 409 lists outstanding commitments; re-send with acknowledgeCommitments: true to close anyway.
+         * @description For a job that should not proceed (duplicate, raised in error, resolved by the tenant…). A 409 lists outstanding commitments or an unpaid contractor invoice; re-send with acknowledgeCommitments or acknowledgePayment set to true to close anyway.
          */
         post: operations["AgentPortalController_closeMaintenance"];
         delete?: never;
@@ -5296,6 +5477,252 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/agent/gii/briefing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Today's morning briefing for the signed-in agent (Jarvis 2.2)
+         * @description Built by the hourly job at 6am in the agent's time zone, or now on the first read of the day. Urgent repairs, arrears, quotes, rent reviews and inspections waiting, unanswered messages and leases ending, most urgent first, plus what reached the bell since the last briefing was opened. Every later read lists what is waiting at that moment, so dealt-with rows drop off; the changes stay as built. Nothing in it is written by a model.
+         */
+        get: operations["AgentGiiController_getBriefing"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/gii/briefing/seen": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Mark a briefing opened
+         * @description The next day's "changes since" counts from the first time it was opened. Opening it again changes nothing.
+         */
+        post: operations["AgentGiiController_markBriefingSeen"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/gii/preferences": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The signed-in agent's Cros preferences (Jarvis 3.2)
+         * @description Tone and sign off of the emails Cros drafts, and quiet hours (no phone alerts in them; the bell card still arrives). Defaults when none are set. Preferred contractors are the agency's own list.
+         */
+        get: operations["AgentGiiController_getPreferences"];
+        /**
+         * Change the signed-in agent's Cros preferences
+         * @description Fields left out stay as they are. Quiet hours are set as a pair, or cleared by sending both as null.
+         */
+        put: operations["AgentGiiController_updatePreferences"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/gii/handoff": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The officer's open chat with the CROSSUB team (Jarvis 2.3)
+         * @description The Cros chat a CROSSUB person holds, if any: their replies, how long the officer has waited, and whether the team is at work. `handoff` is null when no chat is with the team.
+         */
+        get: operations["AgentGiiController_currentHandoff"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/gii/handoff/{threadId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * One chat handed to the CROSSUB team
+         * @description Open or closed; `closed` is true once the team handed it back to Cros. Asked every few seconds while the chat is open.
+         */
+        get: operations["AgentGiiController_getHandoff"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/gii/handoff/{threadId}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Write to the CROSSUB team while they hold the chat
+         * @description Added to the team's thread in the admin Message Center; the person holding it is told on their bell.
+         */
+        post: operations["AgentGiiController_sendHandoffMessage"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/gii/handoff/{threadId}/close": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * End the chat with the CROSSUB team
+         * @description The thread reads Completed in the Conversations console and Cros answers again. A chat already closed is returned as it is.
+         */
+        post: operations["AgentGiiController_closeHandoff"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/gii/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirm a change Cros proposed
+         * @description Runs exactly the proposal behind a Confirm card (`proposal.token` from chat), for the officer it was shown to, if their permissions still allow it. `done: false` carries the reason the change could not be made.
+         */
+        post: operations["AgentGiiController_confirm"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/gii/summarise": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Fold a long chat's older turns into its running summary
+         * @description Send the last summary (if any) and the messages after it that are about to leave the history window. Returns the updated summary; send it as `context.earlierSummary` on later turns.
+         */
+        post: operations["AgentGiiController_summarise"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/gii/conversations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * This officer's saved Cros chats, newest first
+         * @description Only the calling officer’s chats. The latest 50 are kept.
+         */
+        get: operations["AgentGiiController_listConversations"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/gii/conversations/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Open a saved Cros chat */
+        get: operations["AgentGiiController_getConversation"];
+        /**
+         * Save a Cros chat
+         * @description The app mints the id and saves the whole transcript after every turn; a save replaces what was there. A property, when given, must be one the officer can see.
+         */
+        put: operations["AgentGiiController_saveConversation"];
+        post?: never;
+        /** Delete a saved Cros chat */
+        delete: operations["AgentGiiController_deleteConversation"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/gii/changes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * What Cros changed on a property
+         * @description Every change Cros made on the property after an officer pressed Confirm, newest first (latest 50), from the AI decision log: what changed with the values, when, and who confirmed it.
+         */
+        get: operations["AgentGiiController_listChanges"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/agent/gii/voice-status": {
         parameters: {
             query?: never;
@@ -5357,6 +5784,3785 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/agent/maintenance/{requestId}/urgent-authorisations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Decide an urgent job: confirm, convert to normal, make safe, escalate or close (Self-Manage).
+         * @description CONFIRM_URGENT / EMERGENCY_MAKE_SAFE need a contractor, a scope and a spending limit above 0. CONVERT_TO_NORMAL / ESCALATE_EXTERNAL / CLOSE_NO_ACTION need a reason. A new decision supersedes the last.
+         */
+        post: operations["AgentSelfManagedMaintenanceController_authoriseUrgentWork"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/maintenance/{requestId}/split": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Split a separate fault off into its own job (Self-Manage). */
+        post: operations["AgentSelfManagedMaintenanceController_splitJob"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/maintenance/{requestId}/combine-candidates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Live jobs at the same property this one could be combined into (Self-Manage). */
+        get: operations["AgentSelfManagedMaintenanceController_listCombineCandidates"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/maintenance/{requestId}/combine": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Combine this job into another one at the same property (Self-Manage).
+         * @description This job closes as a duplicate; returns the surviving job.
+         */
+        post: operations["AgentSelfManagedMaintenanceController_combineInto"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/maintenance/{requestId}/escalations/{escalationId}/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resolve an escalation on this job (Self-Manage).
+         * @description override (decided by hand; needs a reasonCode and a note), proceed (accept the system path) or dismiss. resumeAutomation false keeps the job manual and needs keepManualReason.
+         */
+        post: operations["AgentSelfManagedMaintenanceController_resolveEscalation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/maintenance/{requestId}/emails": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Email the tenant, a contractor, strata or the owner about this job (Self-Manage).
+         * @description Recipients are named by role and resolved from the job; the first is the To, the rest Cc. The owner (landlord) goes on their own, with no Cc, from the agency’s address. The email is recorded on the job.
+         */
+        post: operations["AgentSelfManagedMaintenanceController_sendEmail"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/maintenance/{requestId}/take-control": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Take the job into manual control (Self-Manage).
+         * @description No automatic chasers or steps run until automation is resumed. A reason is required.
+         */
+        post: operations["AgentSelfManagedMaintenanceController_takeControl"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/maintenance/{requestId}/resume": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Resume automation from where the job now stands (Self-Manage). */
+        post: operations["AgentSelfManagedMaintenanceController_resumeAutomation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/maintenance/{requestId}/details": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Correct the job’s issue type, description, urgency or tenant contact (Self-Manage). */
+        patch: operations["AgentSelfManagedMaintenanceController_updateJob"];
+        trace?: never;
+    };
+    "/agent/maintenance/{requestId}/responsibility": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Set or change who pays for the repair (Self-Manage).
+         * @description A first set works at any open stage. Changing a party already applied returns the job to review and re-decides it. Tenant and strata get the responsibility notice. Choosing the current party changes nothing.
+         */
+        patch: operations["AgentSelfManagedMaintenanceController_setResponsibility"];
+        trace?: never;
+    };
+    "/agent/maintenance/{requestId}/issues": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Add a fault the AI missed to this job (Self-Manage). */
+        post: operations["AgentSelfManagedMaintenanceController_addIssue"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/maintenance/{requestId}/issues/{issueId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Correct one extracted fault (Self-Manage). */
+        patch: operations["AgentSelfManagedMaintenanceController_updateIssue"];
+        trace?: never;
+    };
+    "/agent/maintenance/{requestId}/ai-review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Read the report again with the AI (Self-Manage).
+         * @description Extracts the faults afresh — faults the agent corrected are kept. Faults needing different trades are suggested as separate jobs (an escalation); nothing is split until the agent splits it. When the AI is off the report stays one fault.
+         */
+        post: operations["AgentSelfManagedMaintenanceController_rerunAiReview"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/maintenance/{requestId}/issues/send-questions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Email the tenant questions about the reported faults (Self-Manage). */
+        post: operations["AgentSelfManagedMaintenanceController_sendQuestions"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/maintenance/{requestId}/issues/answers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Record the tenant’s answers, e.g. from a phone call (Self-Manage). */
+        post: operations["AgentSelfManagedMaintenanceController_recordAnswers"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/maintenance/{requestId}/issues/{issueId}/dismiss": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Dismiss an extracted issue that is not a real fault (Self-Manage). */
+        post: operations["AgentSelfManagedMaintenanceController_dismissIssue"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/maintenance/{requestId}/invite-contractors": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Ask the agency’s preferred tradies to quote (Self-Manage). */
+        post: operations["AgentSelfManagedMaintenanceController_inviteContractors"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/maintenance/{requestId}/crossub-quote": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Ask CROSSUB to arrange this job: its partner is invited to quote (Self-Manage).
+         * @description Invites CROSSUB’s maintenance partner to quote, adding them to the agency’s suppliers on first use. Their quote is approved by paying CROSSUB (`quotes/{quotationId}/crossub-charge`), and CROSSUB pays them. Asking again sends nothing new.
+         */
+        post: operations["AgentSelfManagedMaintenanceController_requestCrossubQuote"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/maintenance/{requestId}/quotes/{quotationId}/crossub-charge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * The prepaid charge for approving a CROSSUB quote (Self-Manage).
+         * @description The partner’s quote plus CROSSUB’s fee, prepaid by card. Pay it with `agent/billing/charges/{id}/pay`, then approve the quote with `platformChargeId`. One charge per quote: a retry returns the same one.
+         */
+        post: operations["AgentSelfManagedMaintenanceController_quoteCrossubCharge"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/maintenance/{requestId}/withdraw-contractor": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Take an invited tradie off the quote request (Self-Manage). */
+        post: operations["AgentSelfManagedMaintenanceController_withdrawContractor"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/maintenance/{requestId}/quote-form-links": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * A fresh quote-form link for one invited tradie (Self-Manage).
+         * @description Replaces the tradie’s last link. send (default true) also emails them the quote request again.
+         */
+        post: operations["AgentSelfManagedMaintenanceController_issueQuoteFormLink"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/maintenance/{requestId}/quotes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Enter a quote on an invited tradie’s behalf (Self-Manage). */
+        post: operations["AgentSelfManagedMaintenanceController_createQuote"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/maintenance/{requestId}/quotes/{quotationId}/send-to-owner": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Email one quote to the owner for approval, from the agency’s address (Self-Manage).
+         * @description Tradie, amount, work and availability, with the quote document attached when there is one. There is no approve link: the owner replies to the agency, which records the answer with owner-reply. The quote then shows in ownerQuoteApprovals as awaiting a reply.
+         */
+        post: operations["AgentSelfManagedMaintenanceController_sendQuoteToOwner"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/maintenance/{requestId}/quotes/{quotationId}/owner-reply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Record the owner’s answer to a quote (Self-Manage).
+         * @description approved approves the quote and issues the work order to the tradie; declined declines it with the owner’s words as the reason. The decision goes on the owner-decision trail and the owner gets a copy.
+         */
+        post: operations["AgentSelfManagedMaintenanceController_recordOwnerQuoteReply"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/maintenance/{requestId}/schedule/availability": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Enter the contractor’s visit times; the tenant confirms one (Self-Manage). */
+        post: operations["AgentSelfManagedMaintenanceController_submitScheduleAvailability"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/maintenance/{requestId}/schedule/arranged": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Record a visit the contractor and tenant arranged directly (Self-Manage). */
+        post: operations["AgentSelfManagedMaintenanceController_recordScheduleArranged"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/maintenance/{requestId}/invoice-matches/{matchId}/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Accept an invoice variance or dispute the invoice (Self-Manage). */
+        post: operations["AgentSelfManagedMaintenanceController_resolveInvoiceMatch"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/maintenance/{requestId}/invoice-matches/{matchId}/reopen": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Withdraw a dispute on the invoice (Self-Manage).
+         * @description The invoice goes back to being accepted or disputed.
+         */
+        post: operations["AgentSelfManagedMaintenanceController_reopenInvoiceMatch"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/maintenance/{requestId}/invoice-matches/{matchId}/payment": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Record that the agency paid the tradie itself (Self-Manage).
+         * @description Recorded as EXTERNAL_SETTLEMENT. PAID stays the CROSSUB accounting hand-off.
+         */
+        post: operations["AgentSelfManagedMaintenanceController_recordPayment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/maintenance/{requestId}/completion/files": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Upload a completion photo or the tradie’s invoice on their behalf (Self-Manage).
+         * @description Each kind clears its completion gate. The job closes once every gate is met.
+         */
+        post: operations["AgentSelfManagedMaintenanceController_uploadCompletionFile"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/maintenance/{requestId}/completion/tenant-sign-off": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Record that the tenant confirmed the repair works (Self-Manage). */
+        post: operations["AgentSelfManagedMaintenanceController_recordTenantSignOff"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/maintenance/{requestId}/completion/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Sign the completed work off and email the owner a copy (Self-Manage).
+         * @description Needs completion evidence on the job. The job closes once its other gates are met.
+         */
+        post: operations["AgentSelfManagedMaintenanceController_approveCompletion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/properties/{propertyId}/inspections/agency": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Book an ingoing, outgoing or routine inspection with one of the agency’s own inspectors (Self-Manage).
+         * @description No prepaid gate and no CROSSUB charge. The inspector is assigned immediately and sees the job in the Inspector app. A routine booking makes the property’s routine schedule agency-conducted, so later cycles go to the same inspector.
+         */
+        post: operations["AgentSelfManagedInspectionController_createAgencyInspection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/inspections/{inspectionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One inspection, with what the agent can do next. */
+        get: operations["AgentSelfManagedInspectionController_getInspection"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/inspections/{inspectionId}/report/pdf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The inspection report PDF.
+         * @description An agency job’s report is available once the inspector finishes, so the principal can review it before signing off. A CROSSUB job’s report is available after CROSSUB approves it.
+         */
+        get: operations["AgentSelfManagedInspectionController_downloadReportPdf"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/inspections/{inspectionId}/agency-sign-off": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Sign off the agency inspector’s report (principal, Self-Manage).
+         * @description Approves the job and emails the tenant the ingoing/outgoing report now. The owner is not emailed; that is `POST /agent/inspections/{id}/owner-copy`. A failed email is recorded on `tenantCopyStatus`, not returned as an error.
+         */
+        post: operations["AgentSelfManagedInspectionController_signOff"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/inspections/{inspectionId}/owner-copy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Email the owner a copy of the agency inspector’s report (Self-Manage).
+         * @description Any agent with the property in their book, once the report is in; sign-off is not needed. Sent with the PDF from the agency address and recorded on `ownerCopy`; a failed or skipped send (no owner email) is recorded, not returned as an error, and can be tried again.
+         */
+        post: operations["AgentSelfManagedInspectionController_sendOwnerCopy"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/inspections/{inspectionId}/agency-reject-report": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Send the agency inspector’s report back to redo (principal, Self-Manage).
+         * @description Ingoing and outgoing reports. The inspector is told why and must resubmit.
+         */
+        post: operations["AgentSelfManagedInspectionController_rejectReport"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/inspections/{inspectionId}/conducted-by": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Move an agency job to another of the agency’s inspectors (Self-Manage, before completion). */
+        patch: operations["AgentSelfManagedInspectionController_reassign"];
+        trace?: never;
+    };
+    "/agent/inspections/{inspectionId}/crossub-inspector/quote": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Quote a CROSSUB inspector for this unbooked agency job (Self-Manage, Inspection Only rate).
+         * @description Raises, or reuses, the prepaid charge for this one job. `charge` is null when none is owed; pay it, then call `POST .../crossub-inspector`.
+         */
+        post: operations["AgentSelfManagedInspectionController_quoteCrossubInspector"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/inspections/{inspectionId}/crossub-inspector": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Give this unbooked agency job to a CROSSUB inspector, once paid (Self-Manage).
+         * @description The agency inspector comes off the job and CROSSUB sets the time and sends an inspector. No CROSSUB inspector within 48 hours of payment refunds it and hands it back. Later routine visits stay with the agency.
+         */
+        post: operations["AgentSelfManagedInspectionController_orderCrossubInspector"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/properties/{propertyId}/workflows/leasing-cycle/{cycleId}/applications/{applicationId}/negotiation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Propose new terms to an applicant, or record their counter (Self-Manage). */
+        post: operations["AgentSelfManagedLeasingController_addNegotiationRound"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/properties/{propertyId}/workflows/leasing-cycle/{cycleId}/applications/{applicationId}/negotiation/{roundId}/respond": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Accept, decline or counter an open negotiation round (Self-Manage). */
+        post: operations["AgentSelfManagedLeasingController_respondToNegotiationRound"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/properties/{propertyId}/workflows/leasing-cycle/{cycleId}/applications/{applicationId}/request-info": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Email the applicant for missing documents or details (Self-Manage). */
+        post: operations["AgentSelfManagedLeasingController_requestApplicantInformation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/properties/{propertyId}/workflows/leasing-cycle/{cycleId}/contract": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Edit the tenancy agreement draft: template, term, joint tenants (Self-Manage). */
+        patch: operations["AgentSelfManagedLeasingController_updateContract"];
+        trace?: never;
+    };
+    "/agent/properties/{propertyId}/workflows/leasing-cycle/{cycleId}/contract/conditions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Add a special condition to the tenancy agreement (Self-Manage). */
+        post: operations["AgentSelfManagedLeasingController_addContractCondition"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/properties/{propertyId}/workflows/leasing-cycle/{cycleId}/contract/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Confirm the tenancy agreement draft is ready to send (Self-Manage). */
+        post: operations["AgentSelfManagedLeasingController_confirmContract"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/properties/{propertyId}/workflows/leasing-cycle/{cycleId}/contract/regenerate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Rebuild the tenancy agreement PDF from the current draft (Self-Manage). */
+        post: operations["AgentSelfManagedLeasingController_regenerateContract"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/properties/{propertyId}/workflows/leasing-cycle/{cycleId}/contract/send-to-tenant": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Send the tenancy agreement to the approved tenant to sign (Self-Manage). */
+        post: operations["AgentSelfManagedLeasingController_sendContractToTenant"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/properties/{propertyId}/workflows/leasing-cycle/{cycleId}/contract/upload": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Upload the agency’s own tenancy agreement instead of the generated one (Self-Manage). */
+        post: operations["AgentSelfManagedLeasingController_uploadContract"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/properties/{propertyId}/workflows/leasing-cycle/{cycleId}/agreement/signed-copy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Upload the signed tenancy agreement, signed outside the app (Self-Manage). */
+        post: operations["AgentSelfManagedLeasingController_uploadSignedAgreement"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/properties/{propertyId}/workflows/leasing-cycle/{cycleId}/onboarding/bond-link": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Send the tenant the bond lodgement link (Self-Manage). */
+        post: operations["AgentSelfManagedLeasingController_setBondLink"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/properties/{propertyId}/workflows/leasing-cycle/{cycleId}/applications/{applicationId}/reference-check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The reference check on an applicant: their referees and what you recorded (Self-Manage). */
+        get: operations["AgentSelfManagedLeasingController_getReferenceCheck"];
+        put?: never;
+        /**
+         * Record reference-check notes and a recommendation for an applicant (Self-Manage).
+         * @description Replaces what was recorded before. Returns the updated check.
+         */
+        post: operations["AgentSelfManagedLeasingController_recordReferenceCheck"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/properties/{propertyId}/workflows/leasing-cycle/{cycleId}/applications/{applicationId}/reference-check/summarise": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cros summarises the recorded reference-check notes (Self-Manage).
+         * @description Stores nothing and cannot change the check. The referee list is never sent to the model. `summaryNotice` says why when no summary is produced.
+         */
+        post: operations["AgentSelfManagedLeasingController_summariseReferenceCheck"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/properties/{propertyId}/workflows/leasing-cycle/{cycleId}/applications/skip-screening": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Tenant already found: skip applicant screening and go to onboarding (Self-Manage). */
+        post: operations["AgentSelfManagedLeasingController_skipApplicationScreening"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/properties/{propertyId}/workflows/leasing-cycle/{cycleId}/tenancy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create tenancy: record the tenants and lease you agreed, and close the letting (Self-Manage).
+         * @description Replaces the application path on Self-Manage. Tenants are matched to existing people by email and name or created; the first is the primary and needs an email or phone. The property gets the signed tenancy (agreements, People, a TENANT contact per tenant, tenant folio), the letting closes and its weekly rerun stops, and the owner is sent a copy. Nobody is invited to the tenant app. When the caller is the principal or accountant and Trust is set up, the tenant ledger gets the rent (period as agreed, paid to the day before the lease starts); `rentProfileStatus` says whether it did.
+         */
+        post: operations["AgentSelfManagedLeasingController_createTenancy"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/properties/{propertyId}/workflows/leasing-cycle/{cycleId}/withdraw-tenancy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Archive the incoming tenancy before it starts (Self-Manage).
+         * @description The household signed on this letting is not moving in. Ends its agreements, files it under Past tenancies as withdrawn before it started (not restorable), and closes the letting. A closed letting still accepts this.
+         */
+        post: operations["AgentSelfManagedLeasingController_withdrawIncomingTenancy"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/properties/{propertyId}/workflows/leasing-cycle/{cycleId}/onboarding/deposit-paid": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Mark the holding deposit as received (Self-Manage principal or accountant).
+         * @description Posts the receipt to the property ledger. Repeating it changes nothing.
+         */
+        post: operations["AgentSelfManagedLeasingController_markDepositPaid"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/properties/{propertyId}/workflows/leasing-cycle/{cycleId}/onboarding/deposit-proof/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Approve the deposit proof the tenant uploaded (Self-Manage principal or accountant). */
+        post: operations["AgentSelfManagedLeasingController_approveDepositProof"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/properties/{propertyId}/workflows/leasing-cycle/{cycleId}/onboarding/deposit-proof/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reject the deposit proof so the tenant can upload it again (Self-Manage). */
+        post: operations["AgentSelfManagedLeasingController_rejectDepositProof"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/properties/{propertyId}/workflows/leasing-cycle/{cycleId}/onboarding/bond-paid": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Mark the bond as received (Self-Manage principal or accountant).
+         * @description Posts the receipt to the property ledger and files the bond lodgement link on the property. Repeating it changes nothing.
+         */
+        post: operations["AgentSelfManagedLeasingController_markBondPaid"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/properties/{propertyId}/workflows/leasing-cycle/{cycleId}/onboarding/bond-proof/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Approve the bond proof the tenant uploaded (Self-Manage principal or accountant). */
+        post: operations["AgentSelfManagedLeasingController_approveBondProof"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/properties/{propertyId}/workflows/leasing-cycle/{cycleId}/onboarding/bond-proof/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reject the bond proof so the tenant can upload it again (Self-Manage). */
+        post: operations["AgentSelfManagedLeasingController_rejectBondProof"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/properties/{propertyId}/workflows/leasing-cycle/{cycleId}/open-report/generate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Generate the open inspection report from the viewing (Self-Manage). */
+        post: operations["AgentSelfManagedLeasingController_generateOpenReport"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/properties/{propertyId}/workflows/leasing-cycle/{cycleId}/open-inspections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The open inspections on a letting, earliest first, each with its own report (Self-Manage). */
+        get: operations["AgentSelfManagedLeasingController_listOpenInspections"];
+        put?: never;
+        /**
+         * Schedule another open inspection the agency runs itself (Self-Manage).
+         * @description Adds an open; the letting’s other opens are untouched and the letting stays at its step. Allowed until the property is leased. Returns every open on the letting.
+         */
+        post: operations["AgentSelfManagedLeasingController_addOpenInspection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/properties/{propertyId}/workflows/leasing-cycle/{cycleId}/open-inspections/{sessionId}/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Start one open inspection: the viewing goes live (Self-Manage). */
+        post: operations["AgentSelfManagedLeasingController_startOpenInspection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/properties/{propertyId}/workflows/leasing-cycle/{cycleId}/open-inspections/{sessionId}/close": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Finish one open inspection (Self-Manage).
+         * @description Prospects still only registered are marked as no-shows. The report is generated separately.
+         */
+        post: operations["AgentSelfManagedLeasingController_closeOpenInspection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/properties/{propertyId}/workflows/leasing-cycle/{cycleId}/open-inspections/{sessionId}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cancel one open inspection; the letting’s other opens stay (Self-Manage). */
+        post: operations["AgentSelfManagedLeasingController_cancelOpenInspection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/properties/{propertyId}/workflows/leasing-cycle/{cycleId}/open-inspections/{sessionId}/report/generate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Generate the report for one open inspection (Self-Manage).
+         * @description Closes the open if it is still running. The letting stays at its step. On Self-Manage the report is never generated automatically.
+         */
+        post: operations["AgentSelfManagedLeasingController_generateOpenInspectionReport"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/properties/{propertyId}/workflows/leasing-cycle/{cycleId}/open-inspections/{sessionId}/report/pdf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One open inspection’s report PDF (Self-Manage). */
+        get: operations["AgentSelfManagedLeasingController_downloadOpenInspectionReport"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/properties/{propertyId}/workflows/leasing-cycle/{cycleId}/ingoing/order": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Order the ingoing inspection for the new tenancy (Self-Manage). */
+        post: operations["AgentSelfManagedLeasingController_orderIngoingInspection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/properties/{propertyId}/workflows/rent-review/{reviewId}/negotiation/tenant-response": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Record the tenant’s answer to a rent offer: accept, counter, decline or vacate (Self-Manage).
+         * @description For an answer given by phone, email or in person. The offer ledger records the agent as the channel.
+         */
+        post: operations["AgentSelfManagedLeasingController_recordRentReviewTenantResponse"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/properties/{propertyId}/workflows/rent-review/{reviewId}/review-kind": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Choose Rent Review or Lease Renewal for this tenancy review (Self-Manage).
+         * @description Before the tenant has a notice. Lease Renewal waits for the renewal form; Rent Review starts the market research.
+         */
+        patch: operations["AgentSelfManagedRentReviewController_chooseReviewKind"];
+        trace?: never;
+    };
+    "/agent/properties/{propertyId}/workflows/rent-review/{reviewId}/complete-lease-renewal": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Complete a lease renewal with the new lease dates and rent (Self-Manage).
+         * @description Skips the notice and negotiation. The owner is sent a copy.
+         */
+        patch: operations["AgentSelfManagedRentReviewController_completeLeaseRenewal"];
+        trace?: never;
+    };
+    "/agent/properties/{propertyId}/workflows/rent-review/{reviewId}/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Confirm the pathway on a review CROSSUB opened: rent review, or keep the current rent (Self-Manage). */
+        patch: operations["AgentSelfManagedRentReviewController_confirmReview"];
+        trace?: never;
+    };
+    "/agent/properties/{propertyId}/workflows/rent-review/{reviewId}/postpone": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Postpone the tenancy review (Self-Manage). */
+        patch: operations["AgentSelfManagedRentReviewController_postponeReview"];
+        trace?: never;
+    };
+    "/agent/properties/{propertyId}/workflows/rent-review/{reviewId}/market-research": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Run the market research yourself; Cros recommends a rent (Self-Manage).
+         * @description Replaces asking CROSSUB to run it (request-research). A rerun replaces the earlier result.
+         */
+        post: operations["AgentSelfManagedRentReviewController_runMarketResearch"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/properties/{propertyId}/workflows/rent-review/{reviewId}/notice-of-rent-increase/upload": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Upload your own notice of rent increase PDF (Self-Manage). */
+        post: operations["AgentSelfManagedRentReviewController_uploadNoticeOfRentIncrease"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/properties/{propertyId}/workflows/rent-review/{reviewId}/lease-extension-agreement/upload": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Upload your own lease extension agreement PDF (Self-Manage). */
+        post: operations["AgentSelfManagedRentReviewController_uploadLeaseExtensionAgreement"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/properties/{propertyId}/workflows/rent-review/{reviewId}/lease-extension-agreement/signed-upload": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Record a lease extension agreement signed outside the app (Self-Manage). */
+        post: operations["AgentSelfManagedRentReviewController_uploadSignedLeaseExtensionAgreement"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/properties/{propertyId}/workflows/rent-review/{reviewId}/lease-extension-agreement/revise": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Withdraw a sent lease extension agreement to correct and resend it (Self-Manage). */
+        post: operations["AgentSelfManagedRentReviewController_reviseLeaseExtensionAgreement"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/properties/{propertyId}/workflows/rent-review/{reviewId}/tenant-notice": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Send the notice of rent increase to the tenant (Self-Manage). */
+        post: operations["AgentSelfManagedRentReviewController_sendTenantNotice"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/properties/{propertyId}/workflows/rent-review/{reviewId}/tenant-notice/reserve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Serve the notice again; the 60-day count restarts from today (Self-Manage). */
+        post: operations["AgentSelfManagedRentReviewController_reserveTenantNotice"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/properties/{propertyId}/workflows/rent-review/{reviewId}/resolve-negotiation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Resolve the negotiation: accept the counter, propose again, or mark non-negotiable (Self-Manage). */
+        patch: operations["AgentSelfManagedRentReviewController_resolveNegotiation"];
+        trace?: never;
+    };
+    "/agent/properties/{propertyId}/workflows/rent-review/{reviewId}/negotiation/reopen": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reopen an agreed negotiation, with the reason recorded (Self-Manage). */
+        post: operations["AgentSelfManagedRentReviewController_reopenNegotiation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/properties/{propertyId}/workflows/rent-review/{reviewId}/force-close": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Close the review from any open stage with the outcome you record (Self-Manage).
+         * @description Rent increased (with its effective date) or unchanged, optionally the new lease dates. Nobody is notified.
+         */
+        patch: operations["AgentSelfManagedRentReviewController_forceClose"];
+        trace?: never;
+    };
+    "/agent/end-leasing/{caseId}/report-comparison": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Edit the report comparison, including tenant and landlord responsibility items (Self-Manage).
+         * @description Staff notes stay staff-only.
+         */
+        patch: operations["AgentSelfManagedEndLeasingController_updateReportComparison"];
+        trace?: never;
+    };
+    "/agent/end-leasing/{caseId}/report-comparison/tenant-bond-acknowledgement": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Send the tenant the repair quotation and bond deductions to acknowledge (Self-Manage).
+         * @description No CROSSUB bond deduction proposal or landlord quotation is needed first. The tenant must have accepted the responsibility list.
+         */
+        post: operations["AgentSelfManagedEndLeasingController_sendTenantBondAcknowledgement"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/end-leasing/{caseId}/report-comparison/landlord-quotation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Email the owner the landlord-responsibility quotation (Self-Manage).
+         * @description No CROSSUB maintenance job is needed per item; each needs a quote and a contractor. The agent must have agreed the landlord responsibility list.
+         */
+        post: operations["AgentSelfManagedEndLeasingController_sendLandlordQuotation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/end-leasing/{caseId}/settlement/method": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Deduct from the bond, or have the tenant pay separately (Self-Manage). */
+        patch: operations["AgentSelfManagedEndLeasingController_setSettlementMethod"];
+        trace?: never;
+    };
+    "/agent/end-leasing/{caseId}/settlement/breakdown": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Set the bond held and the deductions by group: rent, water, break lease, repair, cleaning, other (Self-Manage).
+         * @description Each amount given replaces that group’s line; 0 clears it.
+         */
+        patch: operations["AgentSelfManagedEndLeasingController_editSettlement"];
+        trace?: never;
+    };
+    "/agent/end-leasing/{caseId}/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Complete the vacate after the ingoing / outgoing comparison (Self-Manage).
+         * @description The Self-Manage vacate ends at Compare: no quote, confirm or bond steps. Closes the case as the staff manual close-out does (tenancy finalised, vacate date recomputed) and posts no money; the bond refund is the agency’s trust work. The outgoing inspection is left as it is.
+         */
+        post: operations["AgentSelfManagedEndLeasingController_completeVacating"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/end-leasing/{caseId}/settlement/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirm the bond settlement: finalise and approve the statement (Self-Manage).
+         * @description Opens the tenant’s confirmation window and emails the owner a copy of the deductions and refund from the agency address.
+         */
+        post: operations["AgentSelfManagedEndLeasingController_confirmSettlement"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/agencies/{agencyId}/trust/workspace": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The agency’s trust workspace, its trust bank accounts and its chart of accounts (Self-Manage). */
+        get: operations["AgentTrustController_workspace"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/agencies/{agencyId}/trust/bank-accounts/{bankAccountId}/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Trust account overview: balances and what needs doing (Self-Manage). */
+        get: operations["AgentTrustController_overview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/agencies/{agencyId}/trust/bank-accounts/{bankAccountId}/ledgers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Owner, tenant and agency ledgers (Self-Manage). */
+        get: operations["AgentTrustController_listLedgers"];
+        put?: never;
+        /** Open an owner or tenant ledger on one of the agency’s properties, or the agency’s own ledger (Self-Manage). */
+        post: operations["AgentTrustManageController_openLedger"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/agencies/{agencyId}/trust/bank-accounts/{bankAccountId}/suppliers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Add a supplier (tradie, utility) to pay bills to: opens a supplier ledger (Self-Manage). */
+        post: operations["AgentTrustController_addSupplier"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/agencies/{agencyId}/trust/ledgers/{ledgerId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One ledger (Self-Manage). */
+        get: operations["AgentTrustController_getLedger"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Rename a ledger or set its management period (Self-Manage). */
+        patch: operations["AgentTrustManageController_updateLedger"];
+        trace?: never;
+    };
+    "/agent/agencies/{agencyId}/trust/ledgers/{ledgerId}/entries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A ledger’s entries, newest first (Self-Manage). */
+        get: operations["AgentTrustController_ledgerEntries"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/agencies/{agencyId}/trust/bank-accounts/{bankAccountId}/rent-list": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Tenant ledgers with rent due and paid-to dates (Self-Manage). */
+        get: operations["AgentTrustController_rentList"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/agencies/{agencyId}/trust/bank-accounts/{bankAccountId}/tenant-receipts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Receipt rent or other money from a tenant (Self-Manage). */
+        post: operations["AgentTrustController_postTenantReceipt"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/agencies/{agencyId}/trust/ledgers/{ledgerId}/rent-profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Set a tenant ledger’s rent amount, period and paid-to date (Self-Manage). */
+        post: operations["AgentTrustController_setRentProfile"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/agencies/{agencyId}/trust/bank-accounts/{bankAccountId}/bills": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Bills to pay from owner ledgers (Self-Manage). */
+        get: operations["AgentTrustController_listBills"];
+        put?: never;
+        /** Enter a bill against an owner ledger (Self-Manage). */
+        post: operations["AgentTrustController_createBill"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/agencies/{agencyId}/trust/bills/{billId}/pay": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Pay a bill now (Self-Manage). */
+        post: operations["AgentTrustController_payBill"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/agencies/{agencyId}/trust/bank-accounts/{bankAccountId}/disbursement-candidates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Owner ledgers ready to disburse (Self-Manage). */
+        get: operations["AgentTrustController_disbursementCandidates"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/agencies/{agencyId}/trust/bank-accounts/{bankAccountId}/disbursements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Past disbursement runs with their items and payments, newest first (Self-Manage). */
+        get: operations["AgentTrustManageController_listDisbursements"];
+        put?: never;
+        /**
+         * Disburse to owners and queue each owner statement (Self-Manage).
+         * @description Posts fees, pays due bills, pays out and issues statements, then leaves each statement in Pending mail. Nothing is emailed until someone sends it.
+         */
+        post: operations["AgentTrustController_disburse"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/agencies/{agencyId}/trust/bank-accounts/{bankAccountId}/pending-mails": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Rent receipts and owner statements waiting to be emailed, or already sent (Self-Manage). */
+        get: operations["AgentTrustController_listPendingMail"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/agencies/{agencyId}/trust/bank-accounts/{bankAccountId}/pending-mails/{id}/pdf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Download a queued receipt or statement (Self-Manage). */
+        get: operations["AgentTrustController_pendingMailPdf"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/agencies/{agencyId}/trust/bank-accounts/{bankAccountId}/pending-mails/{id}/send": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Email one queued receipt or statement from the agency address (Self-Manage).
+         * @description Sending again does nothing once it has been sent.
+         */
+        post: operations["AgentTrustController_sendPendingMail"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/agencies/{agencyId}/trust/ledgers/{ledgerId}/statements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** An owner ledger’s issued statements (Self-Manage). */
+        get: operations["AgentTrustController_listStatements"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/agencies/{agencyId}/trust/statements/{statementId}/pdf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Download an owner statement PDF (Self-Manage). */
+        get: operations["AgentTrustController_statementPdf"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/agencies/{agencyId}/trust/statements/{statementId}/email": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Email an owner statement to the owner again (Self-Manage). */
+        post: operations["AgentTrustController_emailStatement"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/agencies/{agencyId}/trust/bank-accounts/{bankAccountId}/reconciliation/months": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The monthly reconciliation chain: locked and open months (Self-Manage). */
+        get: operations["AgentTrustController_reconciliationMonths"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/agencies/{agencyId}/trust/bank-accounts/{bankAccountId}/reconciliation/{month}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A month’s reconciliation figures (Self-Manage). */
+        get: operations["AgentTrustController_reconciliationFigures"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/agencies/{agencyId}/trust/bank-accounts/{bankAccountId}/bank-balances/{date}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Record the bank statement balance for a day (Self-Manage). */
+        put: operations["AgentTrustController_recordBankBalance"];
+        post?: never;
+        /** Remove the bank balance recorded on a day (Self-Manage). */
+        delete: operations["AgentTrustManageController_removeBankBalance"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/agencies/{agencyId}/trust/bank-accounts/{bankAccountId}/reconciliation/{month}/lock": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reconcile and lock a month (Self-Manage). */
+        post: operations["AgentTrustController_lockMonth"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/agencies/{agencyId}/trust/bank-accounts/{bankAccountId}/transactions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Transactions on the trust account, newest first (Self-Manage). */
+        get: operations["AgentTrustController_listTransactions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/agencies/{agencyId}/trust/transactions/{transactionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One transaction with its entries (Self-Manage). */
+        get: operations["AgentTrustController_getTransaction"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/agencies/{agencyId}/trust/transactions/{transactionId}/reverse": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reverse a posted transaction, with a reason (Self-Manage).
+         * @description Rolls back any rent paid-to stamp and bank line link. Refused in a locked month.
+         */
+        post: operations["AgentTrustController_reverseTransaction"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/agencies/{agencyId}/trust/ledgers/{ledgerId}/fee-charges": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Fee charges on an owner ledger, newest first, with pending totals (Self-Manage). */
+        get: operations["AgentTrustController_listFeeCharges"];
+        put?: never;
+        /** Charge a one-off fee on an owner ledger; posted at once when the owner can fund it (Self-Manage). */
+        post: operations["AgentTrustController_createFeeCharge"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/agencies/{agencyId}/trust/ledgers/{ledgerId}/fee-charges/post-pending": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post the pending fees the owner ledger can now fund, oldest first (Self-Manage). */
+        post: operations["AgentTrustController_postPendingFees"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/agencies/{agencyId}/trust/fee-charges/{chargeId}/waive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Waive a pending fee charge, with a reason (Self-Manage). */
+        post: operations["AgentTrustController_waiveFeeCharge"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/agencies/{agencyId}/trust/bank-accounts/{bankAccountId}/payments-summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The EFT and BPAY payment pool and whether an ABA file can be built (Self-Manage). */
+        get: operations["AgentTrustController_paymentsSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/agencies/{agencyId}/trust/bank-accounts/{bankAccountId}/payment-batches": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Generated bank files (ABA and BPAY batches), newest first (Self-Manage). */
+        get: operations["AgentTrustController_listPaymentBatches"];
+        put?: never;
+        /** Freeze the EFT (ABA) or BPAY (CSV) pool into a numbered bank file (Self-Manage). */
+        post: operations["AgentTrustController_createPaymentBatch"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/agencies/{agencyId}/trust/payment-batches/{batchId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One bank file batch with its payments (Self-Manage). */
+        get: operations["AgentTrustController_getPaymentBatch"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/agencies/{agencyId}/trust/payment-batches/{batchId}/file": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Download the bank file exactly as generated: ABA text or BPAY CSV (Self-Manage). */
+        get: operations["AgentTrustController_paymentBatchFile"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/agencies/{agencyId}/trust/payment-batches/{batchId}/report": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Download the CSV payment report frozen with the batch (Self-Manage). */
+        get: operations["AgentTrustController_paymentBatchReport"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/agencies/{agencyId}/trust/bank-accounts/{bankAccountId}/bank-statement/read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Read a QIF bank statement and suggest a match for each line (Self-Manage).
+         * @description The file travels base64 in JSON, as on the staff route. D98: nothing in the file is saved; each reconcile call sends its bank line back and only that line is stored.
+         */
+        post: operations["AgentTrustController_readBankStatement"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/agencies/{agencyId}/trust/bank-accounts/{bankAccountId}/bank-statement/link": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Match a bank line to a posted receipt or withdrawal (Self-Manage). */
+        post: operations["AgentTrustController_linkBankLine"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/agencies/{agencyId}/trust/bank-accounts/{bankAccountId}/bank-statement/process-matched": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Process the matched bank lines: receipt credits as rent, link debits (Self-Manage).
+         * @description Each line stands alone; a failure is reported against its key and the rest carry on.
+         */
+        post: operations["AgentTrustController_processMatchedBankLines"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/agencies/{agencyId}/trust/bank-statement/lines/{lineId}/unlink": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Unmatch a reconciled bank line; the transaction is unreconciled again (Self-Manage). */
+        post: operations["AgentTrustController_unlinkBankLine"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/agencies/{agencyId}/trust/bank-accounts/{bankAccountId}/reports/receipts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Receipts report: every money-in cash movement in a period (Self-Manage). */
+        get: operations["AgentTrustController_receiptsReport"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/agencies/{agencyId}/trust/bank-accounts/{bankAccountId}/reports/withdrawals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Withdrawals report: every money-out cash movement in a period (Self-Manage). */
+        get: operations["AgentTrustController_withdrawalsReport"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/agencies/{agencyId}/trust/bank-accounts/{bankAccountId}/reports/folio-balances": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Ledger (folio) balances as at a date (Self-Manage). */
+        get: operations["AgentTrustController_folioBalancesReport"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/agencies/{agencyId}/trust/bank-accounts/{bankAccountId}/reports/unpresented-payments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Unpresented payments as at a date (Self-Manage). */
+        get: operations["AgentTrustController_unpresentedPaymentsReport"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/agencies/{agencyId}/trust/bank-accounts/{bankAccountId}/reports/{kind}/csv": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Download a report as CSV, the same rows as the screen (Self-Manage). */
+        get: operations["AgentTrustController_reportCsv"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/agencies/{agencyId}/trust/ledgers/{ledgerId}/ledger/{format}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Download a ledger with its running balance as CSV or PDF (Self-Manage). */
+        get: operations["AgentTrustController_ledgerFile"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/agencies/{agencyId}/trust/bank-accounts/{bankAccountId}/take-on": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Opening balances: the bank opening balance, the open ledgers and whether it can be posted (Self-Manage). */
+        get: operations["AgentTrustManageController_takeOnStatus"];
+        put?: never;
+        /**
+         * Post the opening balances as one OPENING transaction (Self-Manage).
+         * @description No bank movement; the rows must total the bank opening balance to the cent. A tenant row needs its rent set.
+         */
+        post: operations["AgentTrustManageController_postTakeOn"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/agencies/{agencyId}/trust/bank-accounts/{bankAccountId}/folio-sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The agency’s current owners and tenants that have no ledger yet (Self-Manage). */
+        get: operations["AgentTrustManageController_folioSyncPreview"];
+        put?: never;
+        /** Open a ledger for every current owner and tenant that has none, in one go (Self-Manage). */
+        post: operations["AgentTrustManageController_folioSyncRun"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/agencies/{agencyId}/trust/ledgers/{ledgerId}/close": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Close a ledger; its balance must be zero (Self-Manage). */
+        post: operations["AgentTrustManageController_closeLedger"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/agencies/{agencyId}/trust/ledgers/{ledgerId}/payout-methods": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** How an owner, supplier or the agency is paid, and the payout schedule (Self-Manage). */
+        get: operations["AgentTrustManageController_getPayoutMethods"];
+        /**
+         * Replace the payout methods: bank details, BPAY or cheque (Self-Manage).
+         * @description Active rows split 100%; rows left out are switched off. Account numbers are stored encrypted and never returned.
+         */
+        put: operations["AgentTrustManageController_putPayoutMethods"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/agencies/{agencyId}/trust/ledgers/{ledgerId}/payout-schedule": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Set how often an owner is paid out (Self-Manage). */
+        patch: operations["AgentTrustManageController_setPayoutSchedule"];
+        trace?: never;
+    };
+    "/agent/agencies/{agencyId}/trust/ledgers/{ledgerId}/fee-settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Recurring fees on an owner ledger, such as the management fee (Self-Manage). */
+        get: operations["AgentTrustManageController_getFeeSettings"];
+        /** Replace the recurring fees on an owner ledger; ones left out are switched off (Self-Manage). */
+        put: operations["AgentTrustManageController_putFeeSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/agencies/{agencyId}/trust/ledgers/{ledgerId}/bond": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Set the bond record on a tenant ledger: a record only, never in a balance (Self-Manage). */
+        put: operations["AgentTrustManageController_setBond"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/agencies/{agencyId}/trust/ledgers/{ledgerId}/rent-reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reset a tenant’s paid-to date or rent by hand, with a note (Self-Manage). */
+        post: operations["AgentTrustManageController_resetRent"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/agencies/{agencyId}/trust/ledgers/{ledgerId}/withholds": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Amounts held back on an owner ledger, active and released (Self-Manage). */
+        get: operations["AgentTrustManageController_listWithholds"];
+        put?: never;
+        /** Hold back an amount on an owner ledger, with a reason (Self-Manage). */
+        post: operations["AgentTrustManageController_createWithhold"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/agencies/{agencyId}/trust/withholds/{withholdId}/release": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Release a held-back amount (Self-Manage). */
+        post: operations["AgentTrustManageController_releaseWithhold"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/agencies/{agencyId}/trust/bills/{billId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One bill with its funding check (Self-Manage). */
+        get: operations["AgentTrustManageController_getBill"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Edit a pending bill (Self-Manage). */
+        patch: operations["AgentTrustManageController_updateBill"];
+        trace?: never;
+    };
+    "/agent/agencies/{agencyId}/trust/bills/{billId}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cancel a pending bill, with a reason (Self-Manage). */
+        post: operations["AgentTrustManageController_cancelBill"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/agencies/{agencyId}/trust/bills/{billId}/attachment": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The bill’s attached invoice, streamed inline (Self-Manage). */
+        get: operations["AgentTrustManageController_billAttachment"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/agencies/{agencyId}/trust/disbursements/{runId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One disbursement run (Self-Manage). */
+        get: operations["AgentTrustManageController_getDisbursement"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/agencies/{agencyId}/trust/ledgers/{ledgerId}/statement-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The owner statement as it would be issued on a date; nothing is saved (Self-Manage). */
+        get: operations["AgentTrustManageController_statementPreview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/agencies/{agencyId}/trust/reconciliation-locks/{lockId}/revoke": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Revoke the latest locked month, with a reason (Self-Manage). */
+        post: operations["AgentTrustManageController_revokeLock"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/agencies/{agencyId}/trust/bank-accounts/{bankAccountId}/bank-balances": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Recorded bank balances by day, newest first, and the latest at all (Self-Manage). */
+        get: operations["AgentTrustManageController_listBankBalances"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/agencies/{agencyId}/trust/bank-accounts/{bankAccountId}/tenant-invoices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Tenant invoices with status chips and counts (Self-Manage). */
+        get: operations["AgentTrustInvoicesController_listInvoices"];
+        put?: never;
+        /**
+         * Create a tenant invoice from an owner or a supplier (Self-Manage).
+         * @description No ledger entry: the tenant pays it through a tenant receipt, part payments allowed.
+         */
+        post: operations["AgentTrustInvoicesController_createInvoice"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/agencies/{agencyId}/trust/tenant-invoices/{invoiceId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One tenant invoice with its payments (Self-Manage). */
+        get: operations["AgentTrustInvoicesController_getInvoice"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/agencies/{agencyId}/trust/tenant-invoices/{invoiceId}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cancel a tenant invoice with nothing paid against it, with a reason (Self-Manage). */
+        post: operations["AgentTrustInvoicesController_cancelInvoice"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/agencies/{agencyId}/trust/tenant-invoices/{invoiceId}/pdf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The tenant invoice PDF, filled from the invoice on file (Self-Manage). */
+        get: operations["AgentTrustInvoicesController_invoicePdf"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/agencies/{agencyId}/trust/tenant-invoices/{invoiceId}/attachment": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The invoice attachment, streamed inline (Self-Manage). */
+        get: operations["AgentTrustInvoicesController_invoiceAttachment"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/agencies/{agencyId}/trust/ledgers/{ledgerId}/open-invoices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Open invoices on a tenant ledger, oldest due first: the receipt picker (Self-Manage). */
+        get: operations["AgentTrustInvoicesController_openInvoices"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/agencies/{agencyId}/trust/bank-accounts/{bankAccountId}/bills-summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Bills due, without enough funds, invoices outstanding and overdue (Self-Manage). */
+        get: operations["AgentTrustInvoicesController_billsSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/agencies/{agencyId}/trust/bank-accounts/{bankAccountId}/tenant-receipt-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** What a tenant receipt would do: the rent paid-to and the fees it would charge; nothing is saved (Self-Manage). */
+        get: operations["AgentTrustInvoicesController_tenantReceiptPreview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/agencies/{agencyId}/trust/ledgers/{ledgerId}/tenant-history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Receipts, deposits and rent events on a tenant ledger, newest first, with tenancy totals (Self-Manage). */
+        get: operations["AgentTrustInvoicesController_tenantHistory"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/agencies/{agencyId}/trust/ledgers/{ledgerId}/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** This month in, out and net, and what is reserved, withheld and available on a folio (Self-Manage). */
+        get: operations["AgentTrustInvoicesController_ledgerSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/agencies/{agencyId}/trust/ledgers/{ledgerId}/rent-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** What a rent payment would do to the paid-to date; nothing is saved (Self-Manage). */
+        get: operations["AgentTrustInvoicesController_rentPreview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/agencies/{agencyId}/trust/ledgers/{ledgerId}/transfer-deposit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Move a held deposit to rent (Self-Manage).
+         * @description A journal tenant to owner that advances paid-to; at most the deposit held.
+         */
+        post: operations["AgentTrustInvoicesController_transferDeposit"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/agencies/{agencyId}/trust/setup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Set up the agency’s own trust account: its workspace and first trust bank account (Self-Manage).
+         * @description Creates the AGENCY workspace when the agency has none (seeded with the default account codes), then the trust bank account. Run again after a failed bank account, it adds just the account.
+         */
+        post: operations["AgentTrustSettingsController_setup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/agencies/{agencyId}/trust/bank-accounts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add another trust bank account to the agency’s own trust workspace (Self-Manage).
+         * @description Same fields and checks as the set-up’s bank account, ABA details included. The trust account must be set up first. The account number is stored encrypted and never returned.
+         */
+        post: operations["AgentTrustSettingsController_createBankAccount"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/agencies/{agencyId}/trust/bank-accounts/{bankAccountId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Edit the trust bank account, its ABA details included (Self-Manage).
+         * @description The opening balance and date lock once money has moved. The account number is stored encrypted and never returned.
+         */
+        patch: operations["AgentTrustSettingsController_updateBankAccount"];
+        trace?: never;
+    };
+    "/agent/agencies/{agencyId}/trust/account-codes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Add an income or expense account code (Self-Manage). */
+        post: operations["AgentTrustSettingsController_createAccountCode"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/agencies/{agencyId}/trust/account-codes/{accountCodeId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Rename an account code, change its GST, or switch it off or on (Self-Manage).
+         * @description A built-in (system) code only takes a GST change.
+         */
+        patch: operations["AgentTrustSettingsController_updateAccountCode"];
+        trace?: never;
+    };
+    "/agent/agencies/{agencyId}/trust/bank-accounts/{bankAccountId}/ledger-receipts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Receipt money into a folio by hand, optionally reconciling a bank file credit line (Self-Manage).
+         * @description Refused in a locked month or dated after today (Sydney).
+         */
+        post: operations["AgentTrustTransactionsController_postLedgerReceipt"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/agencies/{agencyId}/trust/bank-accounts/{bankAccountId}/manual-withdrawals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Withdraw from a folio as one bank payment: EFT, BPAY or cheque (Self-Manage).
+         * @description EFT and BPAY wait in the payment pool for the bank file; a cheque is recorded with its number. Refused when the folio cannot fund it or the month is locked.
+         */
+        post: operations["AgentTrustTransactionsController_manualWithdrawal"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/agencies/{agencyId}/trust/bank-accounts/{bankAccountId}/journals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Move money from one folio to another; the bank balance does not change (Self-Manage).
+         * @description Refused when the source folio cannot fund it or the month is locked.
+         */
+        post: operations["AgentTrustTransactionsController_postJournal"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/agencies/{agencyId}/trust/bank-accounts/{bankAccountId}/payments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Bank payments by method and status, newest first, with the counts per method (Self-Manage). */
+        get: operations["AgentTrustTransactionsController_listPayments"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/agencies/{agencyId}/trust/audit-events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The audit trail of the agency’s own trust workspace, newest first, with the audit log filters (Self-Manage).
+         * @description Always the agency’s own workspace; a workspace cannot be named.
+         */
+        get: operations["AgentTrustAuditController_auditEvents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/agencies/{agencyId}/trust/audit-actors": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Everyone who has recorded an audit event in the agency’s trust workspace, for the actor filter (Self-Manage). */
+        get: operations["AgentTrustAuditController_auditActors"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/agencies/{agencyId}/trust/ledgers/{ledgerId}/balance-check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Compare a ledger’s cached balance with the balance computed from its entries (Self-Manage). */
+        get: operations["AgentTrustAuditController_balanceCheck"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/agencies/{agencyId}/inspectors/{userId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Make a team member an agency inspector (principal, Self-Manage agency).
+         * @description They sign in to the Inspector app with their existing login and see only the jobs the agency assigns them. Never in the CROSSUB pool, never paid by CROSSUB.
+         */
+        post: operations["AgentInspectorTeamController_addInspector"];
+        /**
+         * Remove an agency inspector (principal).
+         * @description Deleted when they have no job history; otherwise deactivated, which keeps the history.
+         */
+        delete: operations["AgentInspectorTeamController_removeInspector"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/agencies/{agencyId}/people": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The agency's people with their CP reference (Self-Manage).
+         * @description Search by name, email, phone or CP reference; filter by role; paged.
+         */
+        get: operations["AgentPeopleController_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/agencies/{agencyId}/people/{personId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * One person's profile, limited to the agency's properties (Self-Manage).
+         * @description Tenancies, owned properties, supplier work, applications and folios on this agency only.
+         */
+        get: operations["AgentPeopleController_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/conversations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The Self-Manage agency inbox: mail to the agency’s address and its Self-Manage property threads. */
+        get: operations["AgentConversationController_list"];
+        put?: never;
+        /** Email a tenant, owner or contractor of a Self-Manage property, from the agency’s address. */
+        post: operations["AgentConversationController_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/conversations/unread-count": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** How many open inbox threads are unread: the number the app’s message icons show. */
+        get: operations["AgentConversationController_unreadCount"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/conversations/templates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Message templates, read-only.
+         * @description CROSSUB’s global templates — agency-owned templates are not available yet.
+         */
+        get: operations["AgentConversationController_listTemplates"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/conversations/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * One conversation with its messages. Opening it clears Unread for its owner.
+         * @description Internal notes are never included.
+         */
+        get: operations["AgentConversationController_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/conversations/{id}/reply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reply by email from the agency’s address, or in the tenant app on a property thread.
+         * @description Check `delivery` on an email: anything but `sent` means the recipient got nothing.
+         */
+        post: operations["AgentConversationController_reply"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/conversations/{id}/assignee": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Assign the conversation to a member of its agency’s team, or unassign it. */
+        patch: operations["AgentConversationController_setAssignee"];
+        trace?: never;
+    };
+    "/agent/conversations/{id}/state": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Resolve or reopen the conversation. */
+        patch: operations["AgentConversationController_setState"];
+        trace?: never;
+    };
+    "/agent/conversations/{id}/property": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** File the conversation under one of its agency’s Self-Manage properties. */
+        patch: operations["AgentConversationController_setProperty"];
+        trace?: never;
+    };
+    "/agent/conversations/{id}/jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Open jobs on the conversation’s property it can be linked to.
+         * @description Maintenance, inspection, leasing, rent review and end of lease.
+         */
+        get: operations["AgentConversationController_listJobs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/conversations/{id}/job": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Unlink the conversation from its job. */
+        delete: operations["AgentConversationController_unlinkJob"];
+        options?: never;
+        head?: never;
+        /** Link the conversation to a job on its property. */
+        patch: operations["AgentConversationController_linkJob"];
+        trace?: never;
+    };
+    "/agent/conversations/{id}/ai-draft": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Draft a reply with Cros from the conversation and an instruction.
+         * @description Nothing is sent or stored. Falls back to a plain starter when AI is unavailable.
+         */
+        post: operations["AgentConversationController_aiDraft"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/properties/{propertyId}/tenancy-overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The Overview cards and Tenancies tab for one property.
+         * @description Key dates, rent and bond, arrears, the tenant, the current tenancy and its pin, contacts, archived tenancies, every agreement, and the lettings, rent reviews and ends of lease the tenancy grouping reads. Inspection-only properties come back with the tenancy parts empty.
+         */
+        get: operations["AgentPropertyTenanciesController_getTenancyOverview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/properties/{propertyId}/tenancies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add a tenancy by hand, without starting leasing (Self-Manage).
+         * @description Records the tenants and lease details only: no leasing cycle and no ingoing inspection. A draft may be incomplete. A tenancy starting after today (Sydney) is upcoming. A non-draft tenancy is refused when its dates overlap another live tenancy here.
+         */
+        post: operations["AgentPropertyTenanciesController_addManualTenancy"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/properties/{propertyId}/tenancies/remove": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Remove a tenancy added by hand by mistake (Self-Manage).
+         * @description Only agreements Add tenancy wrote on this property, while a draft or upcoming. A draft is deleted; an upcoming tenancy is filed under Past tenancies as withdrawn before it started. A tenancy that has started ends through Archive tenancy (400).
+         */
+        post: operations["AgentPropertyTenanciesController_removeManualTenancy"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/properties/{propertyId}/tenants/{personId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Edit a tenant's name, email and phone (Self-Manage).
+         * @description Writes the person, their tenant app login, every live tenant contact that is this person, and the property notice details where they hold them. Omitted fields are left alone.
+         */
+        patch: operations["AgentPropertyTenanciesController_updateTenantDetails"];
+        trace?: never;
+    };
+    "/agent/properties/{propertyId}/contacts/{contactId}/primary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Make a contact the primary tenant or owner (Self-Manage).
+         * @description The primary is the statutory-notice recipient; the other primaries of that role are cleared and the property notice details follow the new primary.
+         */
+        post: operations["AgentPropertyTenanciesController_setPrimaryContact"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent-outstanding-reminders/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Preview the agent outstanding-reminder sweep (dry run — plans the cards, writes nothing). */
+        get: operations["AgentOutstandingReminderController_preview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/service-recommendations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Buttons Cros, Home, and Inspection may show right now. */
+        get: operations["AgentServiceOfferController_recommendations"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/service-recommendations/focus": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Remember which offer is on screen so the others stay hidden. */
+        post: operations["AgentServiceOfferController_focus"];
+        /** Clear the offer currently on screen. */
+        delete: operations["AgentServiceOfferController_clearFocus"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/service-recommendations/inspections/{inspectionId}/snooze": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Hide this inspection offer for a week. */
+        post: operations["AgentServiceOfferController_snoozeInspection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/service-recommendations/inspections/{inspectionId}/dismiss": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Stop offering help with this inspection. */
+        post: operations["AgentServiceOfferController_dismissInspection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/service-recommendations/schedules/{scheduleId}/snooze": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Hide this routine-cycle offer for a week. */
+        post: operations["AgentServiceOfferController_snoozeSchedule"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/service-recommendations/schedules/{scheduleId}/dismiss": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Stop offering help with this routine cycle. */
+        post: operations["AgentServiceOfferController_dismissSchedule"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/full-service-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Full Service terms and this agent’s applications. */
+        get: operations["AgentServiceOfferController_listApplications"];
+        put?: never;
+        /** Submit a Full Service application. Does not change any service level. */
+        post: operations["AgentServiceOfferController_createApplication"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/maintenance/{requestId}/quote-offer": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Whether the Crossub Assistance quote modal may open on this job. */
+        get: operations["AgentServiceOfferController_quoteOffer"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/maintenance/{requestId}/quote-offer/snooze": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Hide the quote offer on this job for a week. */
+        post: operations["AgentServiceOfferController_snoozeQuote"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/maintenance/{requestId}/quote-offer/dismiss": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Stop showing the quote offer on this job. */
+        post: operations["AgentServiceOfferController_dismissQuote"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/me": {
         parameters: {
             query?: never;
@@ -5366,6 +9572,26 @@ export interface paths {
         };
         /** Get the signed-in user’s profile. */
         get: operations["MeController_getMe"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/web-push-key": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The key a browser subscribes to push alerts with.
+         * @description publicKey is null when this server has no web push keys; the app then shows alerts as unavailable.
+         */
+        get: operations["MeController_getWebPushKey"];
         put?: never;
         post?: never;
         delete?: never;
@@ -7836,7 +12062,7 @@ export interface components {
              * @example RENT_RECEIVED
              * @enum {string}
              */
-            type: "RENT_RECEIVED" | "ARREARS" | "MAINTENANCE" | "APPROVAL_REQUIRED" | "INSPECTION" | "RENT_REVIEW" | "LEASE_RENEWAL" | "STATEMENT";
+            type: "RENT_RECEIVED" | "ARREARS" | "MAINTENANCE" | "APPROVAL_REQUIRED" | "INSPECTION" | "RENT_REVIEW" | "LEASE_RENEWAL" | "STATEMENT" | "MESSAGE";
             /** @example Rent received */
             title: string;
             /** @example $850 rent received for 2 Mobile Way. */
@@ -9063,8 +13289,8 @@ export interface components {
             /** Format: date-time */
             locationUpdatedAt: string | null;
             /**
-             * @description Set for a Self-Manage agency inspector: they work only that agency’s jobs. Null for a CROSSUB inspector.
              * Format: uuid
+             * @description Set for a Self-Manage agency inspector: they work only that agency’s jobs (no pool). Null for a CROSSUB inspector.
              */
             agencyId: string | null;
             /** @description The agency name when `agencyId` is set. */
@@ -9574,9 +13800,19 @@ export interface components {
              * @example PRINCIPAL
              * @enum {string}
              */
-            membershipTier: "PRINCIPAL" | "AGENT";
+            membershipTier: "PRINCIPAL" | "AGENT" | "ACCOUNTANT";
+            /** @description Modules this login may open for this agency. Billing is invoices and payment methods. Accounting is Self-Manage trust. A principal always has both. */
+            portalModules: ("BILLING" | "ACCOUNTING")[];
             /** @description Australian Business Number — shown on tax invoices. */
             abn: string | null;
+            /** @description New Zealand Business Number. Empty for an Australian agency. */
+            nzbn: string | null;
+            /**
+             * @description Country the agency operates in. Decides ABN versus NZBN on the profile.
+             * @example AU
+             * @enum {string}
+             */
+            region: "AU" | "NZ";
             /** @description Estate agent licence number — shown on tax invoices. */
             licenceNumber: string | null;
             bankName: string | null;
@@ -9603,6 +13839,11 @@ export interface components {
              * @example 1
              */
             accountManagerExtension: string | null;
+            /**
+             * @description The agency's own address on the CROSSUB inbound domain. A Self-Manage agency's owner emails are sent from it, shown under the agency's name, and replies to it land in the agency's Conversations. Null until the agency has one; it is assigned on entering Self-Manage. Read-only here: CROSSUB staff change it on the admin agency page.
+             * @example skyline-realty@email.crossub.com.au
+             */
+            inboundEmailAddress: string | null;
         };
         PaginatedAgentAgenciesDto: {
             /**
@@ -9706,7 +13947,7 @@ export interface components {
              * @example PRINCIPAL
              * @enum {string}
              */
-            tier: "PRINCIPAL" | "AGENT";
+            tier: "PRINCIPAL" | "AGENT" | "ACCOUNTANT";
             /** Format: date-time */
             assignedAt: string;
             /**
@@ -9714,6 +13955,15 @@ export interface components {
              * @example 3
              */
             assignedPropertyCount: number;
+            /** @description Self-Manage: this member is an active agency inspector (works the agency’s inspections in the Inspector app). */
+            isAgencyInspector: boolean;
+            /**
+             * Format: uuid
+             * @description Their agency inspector roster id when `isAgencyInspector`.
+             */
+            inspectorId: string | null;
+            /** @description Modules this member may open. The principal always has both and cannot be changed here. */
+            modules: ("BILLING" | "ACCOUNTING")[];
         };
         AgentTeamResponseDto: {
             members: components["schemas"]["AgentTeamMemberDto"][];
@@ -9721,7 +13971,7 @@ export interface components {
              * @description Signed-in caller tier for this agency.
              * @enum {string}
              */
-            callerTier: "PRINCIPAL" | "AGENT";
+            callerTier: "PRINCIPAL" | "AGENT" | "ACCOUNTANT";
         };
         InviteAgencyAgentDto: {
             /**
@@ -9731,14 +13981,28 @@ export interface components {
             email: string;
             /** @example Jordan Lee */
             contactName?: string;
+            /** @enum {string} */
+            tier?: "AGENT" | "ACCOUNTANT";
         };
         InviteAgencyAgentResponseDto: {
             inviteSent: boolean;
             registrationUrl: string | null;
             alreadyRegistered: boolean | null;
         };
+        UpdateAgencyTeamModulesDto: {
+            /**
+             * @description Modules this team member may open. Billing is invoices and payment methods. Accounting is Self-Manage trust. Omit a module to hide it. A principal cannot be changed.
+             * @example [
+             *       "ACCOUNTING"
+             *     ]
+             * @enum {array}
+             */
+            modules: "BILLING" | "ACCOUNTING";
+        };
         AgentUpdateAgencyBillingDto: {
             abn?: string;
+            /** @description New Zealand Business Number. Used instead of ABN for an NZ agency. */
+            nzbn?: string;
             licenceNumber?: string;
             contactEmail?: string;
             bankName?: string;
@@ -10044,6 +14308,21 @@ export interface components {
              * @example DS633468
              */
             paymentReference: string | null;
+            /**
+             * @description Cycle the rent was agreed in. Display only; rentWeekly stays the weekly amount.
+             * @enum {string}
+             */
+            rentPeriod: "WEEKLY" | "FORTNIGHTLY" | "MONTHLY" | "YEARLY";
+            /**
+             * @description Repair spend the agency may approve without the owner, AUD, set on this property. Null uses the agency default.
+             * @example 500
+             */
+            maintenanceSpendThreshold: number | null;
+            /**
+             * Format: uuid
+             * @description The tenancy agreement pinned as current, overriding the lease-date rule. Null when none is pinned.
+             */
+            pinnedTenancyId: string | null;
             /** @description Public cover image URL for listings and the property profile. */
             imageUrl: string | null;
             /** @description Present on PATCH when a newly saved tenant email triggered an automatic Tenant app invite. */
@@ -10119,6 +14398,38 @@ export interface components {
             contacts: components["schemas"]["AgentPropertyContactDto"][];
             /** @description Present when a TENANT contact with an email triggered an automatic Tenant app invite. */
             tenantPortalInvite?: components["schemas"]["AgentTenantPortalInviteDto"];
+        };
+        AgentTenantLoginSentDto: {
+            /** Format: email */
+            email: string;
+            name: string | null;
+            /** @description True when this created the tenant login; false when it reactivated one. */
+            createdUser: boolean;
+        };
+        AgentRestoreTenancyDto: {
+            /**
+             * @description The archived tenancy's `archivedAt`, exactly as registryDraft.tenancyArchives holds it.
+             * @example 2026-08-11T05:35:24.751Z
+             */
+            archivedAt: string;
+        };
+        AgentSetCurrentTenancyDto: {
+            /**
+             * Format: uuid
+             * @description The TenancyAgreement to treat as current. Null clears the pin.
+             */
+            tenancyId: string | null;
+        };
+        UpdateAgentPropertyContactDto: {
+            /** @example Alex Tenant */
+            name?: string | null;
+            /**
+             * Format: email
+             * @example alex@example.com
+             */
+            email?: string | null;
+            /** @example +61 400 000 000 */
+            phone?: string | null;
         };
         ManagementFeeRowDto: {
             id?: string;
@@ -10237,13 +14548,25 @@ export interface components {
             tenantEmail?: string;
             tenantPhone?: string;
             leaseStartDate?: string;
-            leaseEndDate?: string;
-            nextRentReviewAt?: string;
+            /** @description Null clears it. */
+            leaseEndDate?: string | null;
+            /** @description Null clears it. */
+            nextRentReviewAt?: string | null;
             rentPaidUntil?: string;
-            vacateDate?: string;
+            /** @description Null clears it. */
+            vacateDate?: string | null;
             vacateDateChangeReason?: string;
             nextInspectionAt?: string;
             rentWeekly?: number;
+            /**
+             * @description Cycle the rent was agreed in. Display only; rentWeekly stays the weekly amount.
+             * @enum {string}
+             */
+            rentPeriod?: "WEEKLY" | "FORTNIGHTLY" | "MONTHLY" | "YEARLY";
+            /** @description Reference the tenant quotes on a rent payment. Blank or null removes it. */
+            paymentReference?: string | null;
+            /** @description Repair spend the agency may approve without the owner, AUD. Overrides the agency default; 0 or null clears it. */
+            maintenanceSpendThreshold?: number | null;
             bondAmount?: number;
             depositAmount?: number;
             buildingName?: string;
@@ -10329,6 +14652,11 @@ export interface components {
         AgentWorkflowCreateResultDto: {
             id: string;
             openInspectionId?: string;
+        };
+        SetApplicantDecisionDto: {
+            /** @enum {string} */
+            decision: "approved" | "rejected";
+            confirmationNote?: string;
         };
         AgentSetReletDecisionDto: {
             desiredStartDate?: string;
@@ -10723,6 +15051,25 @@ export interface components {
             bondDescription?: string;
             note?: string;
         };
+        AgentSendArrearsReminderDto: {
+            /**
+             * Format: uuid
+             * @description One open arrears case. Omit to remind on every open case for the property.
+             */
+            caseId?: string;
+            /** @description Email body. When omitted, the standard arrears reminder is sent. */
+            message?: string;
+        };
+        AgentArrearsReminderResultDto: {
+            /**
+             * @description Tenant addresses the reminder went to.
+             * @example 1
+             */
+            emailsSent: number;
+            /** @example Rent arrears reminder — 1 QA Street */
+            subject: string;
+            body: string;
+        };
         AgentTaskLifecycleDto: {
             reason?: string;
         };
@@ -10952,7 +15299,7 @@ export interface components {
              * @description Tenant move-in from entry workflow meta — used to derive the target schedule when scheduledDate is null.
              */
             moveInDate: string | null;
-            /** @description PDF URL after CROSSUB has approved the report. Null while review is pending. */
+            /** @description PDF URL after CROSSUB has approved the report. Null while review is pending — except on an agency job (`conductedByAgency`), where the agency reviews it before sign-off. */
             reportUrl: string | null;
             /** @description Tenant-uploaded signed copy of the entry report. */
             tenantReturnedReportUrl?: string | null;
@@ -10979,6 +15326,23 @@ export interface components {
             awaitingAgentPayment?: boolean;
             /** @description True when the case was closed and refunded because no inspector confirmed in 48 hours. */
             unacceptedRefunded?: boolean;
+            /** @description Self-Manage: the agency’s own inspector conducts this job (no CROSSUB charge). Its report is visible before sign-off. */
+            conductedByAgency: boolean;
+            /**
+             * Format: uuid
+             * @description The team member conducting an agency job. Null on CROSSUB jobs.
+             */
+            conductedByUserId: string | null;
+            /**
+             * Format: date-time
+             * @description When the agency principal signed off an agency job’s report.
+             */
+            approvedByAgencyAt: string | null;
+            /**
+             * Format: date-time
+             * @description When the approved report was emailed to the tenant.
+             */
+            tenantReportSentAt: string | null;
         };
         AgentMaintenanceTenantContactDto: {
             /** @example Test NF2 */
@@ -11053,6 +15417,11 @@ export interface components {
              * @enum {string}
              */
             purpose: "standard" | "diagnostic";
+            /**
+             * @description True when the quote is from CROSSUB’s maintenance partner. On a Self-Manage job the agency pays CROSSUB for it (the quote plus CROSSUB’s fee) before it can be approved, and CROSSUB pays the supplier.
+             * @example false
+             */
+            crossubArranged: boolean;
         };
         AgentTenantResponsibilityResponseDto: {
             /** @example false */
@@ -11069,6 +15438,25 @@ export interface components {
              * @example false
              */
             auto: boolean;
+        };
+        AgentMaintenanceScheduleProposalDto: {
+            /** @example Tue 21 Oct 9–11am or Wed 22 Oct 1–3pm */
+            availableTimes: string;
+            /** Format: date-time */
+            submittedAt: string;
+            /**
+             * @description Null while the tenant has not answered.
+             * @enum {string|null}
+             */
+            tenantDecision: "approved" | "declined" | null;
+            /** Format: date-time */
+            tenantDecidedAt: string | null;
+            tenantDeclineReason: string | null;
+            /**
+             * @description True when the tradie and tenant arranged the time themselves and it was recorded.
+             * @example false
+             */
+            arrangedDirectly: boolean;
         };
         AgentMaintenanceDto: {
             /** Format: uuid */
@@ -11106,6 +15494,8 @@ export interface components {
             agencyApproved: boolean;
             /** @description The tenant’s answer on a tenant-responsibility job. Omitted on other lanes and on jobs answered before the answer was persisted. */
             tenantResponsibilityResponse?: components["schemas"]["AgentTenantResponsibilityResponseDto"];
+            /** @description The visit times last offered and the tenant’s answer. Omitted until times are sent. */
+            scheduleProposal?: components["schemas"]["AgentMaintenanceScheduleProposalDto"];
             /** Format: date-time */
             scheduledDate: string | null;
             /** Format: date-time */
@@ -11578,6 +15968,11 @@ export interface components {
             actionRequired: string | null;
             /** Format: date-time */
             createdAt: string;
+            /**
+             * @description True when Cros raised the card itself (the morning briefing, a follow up set with Cros).
+             * @example false
+             */
+            fromCros: boolean;
         };
         AgentNotificationsReadResultDto: {
             /**
@@ -11805,6 +16200,11 @@ export interface components {
         };
         AgentMaintenanceInvoiceMatchDto: {
             /**
+             * Format: uuid
+             * @description The match id — the target of the Self-Manage resolve and payment routes.
+             */
+            id: string;
+            /**
              * @description Contractor invoice amount, AUD.
              * @example 505
              */
@@ -11858,6 +16258,145 @@ export interface components {
              */
             exceededAmount: number | null;
         };
+        AgentMaintenanceIssueQuestionDto: {
+            /**
+             * @description Stable within the issue — the key an answer is recorded against.
+             * @example q1
+             */
+            key: string;
+            /** @example Is the water hot at any other tap? */
+            question: string;
+            answer: string | null;
+        };
+        AgentMaintenanceIssueDto: {
+            /** Format: uuid */
+            id: string;
+            /** @example 1 */
+            sequenceNo: number;
+            /** @example Kitchen mixer tap drips constantly. */
+            description: string;
+            /** @example Kitchen */
+            location: string | null;
+            /** @example Plumbing */
+            trade: string | null;
+            /** @example routine */
+            urgency: string | null;
+            /**
+             * @description Who pays for this fault, as extracted or as corrected. Null when not set.
+             * @enum {string|null}
+             */
+            responsibility: "landlord" | "tenant" | "strata" | "unclear" | null;
+            /** @enum {string} */
+            status: "PROPOSED" | "CONFIRMED" | "MERGED" | "DISMISSED";
+            questions: components["schemas"]["AgentMaintenanceIssueQuestionDto"][];
+            /**
+             * Format: date-time
+             * @description When the questions were sent to the tenant. Null when never asked.
+             */
+            questionsSentAt: string | null;
+        };
+        AgentMaintenanceEscalationDto: {
+            /**
+             * @description The target of the Self-Manage resolve route.
+             * @example MESC-3f1c…
+             */
+            id: string;
+            /** @enum {string} */
+            gate: "ai_review" | "contractor_selection" | "quote_validation" | "execution" | "completion";
+            /** @example Contractor selection */
+            gateLabel: string;
+            /** @enum {string} */
+            reason: "ai_unclassified" | "ambiguous_grouping" | "responsibility_undetermined" | "no_preferred_contractor" | "rfq_exhausted" | "quote_held" | "quote_over_threshold" | "sla_breached" | "schedule_stalled" | "tenant_disputed_responsibility" | "completion_deliverables_overdue" | "invoice_variance" | "officer_request" | "urgent_review_required" | "authority_exceeded" | "late_invoice" | "tenant_unreachable" | "tenant_info_timeout" | "tenant_responsibility_confirm" | "strata_referral_confirm" | "responsibility_disputed" | "diagnostic_quote_recommended" | "responsibility_reassessed" | "responsibility_recommended" | "split_suggested";
+            /** @example No preferred contractor */
+            reasonLabel: string;
+            /** @example No preferred contractor covers plumbing for this agency. */
+            detail: string;
+            /** @enum {string} */
+            status: "open" | "resolved";
+            /** Format: date-time */
+            raisedAt: string;
+            /** Format: date-time */
+            resolvedAt: string | null;
+            /** @enum {string|null} */
+            resolutionAction: "override" | "proceed" | "dismiss" | null;
+            resolutionNote: string | null;
+        };
+        AgentMaintenanceContractorRefDto: {
+            /** @description The workflow contractor key. */
+            id: string;
+            /** @example Ace Plumbing */
+            name: string;
+        };
+        AgentCrossubMaintenanceDto: {
+            /**
+             * @description The name shown on the quote offer. The partner who does the work is partnerName.
+             * @example Crossub Assistance
+             */
+            offerName: string;
+            /**
+             * @description The partner CROSSUB sends the job to.
+             * @example Brightness AU
+             */
+            partnerName: string;
+            /**
+             * @description CROSSUB’s fee on top of the partner’s quote, ex GST.
+             * @example 0
+             */
+            feeExGstAud: number;
+            /**
+             * @description CROSSUB’s fee on top of the partner’s quote, inc GST.
+             * @example 0
+             */
+            feeIncGstAud: number;
+            /** @description True once the partner has been asked to quote on this job. */
+            requested: boolean;
+        };
+        AgentMaintenanceManualControlDto: {
+            /** Format: date-time */
+            heldAt: string;
+            /** @description Why control was taken. */
+            note: string | null;
+        };
+        AgentMaintenanceResponsibilityRecommendationDto: {
+            /** @enum {string} */
+            determination: "landlord" | "tenant" | "strata";
+            /**
+             * @description How sure the AI was, 0–100.
+             * @example 86
+             */
+            confidence: number;
+            /** @example Worn washer — fair wear and tear. */
+            keyFactor: string;
+            /** Format: date-time */
+            recommendedAt: string;
+        };
+        AgentMaintenanceJobTenantDto: {
+            /** @example Sam Tenant */
+            name: string;
+            email: string | null;
+            phone: string | null;
+        };
+        AgentMaintenanceOwnerDto: {
+            /** @example Pat Owner */
+            name: string | null;
+            /** @description Null when no owner email is on file. */
+            email: string | null;
+        };
+        AgentMaintenanceOwnerQuoteApprovalDto: {
+            /** @description The quote sent — an id from `quotes`. */
+            quotationId: string;
+            /** Format: date-time */
+            sentAt: string;
+            /** @example owner@example.com */
+            ownerEmail: string;
+            /**
+             * @description Null while awaiting the owner’s reply.
+             * @enum {string|null}
+             */
+            outcome: "approved" | "declined" | null;
+            /** Format: date-time */
+            outcomeRecordedAt: string | null;
+        };
         AgentMaintenanceDetailDto: {
             /** Format: uuid */
             id: string;
@@ -11894,6 +16433,8 @@ export interface components {
             agencyApproved: boolean;
             /** @description The tenant’s answer on a tenant-responsibility job. Omitted on other lanes and on jobs answered before the answer was persisted. */
             tenantResponsibilityResponse?: components["schemas"]["AgentTenantResponsibilityResponseDto"];
+            /** @description The visit times last offered and the tenant’s answer. Omitted until times are sent. */
+            scheduleProposal?: components["schemas"]["AgentMaintenanceScheduleProposalDto"];
             /** Format: date-time */
             scheduledDate: string | null;
             /** Format: date-time */
@@ -11927,6 +16468,50 @@ export interface components {
             invoiceMatch: components["schemas"]["AgentMaintenanceInvoiceMatchDto"] | null;
             /** @description Account-Manager authorisations on this urgent job, oldest first. Read-only for the agent. Empty for a normal job or an urgent job not yet authorised. */
             urgentAuthorisations: components["schemas"]["AgentMaintenanceUrgentAuthorisationDto"][];
+            /** @description The faults extracted from the report, in report order. */
+            issues: components["schemas"]["AgentMaintenanceIssueDto"][];
+            /**
+             * @description The agreed repair limit, AUD (property override, else agency default). A Self-Manage quote decision above it, or any decision when null, emails the owner a copy.
+             * @example 500
+             */
+            spendThreshold: number | null;
+            /** @description Escalations on this job, oldest first, open and resolved. */
+            escalations: components["schemas"]["AgentMaintenanceEscalationDto"][];
+            /** @description Contractors invited to quote, in invite order. */
+            invitedContractors: components["schemas"]["AgentMaintenanceContractorRefDto"][];
+            /** @description Completion photos or documents are on the job. */
+            completionEvidenceUploaded: boolean;
+            /** @description The agency has signed the completed work off. */
+            agentApprovalReceived: boolean;
+            /** @description The tenant has confirmed the repair works. */
+            tenantApprovalReceived: boolean;
+            /** @description The contractor invoice is on the job. */
+            invoiceUploaded: boolean;
+            /** @description True when the property is Self-Manage: the agent runs triage, quotes, scheduling, invoices and completion. Other tiers keep today’s read-only view of those steps. */
+            selfManaged: boolean;
+            /** @description The CROSSUB-arranged option. Self-Manage jobs only; null on other plans. */
+            crossubMaintenance: components["schemas"]["AgentCrossubMaintenanceDto"] | null;
+            /** @description Set while the job is in manual control: the system sends no chasers or automatic steps until automation is resumed. Null while automation runs. */
+            manualControl: components["schemas"]["AgentMaintenanceManualControlDto"] | null;
+            /**
+             * @description Who pays for the repair, as decided on the job. Null until someone decides.
+             * @enum {string|null}
+             */
+            responsibility: "landlord" | "tenant" | "strata" | null;
+            /** @description The AI’s recommended party while none is decided. Null once one is. */
+            responsibilityRecommendation: components["schemas"]["AgentMaintenanceResponsibilityRecommendationDto"] | null;
+            /** @description The tenant contact this job writes to. Null when the job names nobody. */
+            jobTenant: components["schemas"]["AgentMaintenanceJobTenantDto"] | null;
+            owner: components["schemas"]["AgentMaintenanceOwnerDto"];
+            /** @description Quotes emailed to the owner for approval, oldest first (Self-Manage). */
+            ownerQuoteApprovals: components["schemas"]["AgentMaintenanceOwnerQuoteApprovalDto"][];
+        };
+        AgentApproveMaintenanceQuoteDto: {
+            /**
+             * Format: uuid
+             * @description The paid CROSSUB maintenance charge for this quote. Required for a CROSSUB quote.
+             */
+            platformChargeId?: string;
         };
         DeclineMaintenanceQuoteDto: {
             /** @example Quote above budget — please re-quote with cheaper parts. */
@@ -11957,6 +16542,11 @@ export interface components {
              * @example false
              */
             acknowledgeCommitments?: boolean;
+            /**
+             * @description Confirms the agent has seen that the contractor invoice is not yet paid. Re-send with true to close with the payment outstanding.
+             * @example false
+             */
+            acknowledgePayment?: boolean;
         };
         AgentTenantResponseDto: {
             /**
@@ -12090,6 +16680,15 @@ export interface components {
             label: string;
             tenantName?: string | null;
         };
+        GiiScreenRecordDto: {
+            /**
+             * @example maintenance
+             * @enum {string}
+             */
+            kind: "maintenance" | "inspection" | "leasing" | "tenant_selection" | "rent_review" | "vacating" | "tribunal" | "message_thread";
+            /** @description The record id as the app routes to it. Untrusted: tools look it up under the caller's scope. */
+            id: string;
+        };
         GiiChatContextDto: {
             /** Format: uuid */
             propertyId?: string;
@@ -12105,6 +16704,8 @@ export interface components {
             propertyChanged?: boolean;
             /** @description Echo back `pendingPropertyCandidates` from the previous response when the user is picking from an ambiguous list. */
             pendingPropertyCandidates?: components["schemas"]["GiiPendingPropertyCandidateDto"][];
+            earlierSummary?: string;
+            screenRecord?: components["schemas"]["GiiScreenRecordDto"];
         };
         GiiChatRequestDto: {
             messages: components["schemas"]["GiiChatMessageDto"][];
@@ -12240,13 +16841,16 @@ export interface components {
             caseRef: string;
         };
         GiiJobCaseLinkDto: {
-            /** @example a1b2c3d4-e5f6-7890-abcd-ef1234567890 */
+            /**
+             * @description The record's id: a maintenance job, rent review, inspection, leasing cycle, End Leasing case (vacating task), inbox conversation or agent notification. For `property` and `arrears` it is the property id.
+             * @example a1b2c3d4-e5f6-7890-abcd-ef1234567890
+             */
             id: string;
             /**
              * @example maintenance
              * @enum {string}
              */
-            kind: "maintenance" | "rent_review" | "inspection";
+            kind: "maintenance" | "rent_review" | "inspection" | "leasing" | "end_leasing" | "conversation" | "notification" | "property" | "arrears";
             /**
              * @description Business reference when one exists (order number / tracking).
              * @example Q20227
@@ -12258,9 +16862,45 @@ export interface components {
              */
             label: string;
         };
+        GiiProposalLineDto: {
+            /** @example Issue */
+            label: string;
+            /** @example Plumbing */
+            value: string;
+        };
+        GiiProposalDto: {
+            /** @description Signed proposal. Send it back unchanged to confirm. */
+            token: string;
+            /** @example create_maintenance_job */
+            tool: string;
+            /** @example Raise a maintenance job */
+            title: string;
+            lines: components["schemas"]["GiiProposalLineDto"][];
+            /**
+             * @description `voice`: a spoken yes may confirm it (send `byVoice: true`). `screen`: it moves money or is a legal step, so only a tap on Confirm does.
+             * @example voice
+             * @enum {string}
+             */
+            confirmBy: "voice" | "screen";
+            /**
+             * @description The card as the app reads it back before anything is made, ending with how to confirm it.
+             * @example Raise a maintenance job. Property, 1008/19 Halifax Street. Issue, leaking kitchen tap. Say yes to go ahead, or no to cancel.
+             */
+            readBack: string;
+            /**
+             * Format: date-time
+             * @example 2026-10-26T01:30:00.000Z
+             */
+            expiresAt: string;
+        };
         GiiChatResponseDto: {
             /** @example That is a break lease — 243 of 365 days elapsed (66.6%), so a 2-week fee of $2,000.00 applies. */
             reply: string;
+            /**
+             * @description The reply as the app reads it aloud: a short reply in full; a long one as its opening sentences, then a pointer to the screen. Dates are written out and lists are never read item by item.
+             * @example The bond is $1,000.00 and $330.00 comes off it. The rest is on your screen.
+             */
+            spoken: string;
             /** @description The deterministic assessment behind the reply, for rendering. Null when the turn produced no assessment. */
             assessment: components["schemas"]["GiiAssessmentDto"] | null;
             lodged: components["schemas"]["GiiLodgedDto"] | null;
@@ -12268,11 +16908,263 @@ export interface components {
             jobCases: components["schemas"]["GiiJobCaseLinkDto"][];
             /** @description When find_property was ambiguous this turn, echo these back as `context.pendingPropertyCandidates` so the next reply can pick by number or address fragment. */
             pendingPropertyCandidates: components["schemas"]["GiiPendingPropertyCandidateDto"][];
+            /** @description The change Cros proposed this turn and is waiting on the officer to confirm. Show it as a Confirm card until the next message is sent. */
+            proposal: components["schemas"]["GiiProposalDto"] | null;
             /**
              * @example end_turn
              * @enum {string}
              */
             stoppedOn: "end_turn" | "max_turns" | "max_tokens";
+        };
+        AgentGiiBriefingCountDto: {
+            /** @enum {string} */
+            category: "urgent_repair" | "arrears" | "quote_waiting" | "application_approval" | "end_leasing" | "rent_review" | "repair_next_step" | "inspection" | "unanswered_message" | "lease_expiring";
+            count: number;
+        };
+        AgentGiiBriefingLinkDto: {
+            /** @enum {string} */
+            kind: "maintenance" | "rent_review" | "inspection" | "leasing" | "end_leasing" | "conversation" | "notification" | "property" | "arrears";
+            id: string;
+        };
+        AgentGiiBriefingItemDto: {
+            /** @enum {string} */
+            category: "urgent_repair" | "arrears" | "quote_waiting" | "application_approval" | "end_leasing" | "rent_review" | "repair_next_step" | "inspection" | "unanswered_message" | "lease_expiring";
+            /** @example Leaking hot water system */
+            title: string;
+            /** @example MR-00195, quoting since 27/10/2026 */
+            detail: string;
+            propertyId: string | null;
+            propertyAddress: string | null;
+            /**
+             * Format: date-time
+             * @description The deadline, or the date it has waited since; null when there is none.
+             */
+            dueAt: string | null;
+            link: components["schemas"]["AgentGiiBriefingLinkDto"] | null;
+        };
+        AgentGiiBriefingChangesDto: {
+            /**
+             * Format: date-time
+             * @description Counted from when the agent last opened a briefing.
+             */
+            since: string;
+            count: number;
+            /** @description The newest few notification titles. */
+            latest: string[];
+        };
+        AgentGiiBriefingDto: {
+            /**
+             * @description The agent's local day.
+             * @example 2026-10-28
+             */
+            briefingDate: string;
+            /** @example Australia/Sydney */
+            timeZone: string;
+            /**
+             * Format: date-time
+             * @description When the day's briefing was stored; the list itself is as of this read.
+             */
+            generatedAt: string;
+            /** Format: date-time */
+            seenAt: string | null;
+            /** @description Everything counted, including items past the list cap. */
+            total: number;
+            /** @example 2 urgent repairs · 1 tenant in arrears */
+            summary: string | null;
+            counts: components["schemas"]["AgentGiiBriefingCountDto"][];
+            /** @description Most urgent first: risk, then deadline. */
+            items: components["schemas"]["AgentGiiBriefingItemDto"][];
+            changes: components["schemas"]["AgentGiiBriefingChangesDto"];
+            /** @description Parts that could not be read for this list; say so rather than "nothing waiting". */
+            unavailable: string[];
+        };
+        AgentGiiBriefingSeenDto: {
+            /** @example 2026-10-28 */
+            briefingDate: string;
+        };
+        AgentGiiPreferencesDto: {
+            /**
+             * @description How the emails Cros drafts read.
+             * @example friendly
+             * @enum {string}
+             */
+            tone: "friendly" | "formal" | "brief";
+            /**
+             * @description The officer's own sign off; the agency's name still closes each email. Null signs as the agency.
+             * @example Kind regards,
+             *     Daniel Zhou
+             */
+            signOff: string | null;
+            /**
+             * @description Quiet hours start, HH:mm Sydney time.
+             * @example 22:00
+             */
+            quietStart: string | null;
+            /**
+             * @description Quiet hours end, HH:mm Sydney time.
+             * @example 07:00
+             */
+            quietEnd: string | null;
+            /**
+             * @description The clock quiet hours are read on.
+             * @example Australia/Sydney
+             */
+            timeZone: string;
+        };
+        UpdateAgentGiiPreferencesDto: {
+            /** @enum {string} */
+            tone?: "friendly" | "formal" | "brief";
+            signOff?: string | null;
+            /** @example 22:00 */
+            quietStart?: string | null;
+            /** @example 07:00 */
+            quietEnd?: string | null;
+        };
+        AgentGiiHandoffMessageDto: {
+            id: string;
+            /**
+             * @description The sender's name.
+             * @example Daniel Zhou
+             */
+            from: string;
+            body: string;
+            /** Format: date-time */
+            at: string;
+            /** @description True when the CROSSUB team wrote it, false for the officer. */
+            fromTeam: boolean;
+        };
+        AgentGiiHandoffDto: {
+            threadId: string;
+            /** @example CROSSUB Support — Cros chat: 1008/19 Halifax Street */
+            subject: string;
+            /**
+             * @description Who holds the chat.
+             * @example Daniel Zhou
+             */
+            staffName: string | null;
+            /** @description True once the team closed the chat; it is back with Cros. */
+            closed: boolean;
+            /** Format: date-time */
+            closedAt: string | null;
+            /**
+             * @description Who handed the chat back (pressed Done); null while open or when closed by the system.
+             * @example Tony Chan
+             */
+            closedByName: string | null;
+            /** @description True when this officer ended the chat themselves, from Cros. */
+            closedByMe: boolean;
+            /** @description Oldest first; the first is the handoff itself. */
+            messages: components["schemas"]["AgentGiiHandoffMessageDto"][];
+            /**
+             * Format: date-time
+             * @description The officer's first message since the team last wrote; null when the team wrote last.
+             */
+            waitingSince: string | null;
+            /** @description True during the team's working day, 9am to 5pm Sydney time on weekdays. */
+            teamOpen: boolean;
+            /**
+             * Format: date-time
+             * @description When the working day next opens; null while it is open.
+             */
+            teamOpensAt: string | null;
+        };
+        AgentGiiCurrentHandoffDto: {
+            handoff: components["schemas"]["AgentGiiHandoffDto"] | null;
+        };
+        AgentGiiHandoffMessageRequestDto: {
+            body: string;
+        };
+        GiiConfirmRequestDto: {
+            /** @description `proposal.token` from the chat response, unchanged. */
+            token: string;
+            /** @description True when the officer confirmed by saying yes. A `screen` card confirmed this way is refused with `done: false`. */
+            byVoice?: boolean;
+            /** @description The staff web resends the photos a repair job card shows (Cros web v2, 3.4); they must be the ones the card was made with, in order. */
+            photos?: components["schemas"]["GiiChatAttachmentDto"][];
+        };
+        GiiConfirmResponseDto: {
+            /** @description True when the change was made. */
+            done: boolean;
+            /** @example Raised MR-00123 at 66 Berry Street, North Sydney NSW 2060. */
+            message: string;
+            /** @description `message` as the app reads it aloud, with dates written out. */
+            spoken: string;
+            /** @description The job the change created, for an Open button. */
+            jobCases: components["schemas"]["GiiJobCaseLinkDto"][];
+            /** @description Set when the change handed the chat to the CROSSUB team (Jarvis 2.3): the thread their answers come in on, read with GET /agent/gii/handoff/{threadId}. Null otherwise. */
+            handoffThreadId: string | null;
+        };
+        GiiSummariseRequestDto: {
+            summary?: string;
+            messages: components["schemas"]["GiiChatMessageDto"][];
+        };
+        GiiSummariseResponseDto: {
+            /** @description The whole chat up to the last folded message. Send it as `context.earlierSummary`. */
+            summary: string;
+        };
+        GiiConversationSummaryDto: {
+            /** Format: uuid */
+            id: string;
+            /** @example Raise a job for the leaking tap at 66 Berry Street */
+            title: string;
+            /** Format: uuid */
+            propertyId: string | null;
+            /** @example 6 */
+            messageCount: number;
+            /** Format: date-time */
+            lastMessageAt: string;
+        };
+        GiiConversationMessageDto: {
+            /**
+             * @example user
+             * @enum {string}
+             */
+            role: "user" | "assistant";
+            /** @example Raise a job for the leaking tap at 66 Berry Street */
+            text: string;
+        };
+        GiiConversationDto: {
+            /** Format: uuid */
+            id: string;
+            /** @example Raise a job for the leaking tap at 66 Berry Street */
+            title: string;
+            /** Format: uuid */
+            propertyId: string | null;
+            /** @example 6 */
+            messageCount: number;
+            /** Format: date-time */
+            lastMessageAt: string;
+            messages: components["schemas"]["GiiConversationMessageDto"][];
+        };
+        GiiConversationSaveDto: {
+            /** @example Raise a job for the leaking tap at 66 Berry Street */
+            title: string;
+            /**
+             * Format: uuid
+             * @description The property the chat is about.
+             */
+            propertyId?: string;
+            messages: components["schemas"]["GiiConversationMessageDto"][];
+        };
+        GiiChangeDto: {
+            /** @example a1b2c3d4-e5f6-7890-abcd-ef1234567890 */
+            id: string;
+            /**
+             * @description When the change was made.
+             * @example 2026-10-26T09:41:00.000Z
+             */
+            at: string;
+            /** @example Updated 1008/19 Halifax Street: Parking spaces 1 to 2 */
+            summary: string;
+            /**
+             * @description The officer who confirmed it; null when their account is gone.
+             * @example Daniel Lee
+             */
+            confirmedBy: string | null;
+        };
+        GiiChangesResponseDto: {
+            /** @description Newest first. */
+            changes: components["schemas"]["GiiChangeDto"][];
         };
         GiiVoiceStatusResponseDto: {
             /** @description Whether this server can transcribe hold-to-talk audio. */
@@ -12344,6 +17236,4048 @@ export interface components {
         AgentOwnerDecisionListDto: {
             items: components["schemas"]["AgentOwnerDecisionDto"][];
         };
+        AuthoriseUrgentWorkDto: {
+            /**
+             * @description What the Account Manager decided on this urgent job.
+             * @enum {string}
+             */
+            decision: "CONFIRM_URGENT" | "CONVERT_TO_NORMAL" | "EMERGENCY_MAKE_SAFE" | "ESCALATE_EXTERNAL" | "CLOSE_NO_ACTION";
+            /** @description The contractor to carry out the work — required for CONFIRM_URGENT / EMERGENCY_MAKE_SAFE. */
+            contractorId?: string;
+            /** @description The work the AM is authorising, in their words. */
+            scope: string;
+            /** @description The immediate authorisation ceiling given to the contractor (AUD). Required for a work decision; there is no silent default limit (§15). */
+            spendingLimit?: number;
+            /** @description True to authorise only the safety measure (forced true for EMERGENCY_MAKE_SAFE). */
+            makeSafeOnly?: boolean;
+            /** @description Why — required for CONVERT_TO_NORMAL / ESCALATE_EXTERNAL / CLOSE_NO_ACTION. */
+            reason?: string;
+            /** @description The flow version the officer acted on (§12.1 optimistic lock). A 409 is returned when it no longer matches the current flow version. */
+            expectedFlowVersion?: number;
+        };
+        SplitMaintenanceFlowDto: {
+            /**
+             * @description What the new, separate job is. Becomes the split job’s description.
+             * @example The bathroom extractor fan is also dead — separate trade from the tap.
+             */
+            description: string;
+            /**
+             * @description Trade for the split job. A canonical trade is resolved directly; anything else becomes a hint the classifier may overrule.
+             * @example Electrical
+             */
+            issueType?: string;
+            /**
+             * @description Priority for the split job. `high`/`critical` mark it urgent.
+             * @example high
+             * @enum {string}
+             */
+            priority?: "low" | "medium" | "high" | "critical";
+        };
+        MaintenanceCombineCandidateDto: {
+            /** @description The candidate case id. */
+            id: string;
+            /** @description Order number, when the job has one. */
+            orderNumber: string | null;
+            /** @description How the case is referred to on screen — order number, else a short id. */
+            reference: string;
+            /** @description The tenant’s own words, derived from the description. */
+            subject: string;
+            /** @description The stored `"IssueType: body"` prefix, when the description carries one. */
+            issueType: string | null;
+            /** @description Prisma workflow status of the candidate. */
+            status: string;
+            /** @description When the candidate was reported (ISO 8601). */
+            createdAt: string;
+            /** @description Both jobs carry the same trade AND it is one this system determined — a migrated `Whir_U_ServiceType` id never counts, because those describe the fault at random. */
+            sameCategory: boolean;
+            /** @description The candidate is already out with contractors, so combining changes the scope they are pricing. Not a refusal — the officer acknowledges and re-issues. */
+            alreadyQuoted: boolean;
+        };
+        MaintenanceCombineCandidatesResponseDto: {
+            /** @description Same-trade cases first, then newest first. Empty when the job itself is terminal. */
+            candidates: components["schemas"]["MaintenanceCombineCandidateDto"][];
+        };
+        CombineMaintenanceCasesDto: {
+            /**
+             * @description The surviving case — the one that keeps its reference, its quotes and its SLA clock, and gains this job’s description and photos. Must be a live case at the same property.
+             * @example e1b2c3d4-0000-4000-8000-000000000001
+             */
+            intoRequestId: string;
+            /**
+             * @description Why these are one job. Recorded on the closed case’s `closureReason` after the surviving reference, so the decision is legible to whoever reads the case next. Internal only — the tenant’s close email never carries it.
+             * @example Same plumber, one visit — Angel confirmed with the tenant.
+             */
+            note?: string;
+            /**
+             * @description Set once the officer has been shown what combining will disturb — commitments on the case being closed (an assigned contractor, an approved quote, a booked visit) and a surviving case whose scope is already out with contractors — and has confirmed anyway. Without it a combine carrying either is refused with 409 and the list, so a direct API call cannot skip the warning the dialog shows.
+             * @default false
+             */
+            acknowledgeCommitments: boolean;
+        };
+        ResolveMaintenanceEscalationDto: {
+            /**
+             * @description How the escalation is being resolved.
+             * @example override
+             * @enum {string}
+             */
+            action: "override" | "proceed" | "dismiss";
+            /**
+             * @description Optional note recorded on the resolution and the audit line (required for an override).
+             * @example Approved the higher quote — the cheaper contractor could not attend this week.
+             */
+            note?: string;
+            /**
+             * @description Structured override reason code (§12) — required when the action is `override`.
+             * @enum {string}
+             */
+            reasonCode?: "AI_WRONG" | "POLICY" | "CLIENT_INSTRUCTION" | "SAFETY" | "DUPLICATE" | "DATA_CORRECTION" | "OTHER";
+            /** @description Resume automation from the corrected state after this override (§5.1). Defaults true. */
+            resumeAutomation?: boolean;
+            /** @description Why the job stays in manual control — required when `resumeAutomation` is false (§11.2). */
+            keepManualReason?: string;
+        };
+        MaintenanceCaseEmailRecipientDto: {
+            /**
+             * @description Which case party to send to. The address is resolved from the job server-side.
+             * @enum {string}
+             */
+            role: "tenant" | "landlord" | "agent" | "contractor" | "strata";
+            /** @description For a contractor recipient: the job-scoped contractor key, checked against this job's own contractors. Still a key, never an address. Ignored for every other role. */
+            contractorId?: string;
+        };
+        SendMaintenanceCaseEmailDto: {
+            /**
+             * @description Reply intent. Provenance only — recorded on the audit row and hub label; it does not change delivery.
+             * @enum {string}
+             */
+            intent: "reply" | "reply_all" | "forward";
+            /** @description Case parties to write to, by role. The first resolves to the To; any others become Cc. */
+            recipients: components["schemas"]["MaintenanceCaseEmailRecipientDto"][];
+            /** @description Extra Cc addresses, free-typed. Still passes through the landlord guard and domain allowlist. */
+            ccEmails?: string[];
+            subject: string;
+            bodyText: string;
+            /** @description Provenance only: the web row id of the email being answered (e.g. `audit-email-<auditId>`). Never used for delivery. */
+            inReplyToId?: string;
+        };
+        TakeControlDto: {
+            /** @description Why the Account Manager is taking control — recorded on the override + audit event. */
+            reason: string;
+            /**
+             * @description Structured reason code (§12). Defaults to OTHER for a proactive take-over.
+             * @enum {string}
+             */
+            reasonCode?: "AI_WRONG" | "POLICY" | "CLIENT_INSTRUCTION" | "SAFETY" | "DUPLICATE" | "DATA_CORRECTION" | "OTHER";
+            /** @description The flow version the officer opened — refused with 409 if the job has since moved. */
+            expectedFlowVersion?: number;
+        };
+        ResumeAutomationDto: {
+            /** @description Optional note on the resume — recorded on the override + audit event. */
+            note?: string;
+            /** @description The flow version the officer opened — refused with 409 if the job has since moved. */
+            expectedFlowVersion?: number;
+        };
+        AgentSelfManagedTenantContactDto: {
+            /** @example Sam Tenant */
+            name?: string;
+            /** @example sam@example.com */
+            email?: string;
+            /** @example 0400 000 000 */
+            phone?: string;
+        };
+        AgentSelfManagedUpdateJobDto: {
+            /** @example Plumbing */
+            issueType?: string;
+            /** @description The description without its "Issue type:" prefix; the prefix is kept or replaced by issueType. */
+            description?: string;
+            urgent?: boolean;
+            /** @description The tenant contact this job emails and texts. */
+            tenant?: components["schemas"]["AgentSelfManagedTenantContactDto"];
+            reasonText?: string;
+        };
+        AgentSelfManagedSetResponsibilityDto: {
+            /**
+             * @example landlord
+             * @enum {string}
+             */
+            responsibility: "landlord" | "tenant" | "strata";
+            /**
+             * @description Why, for the correction record. Defaults to DATA_CORRECTION.
+             * @enum {string}
+             */
+            reasonCode?: "AI_WRONG" | "POLICY" | "CLIENT_INSTRUCTION" | "SAFETY" | "DUPLICATE" | "DATA_CORRECTION" | "OTHER";
+            reasonText?: string;
+        };
+        CreateMaintenanceIssueDto: {
+            description: string;
+            location?: string;
+            /**
+             * @description Trade / issue-type key.
+             * @enum {string}
+             */
+            trade?: "Roofing Services" | "Plumbing Issue" | "End-of-lease Cleaning" | "Gardening and Guttering" | "Tap and Toilet Repair" | "Locksmith" | "General Cleaning" | "Pest Control" | "Washing Machine and Dryer Repair" | "Air Conditioning Repair" | "Painting and Decorating" | "Door Repairs and Replacement" | "Blinds and Window Repair" | "Tiling Repair" | "Rubbish Removal" | "Tree and Stump Removal" | "Gyprock Fixing" | "Mould Cleaning" | "Appliance Repairs and Installation" | "Hot Water System Repair" | "Electrical Services" | "Flooding and Water Damages" | "Carpet and Timber Floor Repair" | "Shower Repair" | "Cabinet Repair" | "Carpet Cleaning" | "End of Lease" | "Handyman";
+            /**
+             * @description Defaults to normal.
+             * @enum {string}
+             */
+            urgency?: "normal" | "urgent" | "urgent_confirmed" | "possible_urgent" | "non_urgent" | "insufficient_information";
+            /**
+             * @description Defaults to unclear.
+             * @enum {string}
+             */
+            responsibility?: "landlord" | "tenant" | "strata" | "unclear";
+            /** @description Free-text note stored on the override. Defaults to "Officer correction". */
+            reasonText?: string;
+        };
+        UpdateMaintenanceIssueDto: {
+            description?: string;
+            location?: string;
+            /**
+             * @description Trade / issue-type key, or null to clear it.
+             * @enum {string|null}
+             */
+            trade?: "Roofing Services" | "Plumbing Issue" | "End-of-lease Cleaning" | "Gardening and Guttering" | "Tap and Toilet Repair" | "Locksmith" | "General Cleaning" | "Pest Control" | "Washing Machine and Dryer Repair" | "Air Conditioning Repair" | "Painting and Decorating" | "Door Repairs and Replacement" | "Blinds and Window Repair" | "Tiling Repair" | "Rubbish Removal" | "Tree and Stump Removal" | "Gyprock Fixing" | "Mould Cleaning" | "Appliance Repairs and Installation" | "Hot Water System Repair" | "Electrical Services" | "Flooding and Water Damages" | "Carpet and Timber Floor Repair" | "Shower Repair" | "Cabinet Repair" | "Carpet Cleaning" | "End of Lease" | "Handyman" | null;
+            /** @enum {string} */
+            urgency?: "normal" | "urgent" | "urgent_confirmed" | "possible_urgent" | "non_urgent" | "insufficient_information";
+            /** @enum {string} */
+            responsibility?: "landlord" | "tenant" | "strata" | "unclear";
+            /**
+             * @description Structured reason for the correction (§12). Defaults to DATA_CORRECTION.
+             * @enum {string}
+             */
+            reasonCode?: "AI_WRONG" | "POLICY" | "CLIENT_INSTRUCTION" | "SAFETY" | "DUPLICATE" | "DATA_CORRECTION" | "OTHER";
+            /** @description Free-text note stored on the override. Defaults to "Officer correction". */
+            reasonText?: string;
+        };
+        MaintenanceQuestionPickDto: {
+            /** Format: uuid */
+            issueId: string;
+            key: string;
+        };
+        SendMaintenanceQuestionsDto: {
+            questions?: components["schemas"]["MaintenanceQuestionPickDto"][];
+            extraQuestions?: string[];
+        };
+        DismissMaintenanceIssueDto: {
+            /** @description Why the issue is being dismissed — stored on the closed link and the override. */
+            reasonText: string;
+            /**
+             * @description Structured reason code (§12). Defaults to DATA_CORRECTION.
+             * @enum {string}
+             */
+            reasonCode?: "AI_WRONG" | "POLICY" | "CLIENT_INSTRUCTION" | "SAFETY" | "DUPLICATE" | "DATA_CORRECTION" | "OTHER";
+        };
+        AgentSelfManagedInviteContractorsDto: {
+            /** @description Agency preferred-contractor ids (from `/agent/agencies/:id/preferred-contractors`). */
+            preferredContractorIds: string[];
+        };
+        AgentBillingChargeDto: {
+            /** Format: uuid */
+            id: string;
+            /** @example open_inspection */
+            serviceType: string;
+            /** @example prepaid */
+            collectionMode: string;
+            /** @example awaiting_payment */
+            status: string;
+            /** @example 150 */
+            amount: number;
+            /** @example AUD */
+            currency: string;
+            /** @example Open inspection — 12 Ocean View Parade, Bondi */
+            description: string;
+            /** Format: uuid */
+            propertyId?: string | null;
+            /** Format: date-time */
+            paidAt?: string | null;
+            /**
+             * Format: date-time
+             * @description When this prepaid charge was refunded (cancel, 48h unaccepted, etc.).
+             */
+            refundedAt?: string | null;
+            /**
+             * Format: date-time
+             * @description When this Level 2 accrued fee was voided (48h unaccepted — not invoiced).
+             */
+            voidedAt?: string | null;
+            /** @description Why this fee was voided (48h unaccepted, cancelled, or deleted) and will not be invoiced. */
+            voidReason?: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /**
+             * @description Who ordered this charge — CROSSUB staff or the agent account.
+             * @example Demo Admin
+             */
+            createdByName?: string | null;
+            /**
+             * Format: uuid
+             * @description Login this charge belongs to. Empty when it sits on the principal ledger.
+             */
+            ledgerOwnerUserId?: string | null;
+            /** @description Display name for ledgerOwnerUserId. */
+            ledgerOwnerName?: string | null;
+            /** @description How this charge amount was calculated. */
+            calculationDetail?: string | null;
+            /** @description Plain-language summary of the service billed and pricing basis. */
+            calculationSummary?: string | null;
+            /**
+             * Format: uuid
+             * @description Monthly platform invoice this postpaid charge was rolled into (Level 2).
+             */
+            monthlyInvoiceId?: string | null;
+            /**
+             * @description Linked job case reference shown to the agent, e.g. RI-6148518 or OI-3561029.
+             * @example RI-6148518
+             */
+            jobCaseName?: string | null;
+            /**
+             * Format: uuid
+             * @description Case id to open in the agent portal. For CROSSUB-conducted opens this is the viewing session id the Inspection tab lists.
+             */
+            jobCaseId?: string | null;
+            /** @description True when this Level 2 job used a yearly included allowance slot ($0 billed). */
+            includedInAllowance?: boolean;
+            /** @description Yearly included allowance for this inspection type (routine 3, entry 1, final 1). */
+            allowanceLimit?: number | null;
+            /** @description Completed inspections of this type that have used an included slot this year. */
+            allowanceUsed?: number | null;
+            /** @description Included slots still remaining this year (deducted only after completion). */
+            allowanceRemaining?: number | null;
+        };
+        AgentSelfManagedWithdrawContractorDto: {
+            /** @description The invited contractor key, as listed in the job's invitedContractors. */
+            contractorId: string;
+        };
+        IssueQuoteRequestLinkDto: {
+            /** @description The invited contractor the link is for. */
+            contractorId: string;
+            /**
+             * @description Email the RFQ invite again (defaults true).
+             * @default true
+             */
+            send: boolean;
+            /** @description Optional personalised note to the contractor, shown on the quote form. Omit to keep the previous note. */
+            note?: string;
+        };
+        AgentQuoteRequestLinkDto: {
+            /** @description The tradie's own quote form, to paste into a text or email. */
+            url: string;
+            /** Format: date-time */
+            expiresAt: string;
+            /** @description The quote request was emailed to the tradie again with the link. */
+            emailed: boolean;
+        };
+        AgentSelfManagedCreateQuoteDto: {
+            /** @description The invited contractor the quote is from — an id from `invitedContractors`. */
+            contractorId: string;
+            /**
+             * @description Quote total, AUD (GST-inclusive).
+             * @example 480
+             */
+            price: number;
+            /** @description The work quoted for. */
+            scope: string;
+            /**
+             * @description When the tradie said they can attend.
+             * @example Next Tuesday or Wednesday morning
+             */
+            availableSchedule?: string;
+            /** @description Notes from the tradie. */
+            comments?: string;
+        };
+        AgentSelfManagedSendQuoteToOwnerDto: {
+            /** @description A note to the owner, added under the quote details. */
+            message?: string;
+        };
+        AgentSelfManagedOwnerQuoteReplyDto: {
+            /**
+             * @description approved approves the quote and issues the work order; declined declines it.
+             * @enum {string}
+             */
+            outcome: "approved" | "declined";
+            /** @description What the owner said. Becomes the decline reason when they declined. */
+            note?: string;
+            /**
+             * Format: uuid
+             * @description The paid CROSSUB maintenance charge, when the owner approved a CROSSUB quote. Required then.
+             */
+            platformChargeId?: string;
+        };
+        AgentSelfManagedScheduleAvailabilityDto: {
+            /**
+             * @description The times the contractor offered.
+             * @example Thu 08/10/2026 09:00 – 11:00 AEDT (2026-10-08 09:00)
+             */
+            availableTimes: string;
+        };
+        AgentSelfManagedScheduleArrangedDto: {
+            /**
+             * @description The visit window, carrying the `(YYYY-MM-DD HH:mm)` property-time anchor.
+             * @example Thu 08/10/2026 09:00 – 11:00 AEDT (2026-10-08 09:00)
+             */
+            availableTimes: string;
+            /** @description How the visit was arranged. */
+            note?: string;
+        };
+        ResolveMaintenanceInvoiceMatchDto: {
+            /**
+             * @description Accept the variance or dispute the invoice.
+             * @example approve_variance
+             * @enum {string}
+             */
+            resolution: "approve_variance" | "dispute";
+            /**
+             * @description Optional note recorded on the resolution.
+             * @example Extra materials were pre-approved by the owner over the phone.
+             */
+            note?: string;
+        };
+        AgentSelfManagedRecordPaymentDto: {
+            /**
+             * @description The amount paid, AUD. Defaults to the invoice amount.
+             * @example 505
+             */
+            paidAmount?: number;
+            /**
+             * @description Remittance or bill reference.
+             * @example EFT 17/10, ref 22841
+             */
+            reference?: string;
+            note?: string;
+        };
+        AgentSelfManagedUploadDto: {
+            /**
+             * @description `evidence` (completion photos) or `invoice`. Each clears its completion gate.
+             * @enum {string}
+             */
+            kind: "evidence" | "invoice";
+            /** @example tap-fixed.jpg */
+            fileName: string;
+            /** @example image/jpeg */
+            mimeType: string;
+            /**
+             * @description Decoded byte size.
+             * @example 184321
+             */
+            sizeBytes: number;
+            /**
+             * Format: base64
+             * @description The file contents, base64-encoded (no data: URI prefix).
+             */
+            contentBase64: string;
+        };
+        AgentCreateAgencyInspectionDto: {
+            /** @enum {string} */
+            type: "INGOING" | "OUTGOING" | "ROUTINE";
+            /**
+             * Format: uuid
+             * @description The team member (an active agency inspector) who conducts it.
+             */
+            conductedByUserId: string;
+            /**
+             * Format: date-time
+             * @description When the visit happens — the agency sets the time. Routine needs the tenant’s notice period.
+             */
+            scheduledTime: string;
+            tenantName?: string;
+            /** Format: email */
+            tenantEmail?: string;
+            tenantPhone?: string;
+            /**
+             * Format: date
+             * @description Ingoing only: the tenant’s move-in date.
+             */
+            moveInDate?: string;
+            /** @description Key pickup / access instructions for the inspector. */
+            accessInstructions?: string;
+            notes?: string;
+        };
+        AgentInspectionOwnerCopyDto: {
+            /** @enum {string} */
+            status: "SENT" | "FAILED" | "SKIPPED";
+            /** Format: date-time */
+            sentAt: string | null;
+        };
+        AgentInspectionDetailDto: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            propertyId: string | null;
+            /** @example 12/45 Campbell Parade */
+            propertyAddress: string;
+            /** @enum {string} */
+            type: "CONDITION" | "ROUTINE" | "INGOING" | "OUTGOING" | "WARD_ROUND" | "OPEN";
+            /** @enum {string} */
+            status: "DRAFT" | "IN_PROGRESS" | "FIRST_REVIEW" | "SECOND_REVIEW" | "COMPLETED" | "PUBLISHED" | "CANCELLED";
+            /** @example Ivy Inspector */
+            inspectorName: string | null;
+            /**
+             * @description Prior inspector when staff reassigned this DRAFT job before work started.
+             * @example Alex Chen
+             */
+            previousInspectorName?: string | null;
+            /** Format: date-time */
+            scheduledDate: string | null;
+            /** Format: date-time */
+            inspectionDate: string | null;
+            /** Format: date-time */
+            completedDate: string | null;
+            /**
+             * Format: date-time
+             * @description Tenant move-in from entry workflow meta — used to derive the target schedule when scheduledDate is null.
+             */
+            moveInDate: string | null;
+            /** @description PDF URL after CROSSUB has approved the report. Null while review is pending — except on an agency job (`conductedByAgency`), where the agency reviews it before sign-off. */
+            reportUrl: string | null;
+            /** @description Tenant-uploaded signed copy of the entry report. */
+            tenantReturnedReportUrl?: string | null;
+            tenantReturnedSignedName?: string | null;
+            /** Format: date-time */
+            tenantReturnedSubmittedAt?: string | null;
+            /**
+             * Format: date-time
+             * @description When the account manager approved the inspector report. Null while the report is awaiting review.
+             */
+            approvedAt?: string | null;
+            /** @description Active CROSSUB rejection reason. Set while the inspector must redo and resubmit the report. */
+            reportDeclineReason?: string | null;
+            /** @example false */
+            urgent: boolean;
+            /** Format: date-time */
+            createdAt: string;
+            /**
+             * Format: date-time
+             * @description When the 48-hour inspector-confirm window ends. Null once an inspector has accepted.
+             */
+            inspectorConfirmDeadlineAt?: string | null;
+            /** @description True when a prepaid platform fee is still unpaid after a staff-created order. */
+            awaitingAgentPayment?: boolean;
+            /** @description True when the case was closed and refunded because no inspector confirmed in 48 hours. */
+            unacceptedRefunded?: boolean;
+            /** @description Self-Manage: the agency’s own inspector conducts this job (no CROSSUB charge). Its report is visible before sign-off. */
+            conductedByAgency: boolean;
+            /**
+             * Format: uuid
+             * @description The team member conducting an agency job. Null on CROSSUB jobs.
+             */
+            conductedByUserId: string | null;
+            /**
+             * Format: date-time
+             * @description When the agency principal signed off an agency job’s report.
+             */
+            approvedByAgencyAt: string | null;
+            /**
+             * Format: date-time
+             * @description When the approved report was emailed to the tenant.
+             */
+            tenantReportSentAt: string | null;
+            /** Format: uuid */
+            agencyId: string;
+            /** @description The property’s resolved plan is Self-Manage. */
+            selfManaged: boolean;
+            /** @example Jordan Lee */
+            conductedByName: string | null;
+            /**
+             * Format: date-time
+             * @description When the inspector submitted the report (completed the job).
+             */
+            reportSubmittedAt: string | null;
+            /** @description API path of the report PDF (`/api/v1/agent/inspections/{id}/report/pdf`). Set on an agency job once the inspector has finished, so the principal can review it before signing off. */
+            reportPdfPath: string | null;
+            /** @description The owner copy the agency sent with Send to owner (`POST /agent/inspections/{id}/owner-copy`). Null until first sent; sign-off does not email the owner. */
+            ownerCopy: components["schemas"]["AgentInspectionOwnerCopyDto"] | null;
+            /**
+             * @description The tenant copy sent on agency sign-off (ingoing/outgoing): SENT, FAILED, or SKIPPED when no tenant email is on file. Null until signed off, and for routine. When it went is `tenantReportSentAt`.
+             * @enum {string|null}
+             */
+            tenantCopyStatus: "SENT" | "FAILED" | "SKIPPED" | null;
+            /** @description The caller (a principal) can sign the agency’s report off now. */
+            canSignOff: boolean;
+            /** @description The caller (a principal) can move this agency job to another agency inspector. */
+            canReassign: boolean;
+            /** @description Self-Manage: this unbooked agency job can go to a CROSSUB inspector for this one visit, paid by card at the Inspection Only rate. */
+            canUseCrossubInspector: boolean;
+            /** @description The caller can email the owner a copy of this agency job’s report now: the report is in and the owner does not already have this version (any agent with the property, sign-off not needed). */
+            canSendOwnerCopy: boolean;
+        };
+        RejectInspectionReportDto: {
+            /** @description Why the report was rejected and what the inspector must fix. */
+            reason: string;
+        };
+        AgentReassignAgencyInspectionDto: {
+            /**
+             * Format: uuid
+             * @description The team member (an active agency inspector) taking over.
+             */
+            userId: string;
+        };
+        AgentBillingQuoteResponseDto: {
+            /** @description Null when the service is included in the Full Service allowance. */
+            charge?: components["schemas"]["AgentBillingChargeDto"] | null;
+        };
+        AgentOrderCrossubInspectorDto: {
+            /**
+             * Format: uuid
+             * @description The paid charge from `POST .../crossub-inspector/quote`. Required unless that quote returned no charge.
+             */
+            platformChargeId?: string;
+        };
+        AddNegotiationRoundDto: {
+            /**
+             * @description Who is proposing these terms.
+             * @enum {string}
+             */
+            proposedBy: "applicant" | "agent" | "officer";
+            /**
+             * @description Proposed weekly rent.
+             * @example 845
+             */
+            weeklyRent?: number;
+            /**
+             * @description Proposed lease term.
+             * @example 52 weeks
+             */
+            leaseTerm?: string;
+            /**
+             * @description Proposed lease start date.
+             * @example 2026-10-01
+             */
+            startDate?: string;
+            note?: string;
+        };
+        RespondToNegotiationRoundDto: {
+            /** @enum {string} */
+            response: "accepted" | "declined";
+            note?: string;
+        };
+        RequestApplicantInformationDto: {
+            /**
+             * @description What to ask for — usually the items the document check found missing.
+             * @example [
+             *       "Photo ID",
+             *       "Two recent payslips"
+             *     ]
+             */
+            items?: string[];
+            /** @example Happy to take photos of the payslips if that is easier. */
+            message?: string;
+        };
+        JointTenantDraftDto: {
+            name: string;
+            email?: string;
+            phone?: string;
+        };
+        UpdateContractDto: {
+            template?: string;
+            leaseTerm?: string;
+            startDate?: string;
+            endDate?: string;
+            weeklyRent?: number;
+            bond?: number;
+            deposit?: number;
+            paymentReference?: string;
+            eftBsb?: string;
+            eftAccountNumber?: string;
+            eftAccountName?: string;
+            landlordName?: string;
+            landlordServiceAddress?: string;
+            agentBusinessAddress?: string;
+            petsAllowed?: boolean;
+            petsNotes?: string;
+            waterChargedSeparately?: boolean;
+            jointTenants?: components["schemas"]["JointTenantDraftDto"][];
+        };
+        AddContractConditionDto: {
+            text: string;
+        };
+        UploadContractDto: {
+            fileName: string;
+            mimeType: string;
+            sizeBytes: number;
+            /** Format: base64 */
+            contentBase64: string;
+            sendToTenant?: boolean;
+        };
+        UploadSignedAgreementDto: {
+            fileName: string;
+            mimeType: string;
+            sizeBytes: number;
+            /** Format: base64 */
+            contentBase64: string;
+        };
+        SetBondLinkDto: {
+            link: string;
+        };
+        AgentApplicationRefereeDto: {
+            /** @enum {string} */
+            kind: "current_landlord" | "previous_landlord" | "employer" | "personal";
+            /** @example Current landlord or agent */
+            kindLabel: string;
+            /** @example Sam Lee */
+            name: string;
+            /** @description Null when the form captured no number, including where it never asks. */
+            phone: string | null;
+            relationship: string | null;
+            /** @description The address or employer this referee relates to, joined for display. */
+            context: string | null;
+        };
+        AgentReferenceCheckSummaryDto: {
+            summary: string;
+            /**
+             * @description Whether the notes back up the recommendation the agent recorded.
+             * @enum {string}
+             */
+            supportsRecommendation: "yes" | "no" | "unclear";
+            concerns: string[];
+        };
+        AgentReferenceCheckDto: {
+            /** @enum {string} */
+            status: "RECORDED" | "NOT_STARTED" | "NO_REFEREES" | "UNVERIFIED";
+            referees: components["schemas"]["AgentApplicationRefereeDto"][];
+            refereeCount: number;
+            /** @description How many referees have a phone number. */
+            contactableCount: number;
+            /** @description The agent’s recorded notes, or an empty string. */
+            notes: string;
+            /** @enum {string|null} */
+            recommendation: "recommend" | "reject" | null;
+            /** @description True once the applicant has been emailed their result. */
+            feedbackSent: boolean;
+            /** @description The applicant declared the bond at their previous address was not refunded. */
+            bondNotRefunded: boolean;
+            bondNotRefundedReason: string | null;
+            /** @description Plain sentences about the state of the check. */
+            notices: string[];
+            /** @description Present only on the summarise route. */
+            summary: components["schemas"]["AgentReferenceCheckSummaryDto"] | null;
+            /** @description Summarise route only: why Cros could not produce a summary. */
+            summaryNotice?: string;
+        };
+        SetApplicantFeedbackDto: {
+            /** @example Strong employment history; landlord reference positive. */
+            feedback?: string;
+            /**
+             * @description Reference-check recommendation for this applicant.
+             * @enum {string}
+             */
+            recommendation?: "recommend" | "reject";
+        };
+        AgencyTenancyTenantDto: {
+            /** @example Jordan Lee */
+            name: string;
+            /**
+             * Format: email
+             * @example jordan.lee@example.com
+             */
+            email?: string;
+            /** @example +61400111222 */
+            phone?: string;
+        };
+        RecordAgencyTenancyDto: {
+            /** @description Primary tenant first, then any co-tenants. */
+            tenants: components["schemas"]["AgencyTenancyTenantDto"][];
+            /**
+             * Format: date
+             * @description YYYY-MM-DD. The first day of the lease.
+             */
+            leaseStartDate: string;
+            /** @enum {string} */
+            leaseType: "fixed" | "periodic";
+            /**
+             * Format: date
+             * @description YYYY-MM-DD. Required for a fixed term.
+             */
+            leaseEndDate?: string;
+            /**
+             * @description How the agreement names the term. Worked out from the dates when omitted.
+             * @example 12 months
+             */
+            leaseTerm?: string;
+            /**
+             * @description Rent per `rentPeriod`.
+             * @example 650
+             */
+            rentAmount: number;
+            /** @enum {string} */
+            rentPeriod: "weekly" | "fortnightly" | "monthly";
+            /** @example 2600 */
+            bond?: number;
+            notes?: string;
+        };
+        AgentCreateTenancyResultDto: {
+            /**
+             * Format: uuid
+             * @description The letting (leasing cycle) the tenancy closed.
+             */
+            id: string;
+            /**
+             * @description SET when the tenant ledger now carries the rent, period and paid-to date; otherwise why it was left to set in Trust.
+             * @enum {string}
+             */
+            rentProfileStatus: "SET" | "NOT_TRUST_TIER" | "TRUST_NOT_SET_UP" | "NO_TENANT_LEDGER" | "ALREADY_SET" | "FAILED";
+        };
+        WithdrawLeasingTenancyDto: {
+            /**
+             * @description Why the incoming tenancy is being withdrawn. Recorded on the case, its timeline and the archived tenancy.
+             * @example Approved applicants withdrew before signing day
+             */
+            reason: string;
+        };
+        RejectOnboardingProofDto: {
+            reason?: string;
+        };
+        AgentLettingOpenInspectionDto: {
+            /**
+             * Format: uuid
+             * @description The viewing session; the open’s id on every open route.
+             */
+            viewingSessionId: string;
+            /** @enum {string} */
+            status: "scheduled" | "staff_en_route" | "open" | "closed" | "cancelled";
+            /** Format: date-time */
+            startTime: string;
+            /** Format: date-time */
+            endTime: string | null;
+            notes: string | null;
+            /** Format: uuid */
+            hostUserId: string | null;
+            hostName: string | null;
+            /** @description Prospects registered for this open. */
+            attendeeCount: number;
+            /** @description Prospects checked in. */
+            checkedInCount: number;
+            /** @description Prospects who started an application from this open. */
+            applicationCount: number;
+            /** Format: date-time */
+            openedAt: string | null;
+            /** Format: date-time */
+            closedAt: string | null;
+            /** Format: date-time */
+            cancelledAt: string | null;
+            /**
+             * Format: date-time
+             * @description When this open’s report was generated; null until then.
+             */
+            reportGeneratedAt: string | null;
+            /** @description The open the letting’s own open-inspection fields describe: the one running now, else the next, else the last held. */
+            current: boolean;
+        };
+        AgentLettingOpenInspectionsDto: {
+            /** Format: uuid */
+            cycleId: string;
+            /** @description Null while another open may be added; otherwise why not (the letting is closed or leased). */
+            addBlockedReason: string | null;
+            opens: components["schemas"]["AgentLettingOpenInspectionDto"][];
+        };
+        AgentAddLettingOpenInspectionDto: {
+            /**
+             * Format: date-time
+             * @description When the viewing starts.
+             */
+            startTime: string;
+            /**
+             * Format: date-time
+             * @description When the viewing ends. After the start.
+             */
+            endTime: string;
+            /** @description Notes for whoever runs the open. */
+            notes?: string;
+            /**
+             * Format: uuid
+             * @description The team member who runs this open. Defaults to the letting’s default inspector. Must be an active member of the agency.
+             */
+            hostUserId?: string;
+        };
+        AgentCancelLettingOpenInspectionDto: {
+            reason?: string;
+        };
+        TenantResponseDto: {
+            /** @enum {string} */
+            decision: "accept" | "reject" | "counter" | "decline";
+            /** Format: uuid */
+            respondingToOfferId?: string;
+            expectedVersion?: number;
+            moveOutDate?: string;
+            counterWeekly?: number;
+            tenantNote?: string;
+        };
+        SetTenancyReviewKindDto: {
+            /** @enum {string} */
+            kind: "rent_review" | "lease_renewal";
+        };
+        CompleteLeaseRenewalDto: {
+            /** @description New weekly rent; defaults to current when omitted. */
+            newWeeklyRent?: number;
+            /** @enum {string} */
+            leaseArrangement: "fixed" | "periodic";
+            /**
+             * Format: date
+             * @description YYYY-MM-DD. Blank = no rent increase date.
+             */
+            rentIncreaseEffectiveDate?: string;
+            /** @description Fixed-term length in weeks when leaseArrangement = fixed (any 1–520). */
+            leaseTermWeeks?: number;
+            /** Format: date */
+            newLeaseStartDate: string;
+            /**
+             * Format: date
+             * @description Required when leaseArrangement = fixed.
+             */
+            newLeaseEndDate?: string;
+        };
+        ConfirmReviewDto: {
+            /** @enum {string} */
+            type: "rent_review" | "maintain_current_rent";
+            reason?: string;
+        };
+        UploadRentReviewPdfDto: {
+            fileName: string;
+            mimeType: string;
+            sizeBytes: number;
+            /** Format: base64 */
+            contentBase64: string;
+        };
+        UploadSignedLeaseAgreementDto: {
+            /** @description Who signed the agreement, as recorded by staff. */
+            signedBy?: string;
+            /** @description The date on the document (ISO-8601), which is rarely the upload date. */
+            signedOn?: string;
+            /** @description How the signature was obtained — the e-sign service, witness, or reason. */
+            note?: string;
+            fileName: string;
+            mimeType: string;
+            sizeBytes: number;
+            /** Format: base64 */
+            contentBase64: string;
+        };
+        ReviseLeaseAgreementDto: {
+            /** @description What the tenant raised, for the case history. Recorded on the withdrawal, not emailed to the tenant. */
+            reason: string;
+        };
+        SendTenantNoticeDto: {
+            weekly?: number;
+            effectiveDate?: string;
+        };
+        ReserveTenantNoticeDto: {
+            reason: string;
+            weekly?: number;
+            effectiveDate?: string;
+        };
+        ResolveNegotiationDto: {
+            /** Format: uuid */
+            respondingToOfferId?: string;
+            expectedVersion?: number;
+            note?: string;
+            /** @enum {string} */
+            action: "accept_counter" | "repropose" | "mark_non_negotiable";
+            resolvedWeekly?: number;
+            effectiveDate?: string;
+            rentNegotiable?: boolean;
+        };
+        ReopenNegotiationDto: {
+            reason: string;
+        };
+        ForceCloseRentReviewDto: {
+            /** @enum {string} */
+            outcome: "RENT_INCREASED" | "RENT_UNCHANGED" | "TENANT_VACATE";
+            /** @description Required when the rent increased. */
+            newWeeklyRent?: number;
+            /**
+             * Format: date
+             * @description YYYY-MM-DD. Required when the rent increased.
+             */
+            effectiveDate?: string;
+            /**
+             * Format: date
+             * @description YYYY-MM-DD. With newAgreementEnd, a fixed-term renewal.
+             */
+            newAgreementStart?: string;
+            /**
+             * Format: date
+             * @description YYYY-MM-DD. With newAgreementStart, a fixed-term renewal.
+             */
+            newAgreementEnd?: string;
+            note?: string;
+        };
+        ReportComparisonRepairItemDto: {
+            /** @enum {string} */
+            resolutionStatus?: "open" | "in_progress" | "completed" | "closed";
+            area: string;
+            description: string;
+            quote?: string;
+            handymanId?: string;
+            handymanName?: string;
+            bondDeductible?: boolean;
+            landlordWaivable?: boolean;
+            bondDeductionStaffComment?: string;
+            bondDeductionAgentComment?: string;
+            maintenanceRequestId?: string | null;
+            fairWearAndTear?: boolean;
+        };
+        UpdateReportComparisonDto: {
+            agentAcknowledged?: boolean;
+            tenantAcknowledged?: boolean;
+            tenantResponsibility?: components["schemas"]["ReportComparisonRepairItemDto"][];
+            landlordResponsibility?: components["schemas"]["ReportComparisonRepairItemDto"][];
+            tenantResponsibilityStaffComment?: string;
+            landlordResponsibilityStaffComment?: string;
+            tenantResponsibilityAgentComment?: string;
+            landlordResponsibilityAgentComment?: string;
+            tenantResponsibilityAgentAcknowledged?: boolean;
+            landlordResponsibilityAgentAcknowledged?: boolean;
+        };
+        SendTenantBondDeductionAckDto: {
+            tenantResponsibility: components["schemas"]["ReportComparisonRepairItemDto"][];
+        };
+        SetVacatingSettlementMethodDto: {
+            /** @enum {string} */
+            method: "bond_deduction" | "tenant_pays";
+        };
+        EditVacatingSettlementDto: {
+            bondHeld?: number;
+            unpaidRent?: number;
+            unpaidWater?: number;
+            breakLease?: number;
+            /** @description Repair cost beyond the Review issues total. */
+            repair?: number;
+            /** @description Self-Manage only: the quoted repairs total, the make-good line from the repair quotation. Lowers it when the tenant disputes it; 0 clears it. */
+            quotedRepairs?: number;
+            cleaning?: number;
+            other?: number;
+            note?: string;
+        };
+        TrustBankAccountReconciliationDto: {
+            /**
+             * @description RECONCILED when the latest bank balance recorded on or before today equals the cash book and the folios on that day.
+             * @enum {string}
+             */
+            status: "RECONCILED" | "UNRECONCILED";
+            /**
+             * @description The day checked; null with no bank balance recorded.
+             * @example 2026-10-03
+             */
+            asAt?: string | null;
+            /** @description Bank − cash book on that day; null with no bank balance recorded. */
+            outByCents?: number | null;
+        };
+        TrustBankAccountDto: {
+            id: string;
+            workspaceId: string;
+            name: string;
+            bankName?: string | null;
+            accountName?: string | null;
+            bsb?: string | null;
+            accountNumberLast4?: string | null;
+            hasAccountNumber: boolean;
+            openingBalanceCents: number;
+            openingDate?: string | null;
+            /** @enum {string} */
+            status: "ACTIVE" | "ARCHIVED";
+            transactionCount: number;
+            createdAt: string;
+            /** @description Phase 4 (D68): the bank's three-letter code, e.g. CBA. */
+            abaBankCode?: string | null;
+            /** @description The six-digit direct entry user ID the bank issued. */
+            abaUserId?: string | null;
+            /** @description Who the payee statement says paid (26 characters). */
+            abaRemitterName?: string | null;
+            /** @description D120: an ABA file can be built — the bank code is set and the account has its BSB and number (the user ID defaults to 000000). */
+            abaReady: boolean;
+            reconciliation: components["schemas"]["TrustBankAccountReconciliationDto"];
+        };
+        TrustAccountCodeDto: {
+            id: string;
+            workspaceId: string;
+            code: string;
+            name: string;
+            /** @enum {string} */
+            kind: "INCOME" | "EXPENSE";
+            gstApplies: boolean;
+            isSystem: boolean;
+            isActive: boolean;
+        };
+        AgentTrustWorkspaceDto: {
+            /** Format: uuid */
+            workspaceId: string;
+            bankAccounts: components["schemas"]["TrustBankAccountDto"][];
+            accountCodes: components["schemas"]["TrustAccountCodeDto"][];
+        };
+        TrustLedgerCountsDto: {
+            owner: number;
+            tenant: number;
+            supplier: number;
+            agency: number;
+        };
+        TrustTodaySummaryDto: {
+            date: string;
+            moneyInCents: number;
+            /** @description Positive: money out today. */
+            moneyOutCents: number;
+            /** @description D33: the real bank movement today, every transaction. */
+            netCents: number;
+            /** @description Reversal pairs dated today, left out of money in / out. */
+            reversalCount: number;
+            /** @description Phase 3: bills paid today by journal (no bank movement), not reversed. */
+            billsPaidCents: number;
+            billsPaidCount: number;
+            /** @description Phase 4: bank payments made today (posted, not a reversal), positive. */
+            paidOutCents: number;
+            paidOutCount: number;
+        };
+        TrustLedgerEntryDto: {
+            id: string;
+            transactionId: string;
+            auditNumber: number;
+            receiptNumber?: number | null;
+            /** @enum {string} */
+            transactionKind: "RECEIPT" | "WITHDRAWAL" | "JOURNAL" | "OPENING";
+            /** @enum {string} */
+            transactionStatus: "POSTED" | "REVERSED";
+            ledgerId: string;
+            ledgerCode: string;
+            ledgerName: string;
+            /** @enum {string} */
+            ledgerKind: "OWNER" | "TENANT" | "SUPPLIER" | "AGENCY";
+            /** @enum {string} */
+            entryType: "RECEIPT" | "WITHDRAWAL" | "TRANSFER_IN" | "TRANSFER_OUT" | "OPENING";
+            accountCodeId?: string | null;
+            accountCodeName?: string | null;
+            amountCents: number;
+            gstCents: number;
+            details?: string | null;
+            sequence: number;
+            balanceAfterCents: number;
+            effectiveDate: string;
+            createdAt: string;
+        };
+        TrustTransactionBankLineDto: {
+            id: string;
+            lineDate: string;
+            memo: string;
+            /** @description Signed: > 0 credit, < 0 debit. */
+            amountCents: number;
+        };
+        TrustRentReceiptStampDto: {
+            ledgerId: string;
+            ledgerCode: string;
+            ledgerName: string;
+            /** @enum {string} */
+            allocationKind: "RENT" | "DEPOSIT" | "OTHER" | "INVOICE";
+            amountCents: number;
+            periodsCovered: number;
+            paidToBefore: string;
+            paidToAfter: string;
+            effectivePaidToAfter: string;
+            partPaymentBeforeCents: number;
+            partPaymentAfterCents: number;
+            arrearsBeforeCents: number;
+            arrearsBeforeDays: number;
+            /** @example $194.29 (2) */
+            arrearsText: string;
+            /** @example Paid to 11/10/2025 with part payment of $26.70 (from 27/09/2025) */
+            detailsText: string;
+        };
+        TrustTransactionFeeChargeDto: {
+            id: string;
+            name: string;
+            amountCents: number;
+            gstCents: number;
+            /** @enum {string} */
+            status: "PENDING" | "POSTED" | "REVERSED" | "WAIVED";
+        };
+        TrustTransactionInvoicePaymentDto: {
+            invoiceId: string;
+            invoiceNumber: number;
+            /** @description Signed: negative on the reversal that rolled the payment back. */
+            amountCents: number;
+        };
+        TrustTransactionPaymentDto: {
+            id: string;
+            /** @enum {string} */
+            method: "EFT" | "CASH" | "CHEQUE" | "CARD" | "BPAY";
+            payeeName: string;
+            /** @example ****6930 */
+            accountNumberMasked?: string | null;
+            bpayReference?: string | null;
+            chequeNumber?: string | null;
+            /** @enum {string} */
+            status: "POOLED" | "FILED" | "RECORDED" | "REVERSED";
+            batchId?: string | null;
+            batchNumber?: number | null;
+            disbursementRunId?: string | null;
+            disbursementRunNumber?: number | null;
+        };
+        TrustTransactionDto: {
+            id: string;
+            trustBankAccountId: string;
+            auditNumber: number;
+            receiptNumber?: number | null;
+            /** @enum {string} */
+            kind: "RECEIPT" | "WITHDRAWAL" | "JOURNAL" | "OPENING";
+            /** @enum {string|null} */
+            method?: "EFT" | "CASH" | "CHEQUE" | "CARD" | "BPAY" | null;
+            /** @enum {string} */
+            status: "POSTED" | "REVERSED";
+            cashAmountCents: number;
+            effectiveDate: string;
+            description: string;
+            partyName?: string | null;
+            reference?: string | null;
+            isReversal: boolean;
+            reversalOfId?: string | null;
+            reversedById?: string | null;
+            reversalReason?: string | null;
+            createdById?: string | null;
+            createdByName?: string | null;
+            createdAt: string;
+            entries: components["schemas"]["TrustLedgerEntryDto"][];
+            /** @description TRUST_SOURCE_TYPE value, when known. */
+            sourceType?: string | null;
+            sourceId?: string | null;
+            /**
+             * @description D116: POSTED, or REVERSED once reversed. Reconciliation is a day's balance (D117), not a per-transaction status.
+             * @enum {string}
+             */
+            displayStatus: "POSTED" | "REVERSED";
+            bankLine?: components["schemas"]["TrustTransactionBankLineDto"] | null;
+            rentReceipt?: components["schemas"]["TrustRentReceiptStampDto"] | null;
+            /** @description Phase 3: fee charges this transaction posted (D53). */
+            feeCharges: components["schemas"]["TrustTransactionFeeChargeDto"][];
+            /** @description Phase 3: tenant invoice payments this receipt made (negative on a reversal). */
+            invoicePayments: components["schemas"]["TrustTransactionInvoicePaymentDto"][];
+            /** @description Set on the journal that paid a bill (D48). */
+            billId?: string | null;
+            billNumber?: number | null;
+            /** @description Phase 4 (D66): the bank payment this withdrawal is. The account number is masked. */
+            payment?: components["schemas"]["TrustTransactionPaymentDto"] | null;
+        };
+        TrustOverviewReconciliationDto: {
+            /**
+             * @description The latest month holding an active lock.
+             * @example 2026-08
+             */
+            lastLockedMonth?: string | null;
+            /** @example August 2026 */
+            lastLockedLabel?: string | null;
+            /** @description When that month was locked (ISO). */
+            lastLockedAt?: string | null;
+            /** @example 2026-10 */
+            currentMonth: string;
+            /** @example October 2026 */
+            currentLabel: string;
+            /** @description Ended months still OPEN. */
+            monthsToLock: number;
+            /** @description Labels of the oldest ended months still OPEN, at most 3. */
+            openMonthsLabels: string[];
+        };
+        TrustOverviewDto: {
+            trustBankAccount: components["schemas"]["TrustBankAccountDto"];
+            cashBookBalanceCents: number;
+            /** @description Sum of the folio (ledger) balances. */
+            ledgerBalanceCents: number;
+            /** @description D136: the bank opening balance not allocated to a folio — the opening balance less the net of the take-on's folio entries (OPENING transactions and their reversals). The whole opening balance with no take-on, 0 with a standing take-on. Belongs to no folio, so it is never available to pay out. */
+            openingUnallocatedCents: number;
+            /** @description Cash book − (folio total + unallocated opening balance) (D136); 0 when the books balance. */
+            differenceCents: number;
+            ledgerCounts: components["schemas"]["TrustLedgerCountsDto"];
+            today: components["schemas"]["TrustTodaySummaryDto"];
+            recentTransactions: components["schemas"]["TrustTransactionDto"][];
+            /** @description Phase 3: pending bills. */
+            billsDueCount: number;
+            billsDueCents: number;
+            /** @description Pending bills the owner ledger cannot fund (D47). */
+            billsInsufficientCount: number;
+            /** @description Open tenant invoices (Unpaid + Part paid). */
+            invoicesOutstandingCount: number;
+            /** @description What is still owed on the open tenant invoices. */
+            invoicesOutstandingCents: number;
+            invoicesOverdueCount: number;
+            /** @description Phase 4 (D67): EFT and BPAY payments waiting for a bank file. */
+            poolPaymentCount: number;
+            poolPaymentCents: number;
+            /** @description Open owner ledgers due a payout today with something to pay (D70). */
+            ownersDueCount: number;
+            /** @description Open owner ledgers with no active payment method (D61). */
+            ownersWithoutPayoutMethodCount: number;
+            /** @description Phase 5 (D81): the reconciliation tile. */
+            reconciliation: components["schemas"]["TrustOverviewReconciliationDto"];
+            /**
+             * @deprecated
+             * @description Always false since D136: the opening balance is a starting point and the take-on is optional, so nothing is ever pending. Use openingUnallocatedCents.
+             */
+            takeOnPending: boolean;
+            /** @description Phase 6 (D87): ended owners (management end set, still open) holding money to pay out. */
+            endedOwnersAwaitingPayoutCount: number;
+        };
+        TrustRentProfileDto: {
+            ledgerId: string;
+            rentAmountCents: number;
+            /** @enum {string} */
+            rentPeriod: "WEEKLY" | "FORTNIGHTLY" | "MONTHLY";
+            /** @description Last day covered by whole rent periods, YYYY-MM-DD. */
+            paidToDate: string;
+            /** @description Paid-to plus the whole days the part payment covers. */
+            effectivePaidToDate: string;
+            partPaymentCents: number;
+            /** @description One day of rent at the current rent, rounded to the cent. */
+            dailyRateCents: number;
+            /** @description Arrears today (Sydney), after the part payment. */
+            arrearsCents: number;
+            /** @description D112: signed calendar days from today (Sydney) to the effective paid-to date. 0 = paid to today, +7 = a week ahead, -10 = ten days behind. */
+            arrearsDays: number;
+            /**
+             * @description The arrears amount; "—" when nothing is owed (D112: no day count).
+             * @example $194.29
+             */
+            arrearsText: string;
+            newRentAmountCents?: number | null;
+            newRentFrom?: string | null;
+            moveInDate?: string | null;
+            bondRequiredCents?: number | null;
+            /** @description Phase 6 (D86): bond receipted by the agent and lodged. */
+            bondReceivedCents?: number | null;
+            /** @description Phase 6 (D86): when the bond is due, YYYY-MM-DD. */
+            bondDueOn?: string | null;
+            /** @description Phase 6 (D86): paid by the tenant straight to the bond authority. */
+            bondPaidDirectCents?: number | null;
+            /** @description Phase 6 (D86): the bond authority reference. */
+            bondReference?: string | null;
+            /** @description Phase 6 (D86): paid direct + receipted. A record only, never in a balance. */
+            bondHeldCents: number;
+            /** @description Phase 6 (D86): what is still to be lodged, never below 0. */
+            bondOutstandingCents: number;
+            lastReceiptDate?: string | null;
+            /** @description The tenant ledger balance: deposits held, unallocated (D29, D36). */
+            depositHeldCents: number;
+            updatedAt: string;
+        };
+        TrustLedgerDto: {
+            id: string;
+            trustBankAccountId: string;
+            /** @enum {string} */
+            kind: "OWNER" | "TENANT" | "SUPPLIER" | "AGENCY";
+            /** @example OWN00001 */
+            code: string;
+            name: string;
+            /** @enum {string} */
+            status: "OPEN" | "CLOSED";
+            propertyId?: string | null;
+            propertyAddress?: string | null;
+            /** @description D108: the reference address tables and pickers show, "Suburb, street" (e.g. "Zetland, 906/301 Botany Rd"). */
+            propertyReferenceAddress?: string | null;
+            tenancyId?: string | null;
+            personId?: string | null;
+            agencyId?: string | null;
+            agencyName?: string | null;
+            managementStart?: string | null;
+            managementEnd?: string | null;
+            balanceCents: number;
+            entryCount: number;
+            createdAt: string;
+            closedAt?: string | null;
+            /** @description The reference the tenant quotes on bank transfers (Property.paymentReference). */
+            paymentReference?: string | null;
+            /** @description Tenant ledgers with rent set up. */
+            rentProfile?: components["schemas"]["TrustRentProfileDto"] | null;
+            /**
+             * @description Phase 4 (D70): how often an owner is paid out. Owner ledgers only; others carry the default.
+             * @enum {string}
+             */
+            payoutFrequency: "WEEKLY" | "FORTNIGHTLY" | "FOUR_WEEKLY" | "MONTHLY" | "ON_DEMAND";
+            /** @description The date of the last disbursement payout. */
+            lastPayoutDate?: string | null;
+            /** @description Phase 6 (D87, D97): an OPEN owner ledger whose management period covers today (Sydney). False for other kinds. */
+            isCurrentOwner: boolean;
+            /**
+             * @description D97: owner ledgers by date — current (OPEN, period covers today), ended (management ended before today), upcoming (OPEN, management starts after today). Null for other kinds and for a closed owner with no end.
+             * @enum {string|null}
+             */
+            ownerState?: "current" | "ended" | "upcoming" | null;
+            /** @description Phase 6 (D87): the owner ledger of the same property whose management ended the day before this one started. Single-ledger reads only; list rows carry null. */
+            predecessorLedgerId?: string | null;
+            /** @description Phase 6 (D87): the owner ledger of the same property that started the day after this one ended. Single-ledger reads only; list rows carry null. */
+            successorLedgerId?: string | null;
+        };
+        TrustLedgerListDto: {
+            total: number;
+            page: number;
+            pageSize: number;
+            items: components["schemas"]["TrustLedgerDto"][];
+        };
+        AgentAddSupplierDto: {
+            /** @example QA Plumbing */
+            name: string;
+        };
+        TrustLedgerEntryListDto: {
+            total: number;
+            page: number;
+            pageSize: number;
+            items: components["schemas"]["TrustLedgerEntryDto"][];
+        };
+        TrustRentListRowDto: {
+            ledgerId: string;
+            ledgerCode: string;
+            ledgerName: string;
+            propertyId?: string | null;
+            propertyAddress?: string | null;
+            /** @description D108: the reference address tables and pickers show, "Suburb, street" (e.g. "Zetland, 906/301 Botany Rd"). */
+            propertyReferenceAddress?: string | null;
+            /** @description The reference the tenant quotes on bank transfers (Property.paymentReference). */
+            paymentReference?: string | null;
+            hasRentProfile: boolean;
+            rentAmountCents?: number | null;
+            /** @enum {string|null} */
+            rentPeriod?: "WEEKLY" | "FORTNIGHTLY" | "MONTHLY" | null;
+            paidToDate?: string | null;
+            effectivePaidToDate?: string | null;
+            /** @description Rent arrears today (Sydney), after the part payment. */
+            arrearsCents: number;
+            /** @description D112: signed calendar days from today (Sydney) to the effective paid-to date. 0 = paid to today, +7 = a week ahead, -10 = ten days behind. Null when no rent is set up. */
+            arrearsDays?: number | null;
+            /**
+             * @description The rent arrears amount; "—" when nothing is owed (D112: no day count).
+             * @example —
+             */
+            arrearsText: string;
+            lastReceiptDate?: string | null;
+            lastReceiptAmountCents?: number | null;
+            depositHeldCents: number;
+            /** @description Phase 3: outstanding on the open tenant invoices (D50). */
+            invoicesOwingCents: number;
+            /** @description D111: still owing on the open tenant invoices (Unpaid, Part paid) whose due date is before today (Sydney). */
+            invoiceArrearsCents: number;
+            /** @description D111: rent arrears plus invoice arrears. The "Arrears only" filter and the In arrears KPI read this. */
+            totalArrearsCents: number;
+        };
+        TrustRentKpisDto: {
+            /** @description Rent allocations receipted in `collectedMonth` (Sydney), by receipt (effective) date, not posting date; reversals excluded. */
+            collectedThisMonthCents: number;
+            /** @description YYYY-MM: the calendar month `collectedThisMonthCents` covers (the current Sydney month), so the tile can name it. */
+            collectedMonth: string;
+            /** @description D111: tenants whose total arrears (rent + overdue invoices) is above zero. */
+            inArrearsCount: number;
+            /** @description D111: the total arrears (rent + overdue invoices) of those tenants. */
+            inArrearsCents: number;
+            /** @description Tenants whose effective paid-to is after today. */
+            paidInAdvanceCount: number;
+            noRentSetupCount: number;
+            tenantLedgerCount: number;
+        };
+        TrustRentListDto: {
+            total: number;
+            page: number;
+            pageSize: number;
+            items: components["schemas"]["TrustRentListRowDto"][];
+            kpis: components["schemas"]["TrustRentKpisDto"];
+        };
+        TenantReceiptAllocationDto: {
+            /**
+             * @description RENT and OTHER go to the owner ledger; DEPOSIT stays on the tenant ledger; INVOICE goes to the invoice beneficiary (D50).
+             * @enum {string}
+             */
+            kind: "RENT" | "DEPOSIT" | "OTHER" | "INVOICE";
+            /** @description Integer cents, positive. */
+            amountCents: number;
+            /** @description INVOICE only (required there): an open invoice on this tenant ledger. At most what it still owes. */
+            invoiceId?: string;
+            /** @description OTHER only: the income account code. RENT and DEPOSIT use the seeded codes. */
+            accountCodeId?: string;
+            details?: string;
+        };
+        TrustBankLineInputDto: {
+            /**
+             * @description YYYY-MM-DD, as read from the file.
+             * @example 2026-09-29
+             */
+            lineDate: string;
+            /** @description As read from the file. */
+            memo: string;
+            /** @description Signed integer cents: > 0 credit (money in), < 0 debit (money out). */
+            amountCents: number;
+            reference?: string | null;
+            /** @description 1 for the first identical (date, amount, memo) line in the file, 2 for the second, ... */
+            ordinal: number;
+        };
+        PostTenantReceiptDto: {
+            /** @description UUID the client generates when the form opens. */
+            idempotencyKey: string;
+            /** @description The TENANT ledger being receipted. */
+            ledgerId: string;
+            /**
+             * @description Not after today (Sydney). Must equal the bank line date when bankLineId is set.
+             * @example 2026-09-29
+             */
+            effectiveDate: string;
+            /** @enum {string} */
+            method: "EFT" | "CASH" | "CHEQUE" | "CARD" | "BPAY";
+            allocations: components["schemas"]["TenantReceiptAllocationDto"][];
+            /** @description The bank line this receipt reconciles (D98: sent back from the file read). Total must equal the line amount. */
+            bankLine?: components["schemas"]["TrustBankLineInputDto"];
+            /** @description Defaults to the ledger name. */
+            partyName?: string;
+            reference?: string;
+            /** @description Defaults to "Rent – <ledger name>" or "Receipt – <ledger name>". */
+            description?: string;
+            /** @description True when the operator picked the tenant by hand for a bank line: the payer is remembered (D31). */
+            rememberPayer?: boolean;
+        };
+        SetRentProfileDto: {
+            /** @description Integer cents per period, positive. */
+            rentAmountCents: number;
+            /** @enum {string} */
+            rentPeriod: "WEEKLY" | "FORTNIGHTLY" | "MONTHLY";
+            /**
+             * @description Last day covered by whole periods. On first set-up this is the take-on position (for a new tenancy: the day before move-in).
+             * @example 2026-09-12
+             */
+            paidToDate: string;
+            /** @description Leftover already held toward the next day. Default 0. */
+            partPaymentCents?: number;
+            /** @description A rent change to apply from newRentFrom. Null clears it. */
+            newRentAmountCents?: number | null;
+            /**
+             * @description Must be after paidToDate.
+             * @example 2026-11-01
+             */
+            newRentFrom?: string | null;
+            /** @example 2025-07-20 */
+            moveInDate?: string | null;
+            /** @description Written on the rent event row. */
+            note?: string;
+        };
+        TrustLedgerRefDto: {
+            id: string;
+            /** @example OWN00001 */
+            code: string;
+            name: string;
+            /** @enum {string} */
+            kind: "OWNER" | "TENANT" | "SUPPLIER" | "AGENCY";
+        };
+        TrustPropertyRefDto: {
+            id: string;
+            /** @description The full one-line address: folio page header and statements. */
+            address: string;
+            /** @description D108: the reference address tables and pickers show, "Suburb, street" (e.g. "Zetland, 906/301 Botany Rd"). */
+            referenceAddress: string;
+        };
+        TrustAccountCodeRefDto: {
+            id: string;
+            code: string;
+            name: string;
+            gstApplies: boolean;
+        };
+        TrustBillFundingDto: {
+            ownerBalanceCents: number;
+            /** @description Funded pending bills on the owner ledger. For a PENDING funded bill this excludes the bill itself, so availableAfterCents reads as the ledger Available. */
+            reservedCents: number;
+            /** @description ownerBalanceCents − reservedCents. */
+            availableCents: number;
+            /** @description availableCents − this bill when it is PENDING and funded, else availableCents. */
+            availableAfterCents: number;
+            funded: boolean;
+            /** @description How much more the owner needs; null when funded or not pending. */
+            shortfallCents?: number | null;
+        };
+        TrustAttachmentDto: {
+            fileName: string;
+            /** @enum {string} */
+            mimeType: "application/pdf" | "image/jpeg" | "image/png";
+            sizeBytes: number;
+        };
+        TrustBillDto: {
+            id: string;
+            billNumber: number;
+            trustBankAccountId: string;
+            ownerLedger: components["schemas"]["TrustLedgerRefDto"];
+            property: components["schemas"]["TrustPropertyRefDto"];
+            supplierLedger: components["schemas"]["TrustLedgerRefDto"];
+            accountCode: components["schemas"]["TrustAccountCodeRefDto"];
+            /** @description YYYY-MM-DD */
+            billDate: string;
+            dueDate?: string | null;
+            details: string;
+            invoiceReference?: string | null;
+            /** @description Free text period (D123). */
+            period?: string | null;
+            amountCents: number;
+            gstCents: number;
+            /** @enum {string} */
+            priority: "NORMAL" | "HIGH" | "URGENT";
+            maintenanceRequestId?: string | null;
+            /** @example M78827 */
+            maintenanceOrderNumber?: string | null;
+            /** @enum {string} */
+            status: "PENDING" | "PAID" | "CANCELLED";
+            /** @enum {string} */
+            displayStatus: "PENDING" | "INSUFFICIENT_FUNDS" | "PAID" | "CANCELLED";
+            /**
+             * @description D103: the Bills & Invoices tab. DUE = pending and due on or before today (Sydney) or no due date; FUTURE = pending and due after today.
+             * @enum {string}
+             */
+            stage: "DUE" | "FUTURE" | "PAID" | "CANCELLED";
+            isDueSoon: boolean;
+            funding: components["schemas"]["TrustBillFundingDto"];
+            paidTransactionId?: string | null;
+            paidAuditNumber?: number | null;
+            paidAt?: string | null;
+            cancelledReason?: string | null;
+            cancelledAt?: string | null;
+            attachment?: components["schemas"]["TrustAttachmentDto"] | null;
+            onChargeInvoiceId?: string | null;
+            onChargeInvoiceNumber?: number | null;
+            createdAt: string;
+            createdByName?: string | null;
+        };
+        TrustBillCountsDto: {
+            all: number;
+            /** @description Pending and funded. */
+            pending: number;
+            insufficientFunds: number;
+            dueSoon: number;
+            paid: number;
+            cancelled: number;
+            /** @description D103: pending, due on or before today or with no due date (the Due tab). */
+            due: number;
+            /** @description D103: pending, due after today (the Future tab). */
+            future: number;
+        };
+        TrustBillListDto: {
+            total: number;
+            page: number;
+            pageSize: number;
+            items: components["schemas"]["TrustBillDto"][];
+            counts: components["schemas"]["TrustBillCountsDto"];
+        };
+        TrustAttachmentBodyDto: {
+            fileName: string;
+            /** @enum {string} */
+            mimeType: "application/pdf" | "image/jpeg" | "image/png";
+            /** @description Bytes of the decoded file, at most 10 MB. */
+            sizeBytes: number;
+            /** @description The file, base64-encoded, without a data: prefix. */
+            contentBase64: string;
+        };
+        CreateBillDto: {
+            /** @example 2026-09-30 */
+            billDate: string;
+            /**
+             * @description On or after billDate.
+             * @example 2026-10-14
+             */
+            dueDate?: string;
+            /** @description The OWNER ledger that pays the bill; its property is the bill property. */
+            ownerLedgerId: string;
+            /** @description The SUPPLIER ledger the bill is paid to (same bank account). */
+            supplierLedgerId: string;
+            /** @description The expense account code (category). */
+            accountCodeId: string;
+            details: string;
+            /** @description The supplier's invoice number. */
+            invoiceReference?: string;
+            /** @description Free text, e.g. "01/07/2026 to 30/09/2026" (D123). */
+            period?: string;
+            /** @description GST-inclusive total, integer cents, positive. */
+            amountCents: number;
+            /** @description GST inside the amount. Omitted: 1/11 of the amount when the code carries GST, else 0. */
+            gstCents?: number;
+            /**
+             * @default NORMAL
+             * @enum {string}
+             */
+            priority: "NORMAL" | "HIGH" | "URGENT";
+            /** @description A maintenance job on the same property; its MR number is snapshotted (D49). */
+            maintenanceRequestId?: string;
+            /** @description On-charge the bill to the tenant as an invoice from the owner (D51). */
+            createTenantInvoice?: boolean;
+            /** @description The tenant ledger on the same property; required with createTenantInvoice. */
+            tenantLedgerId?: string;
+            /**
+             * @description The on-charged invoice's due date; required with createTenantInvoice.
+             * @example 2026-10-14
+             */
+            invoiceDueDate?: string;
+            attachment?: components["schemas"]["TrustAttachmentBodyDto"];
+        };
+        PayBillDto: {
+            /** @description UUID the client generates when the dialog opens. */
+            idempotencyKey: string;
+            /**
+             * @description Not after today (Sydney).
+             * @example 2026-09-30
+             */
+            effectiveDate: string;
+        };
+        TrustDisbursementCandidateDto: {
+            ledger: components["schemas"]["TrustLedgerRefDto"];
+            property?: components["schemas"]["TrustPropertyRefDto"] | null;
+            balanceCents: number;
+            /** @description Pending bills the balance funds (D47). */
+            reservedCents: number;
+            pendingFeeCents: number;
+            withheldCents: number;
+            /** @description Pending bills due on or before today. */
+            billsDueCents: number;
+            billsDueCount: number;
+            /** @description Owner: balance − reserved − pending fees − withheld (D65). Supplier: the balance. */
+            availableToPayCents: number;
+            /**
+             * @description Owner ledgers only.
+             * @enum {string|null}
+             */
+            payoutFrequency?: "WEEKLY" | "FORTNIGHTLY" | "FOUR_WEEKLY" | "MONTHLY" | "ON_DEMAND" | null;
+            lastPayoutDate?: string | null;
+            nextPayoutDue?: string | null;
+            isDue: boolean;
+            payBy: ("EFT" | "BPAY" | "CHEQUE")[];
+            canDisburse: boolean;
+            /** @enum {string|null} */
+            blockedReason?: "NO_PAYOUT_METHOD" | "NOTHING_TO_PAY" | "LEDGER_CLOSED" | "WRONG_KIND" | "POSTING_FAILED" | null;
+        };
+        TrustDisbursementHeaderDto: {
+            poolEftCount: number;
+            poolEftCents: number;
+            poolBpayCount: number;
+            poolBpayCents: number;
+            billsDueCount: number;
+            billsDueCents: number;
+            ownersDueCount: number;
+            ownersCount: number;
+            suppliersCount: number;
+        };
+        TrustDisbursementCandidatesDto: {
+            total: number;
+            page: number;
+            pageSize: number;
+            items: components["schemas"]["TrustDisbursementCandidateDto"][];
+            header: components["schemas"]["TrustDisbursementHeaderDto"];
+        };
+        DisburseDto: {
+            /** @description UUID the client generates when the confirm dialog opens; a replay returns the same run. */
+            idempotencyKey: string;
+            /** @enum {string} */
+            kind: "OWNER" | "SUPPLIER";
+            /**
+             * @description Not after today (Sydney).
+             * @example 2026-10-01
+             */
+            disbursementDate: string;
+            /** @description The ledgers to disburse, processed in this order. */
+            ledgerIds: string[];
+        };
+        TrustPaymentDto: {
+            id: string;
+            trustBankAccountId: string;
+            ledger: components["schemas"]["TrustLedgerRefDto"];
+            property?: components["schemas"]["TrustPropertyRefDto"] | null;
+            transactionId: string;
+            auditNumber: number;
+            effectiveDate: string;
+            /** @enum {string} */
+            method: "EFT" | "BPAY" | "CHEQUE";
+            payeeName: string;
+            bsb?: string | null;
+            /** @example ****6930 */
+            accountNumberMasked?: string | null;
+            bpayBillerCode?: string | null;
+            bpayReference?: string | null;
+            chequeNumber?: string | null;
+            amountCents: number;
+            /** @description What the payee sees on their statement: the ledger code (D73). */
+            reference: string;
+            /** @enum {string} */
+            status: "POOLED" | "FILED" | "RECORDED" | "REVERSED";
+            batchId?: string | null;
+            batchNumber?: number | null;
+            disbursementRunId?: string | null;
+            disbursementRunNumber?: number | null;
+            reversedAt?: string | null;
+            createdAt: string;
+            createdByName?: string | null;
+        };
+        TrustDisbursementItemDto: {
+            id: string;
+            ledger: components["schemas"]["TrustLedgerRefDto"];
+            property?: components["schemas"]["TrustPropertyRefDto"] | null;
+            openingBalanceCents: number;
+            feesPostedCents: number;
+            billsPaidCents: number;
+            billsPaidCount: number;
+            reservedCents: number;
+            withheldCents: number;
+            payoutCents: number;
+            /** @enum {string|null} */
+            skippedReason?: "NO_PAYOUT_METHOD" | "NOTHING_TO_PAY" | "LEDGER_CLOSED" | "WRONG_KIND" | "POSTING_FAILED" | null;
+            skippedLabel?: string | null;
+            statementId?: string | null;
+            statementNumber?: number | null;
+            payments: components["schemas"]["TrustPaymentDto"][];
+        };
+        TrustDisbursementRunDto: {
+            id: string;
+            trustBankAccountId: string;
+            runNumber: number;
+            /** @enum {string} */
+            kind: "OWNER" | "SUPPLIER";
+            disbursementDate: string;
+            ledgerCount: number;
+            paidCount: number;
+            skippedCount: number;
+            payoutCents: number;
+            billsPaidCents: number;
+            feesPostedCents: number;
+            createdAt: string;
+            createdByName?: string | null;
+            items: components["schemas"]["TrustDisbursementItemDto"][];
+        };
+        AgentTrustStatementEmailDto: {
+            /** Format: uuid */
+            statementId: string;
+            /** Format: uuid */
+            ledgerId: string;
+            ownerEmail: string | null;
+            /** @enum {string} */
+            status: "SENT" | "FAILED" | "NO_OWNER_EMAIL";
+        };
+        AgentTrustDisbursementResultDto: {
+            run: components["schemas"]["TrustDisbursementRunDto"];
+            statementEmails: components["schemas"]["AgentTrustStatementEmailDto"][];
+        };
+        TrustPendingMailDto: {
+            id: string;
+            /** @enum {string} */
+            kind: "TENANT_RECEIPT" | "OWNER_STATEMENT";
+            /** @enum {string} */
+            status: "PENDING" | "SENT" | "FAILED";
+            sourceId: string;
+            recipientEmail?: string | null;
+            recipientName?: string | null;
+            subject: string;
+            summary: string;
+            documentLabel: string;
+            failureReason?: string | null;
+            sentAt?: string | null;
+            createdAt: string;
+        };
+        TrustPendingMailListDto: {
+            items: components["schemas"]["TrustPendingMailDto"][];
+            total: number;
+            page: number;
+            pageSize: number;
+            /** @description Rows still waiting to be sent, ignoring the status filter. */
+            pendingCount: number;
+        };
+        TrustStatementOwnerDto: {
+            ledgerId: string;
+            code: string;
+            name: string;
+        };
+        TrustStatementPropertyDto: {
+            address?: string | null;
+            tenantName?: string | null;
+            rentAmountCents?: number | null;
+            /** @example week */
+            rentPeriodLabel?: string | null;
+            paidTo?: string | null;
+        };
+        TrustStatementTotalsDto: {
+            openingBalanceCents: number;
+            incomeCents: number;
+            expensesCents: number;
+            paidCents: number;
+            closingBalanceCents: number;
+            /** @description GST included in the expenses (the agency fees and GST-bearing bills). */
+            gstCents: number;
+        };
+        TrustStatementMoneyRowDto: {
+            /** @enum {string} */
+            kind: "INCOME" | "EXPENSE";
+            dateKey: string;
+            description: string;
+            /** @description Expenses only: the account code name, or "Agency fee". */
+            category?: string | null;
+            /** @description Signed within its table: a reversal is negative. */
+            amountCents: number;
+            gstCents: number;
+            transactionId: string;
+            auditNumber: number;
+        };
+        TrustStatementPaymentRowDto: {
+            /** @enum {string} */
+            kind: "PAYMENT";
+            dateKey: string;
+            description: string;
+            amountCents: number;
+            /** @enum {string} */
+            method: "EFT" | "BPAY" | "CHEQUE";
+            payeeName: string;
+            /** @description Masked account, BPAY reference or cheque number. */
+            accountLabel?: string | null;
+            /** @enum {string} */
+            status: "POOLED" | "FILED" | "RECORDED" | "REVERSED";
+            transactionId: string;
+            auditNumber: number;
+        };
+        TrustOwnerStatementSnapshotDto: {
+            /** @enum {number} */
+            version: 1;
+            statementNumber: number;
+            periodStart: string;
+            periodEnd: string;
+            issuedDate: string;
+            owner: components["schemas"]["TrustStatementOwnerDto"];
+            property: components["schemas"]["TrustStatementPropertyDto"];
+            totals: components["schemas"]["TrustStatementTotalsDto"];
+            income: components["schemas"]["TrustStatementMoneyRowDto"][];
+            expenses: components["schemas"]["TrustStatementMoneyRowDto"][];
+            payments: components["schemas"]["TrustStatementPaymentRowDto"][];
+        };
+        TrustOwnerStatementDto: {
+            id: string;
+            ledgerId: string;
+            statementNumber: number;
+            periodStart: string;
+            periodEnd: string;
+            issuedDate: string;
+            openingBalanceCents: number;
+            incomeCents: number;
+            expensesCents: number;
+            paidCents: number;
+            closingBalanceCents: number;
+            gstCents: number;
+            snapshot: components["schemas"]["TrustOwnerStatementSnapshotDto"];
+            disbursementRunId?: string | null;
+            createdAt: string;
+        };
+        TrustOwnerStatementListDto: {
+            total: number;
+            page: number;
+            pageSize: number;
+            items: components["schemas"]["TrustOwnerStatementDto"][];
+        };
+        TrustReconciliationMonthDto: {
+            /** @example 2026-09 */
+            month: string;
+            /** @example September 2026 */
+            label: string;
+            /** @example 2026-09-01 */
+            periodStart: string;
+            /** @example 2026-09-30 */
+            periodEnd: string;
+            /** @enum {string} */
+            status: "OPEN" | "LOCKED";
+            lockId?: string | null;
+            lockedAt?: string | null;
+            lockedByName?: string | null;
+            canLock: boolean;
+            /** @enum {string|null} */
+            lockBlocker?: "MONTH_NOT_ENDED" | "PREVIOUS_OPEN" | "ALREADY_LOCKED" | "OUT_OF_BALANCE" | null;
+            lockBlockerLabel?: string | null;
+            /** @description LOCKED and the latest locked month (D74). */
+            canRevoke: boolean;
+            isCurrentMonth: boolean;
+        };
+        TrustReconciliationMonthRefDto: {
+            /** @example 2026-09 */
+            month: string;
+            /** @example September 2026 */
+            label: string;
+            /** @example 2026-09-30 */
+            periodEnd: string;
+        };
+        TrustReconciliationMonthsDto: {
+            /** @description Newest first. */
+            months: components["schemas"]["TrustReconciliationMonthDto"][];
+            /**
+             * @description The month of the opening date (or the first transaction).
+             * @example 2026-07
+             */
+            firstMonth: string;
+            latestLockedMonth?: string | null;
+            /** @description Posts dated on or before this day are refused (D78). */
+            latestLockedEnd?: string | null;
+            /** @description D95: the oldest ended month still OPEN — the one to reconcile and lock next. Null when every ended month is locked. */
+            monthToLock?: components["schemas"]["TrustReconciliationMonthRefDto"] | null;
+        };
+        TrustReconciliationItemDto: {
+            transactionId: string;
+            auditNumber: number;
+            dateKey: string;
+            description: string;
+            partyName?: string | null;
+            /** @description Positive. */
+            amountCents: number;
+            /** @enum {string} */
+            kind: "RECEIPT" | "WITHDRAWAL" | "JOURNAL" | "OPENING";
+            /** @description D117: ticked as not yet shown by the bank at the statement date. The list holds every candidate; only ticked ones count in the total. */
+            isUnpresented: boolean;
+        };
+        TrustReconciliationBankLineDto: {
+            id: string;
+            lineDate: string;
+            memo: string;
+            /** @description Signed: > 0 credit, < 0 debit. */
+            amountCents: number;
+            /** @enum {string} */
+            status: "UNMATCHED" | "MATCHED" | "PROCESSED" | "DISMISSED";
+            /** @description Opening balance + every non-dismissed line up to this one (by date, then id). */
+            runningBalanceCents: number;
+        };
+        TrustReconciliationBankDto: {
+            /**
+             * @description D117: the statement date the bank balance is as at (= the figures' `asAt`).
+             * @example 2026-09-30
+             */
+            statementDate: string;
+            /** @description Typed by the accountant; null while OPEN and untyped. */
+            statementBalanceCents?: number | null;
+            /** @description The statement balance that would reconcile the month as at the statement date. */
+            suggestedStatementBalanceCents: number;
+            /** @description D117: the ticked receipts (not yet shown by the bank) — added to the statement balance. */
+            unreconciledDepositsCents: number;
+            /** @description D117: every receipt dated in the month up to the statement date, plus older ticked ones; `isUnpresented` marks the ticked. */
+            unreconciledDeposits: components["schemas"]["TrustReconciliationItemDto"][];
+            /** @description D117: the ticked withdrawals (not yet shown by the bank), positive — taken off the statement balance. */
+            unreconciledWithdrawalsCents: number;
+            /** @description D117: every withdrawal dated in the month up to the statement date, plus older ticked ones; `isUnpresented` marks the ticked. */
+            unreconciledWithdrawals: components["schemas"]["TrustReconciliationItemDto"][];
+            /**
+             * @description Not built: always 0.
+             * @example 0
+             */
+            adjustmentsCents: number;
+            /**
+             * @description Not built: always 0.
+             * @example 0
+             */
+            cashNotBankedCents: number;
+            /**
+             * @description Not built: always 0.
+             * @example 0
+             */
+            withdrawalsNotProcessedCents: number;
+            /** @description Statement + ticked deposits − ticked withdrawals; null while untyped. */
+            reconciledBalanceCents?: number | null;
+            /** @description Bank lines dated in the month up to the statement date, not dismissed. */
+            lines: components["schemas"]["TrustReconciliationBankLineDto"][];
+            /** @description Running total at the statement date (the opening balance when there are no lines). */
+            linesClosingBalanceCents: number;
+        };
+        TrustReconciliationCashBookDto: {
+            broughtForwardCents: number;
+            /** @description The previous month end. */
+            broughtForwardDate: string;
+            receiptsCents: number;
+            receiptsCount: number;
+            /** @description Positive. */
+            withdrawalsCents: number;
+            withdrawalsCount: number;
+            closingCents: number;
+        };
+        TrustReconciliationFolioRowDto: {
+            ledgerId: string;
+            code: string;
+            name: string;
+            /** @enum {string} */
+            kind: "OWNER" | "TENANT" | "SUPPLIER" | "AGENCY";
+            propertyAddress?: string | null;
+            /** @description D108: the reference address tables and pickers show, "Suburb, street" (e.g. "Zetland, 906/301 Botany Rd"). */
+            propertyReferenceAddress?: string | null;
+            balanceCents: number;
+        };
+        TrustReconciliationFoliosDto: {
+            /** @description The folio side compared with the cash book (D136): the folio balances (Σ rows) plus openingUnallocatedCents. The lock row's folio total. */
+            totalCents: number;
+            /** @description D136: the bank opening balance not allocated to a folio as at the statement date (opening balance − the take-on's folio entries dated by then). Shown as its own line; 0 on a lock frozen before D136. */
+            openingUnallocatedCents: number;
+            /** @description Non-zero folio balances as at the statement date. */
+            rows: components["schemas"]["TrustReconciliationFolioRowDto"][];
+        };
+        TrustReconciliationResultDto: {
+            /** @description Null while the statement balance is untyped. */
+            isReconciled?: boolean | null;
+            /** @description Reconciled bank − cash book closing; null while untyped. */
+            bankVsCashBookCents?: number | null;
+            /** @description Cash book closing − folio total (folio balances + unallocated opening balance, D136). */
+            cashBookVsFoliosCents: number;
+        };
+        TrustReconciliationHistoryDto: {
+            lockId: string;
+            lockedAt: string;
+            lockedByName?: string | null;
+            revokedAt?: string | null;
+            revokedByName?: string | null;
+            revokedReason?: string | null;
+        };
+        TrustReconciliationFiguresDto: {
+            /** @example 2026-09 */
+            month: string;
+            /** @example September 2026 */
+            label: string;
+            periodStart: string;
+            periodEnd: string;
+            /**
+             * @description D117: the date the figures are as at — the asked-for statement date, else the month end (today for the current month). A lock is always as at the month end.
+             * @example 2026-09-30
+             */
+            asAt: string;
+            /** @enum {string} */
+            status: "OPEN" | "LOCKED";
+            lockId?: string | null;
+            lockedAt?: string | null;
+            lockedByName?: string | null;
+            note?: string | null;
+            revokedAt?: string | null;
+            revokedByName?: string | null;
+            revokedReason?: string | null;
+            /** @description True when served from a lock snapshot. */
+            isFrozen: boolean;
+            bank: components["schemas"]["TrustReconciliationBankDto"];
+            cashBook: components["schemas"]["TrustReconciliationCashBookDto"];
+            folios: components["schemas"]["TrustReconciliationFoliosDto"];
+            result: components["schemas"]["TrustReconciliationResultDto"];
+            canLock: boolean;
+            /** @enum {string|null} */
+            lockBlocker?: "MONTH_NOT_ENDED" | "PREVIOUS_OPEN" | "ALREADY_LOCKED" | "OUT_OF_BALANCE" | null;
+            lockBlockerLabel?: string | null;
+            canRevoke: boolean;
+            history: components["schemas"]["TrustReconciliationHistoryDto"][];
+            /** @description D95, D117: an OPEN month only — the bank balance recorded on the statement date (`asAt`), if any. It fills the bank section when no statement balance is typed. Null for a locked month. Not part of a lock snapshot. */
+            recordedBalanceCents?: number | null;
+        };
+        RecordBankBalanceDto: {
+            /** @description The balance on the bank statement at the end of the day, in cents. May be negative. */
+            balanceCents: number;
+            note?: string;
+        };
+        TrustBankBalanceDto: {
+            id: string;
+            /** @example 2026-09-30 */
+            date: string;
+            /** @description Integer cents; may be negative. */
+            balanceCents: number;
+            note?: string | null;
+            /** @description ISO time the balance was last recorded (updatedAt). */
+            recordedAt: string;
+            recordedByName?: string | null;
+            /** @description D118: the cash book on that day — opening balance plus every bank movement dated on or before it. */
+            cashBookBalanceCents: number;
+            /** @description D118: the folio total on that day (every ledger entry dated on or before it) plus the unallocated opening balance on that day (D136). */
+            folioTotalCents: number;
+            /** @description D136: the bank opening balance not allocated to a folio on that day; included in folioTotalCents. */
+            openingUnallocatedCents: number;
+            /** @description D118: bank = cash book = folio total on that day. */
+            isReconciled: boolean;
+            /** @description D118: bank − cash book on that day; 0 when reconciled. */
+            outByCents: number;
+        };
+        LockReconciliationDto: {
+            /** @description The closing balance on the bank statement at the month end, typed by the accountant (R21). */
+            bankStatementBalanceCents: number;
+            note?: string;
+            /** @description D117: the receipts and withdrawals the bank had not shown by the month end, ticked by the accountant; frozen in the lock snapshot. None when absent. */
+            unpresentedTransactionIds?: string[];
+        };
+        TrustTransactionListDto: {
+            total: number;
+            page: number;
+            pageSize: number;
+            items: components["schemas"]["TrustTransactionDto"][];
+        };
+        ReverseTransactionDto: {
+            /** @description UUID the client generates when the form opens. */
+            idempotencyKey: string;
+            reason: string;
+        };
+        TrustFeeChargeDto: {
+            id: string;
+            ownerLedgerId: string;
+            agencyLedger?: components["schemas"]["TrustLedgerRefDto"] | null;
+            feeSettingId?: string | null;
+            /** @enum {string} */
+            trigger: "EVERY_RENT_RECEIPT" | "FIRST_RENT_RECEIPT" | "AGREEMENT_RENEWED" | "OWNER_INVOICE_RECEIPT" | "INSPECTION_COMPLETED" | "SUPPLIER_BILL_CREATED" | "RECURRING" | "MANUAL";
+            name: string;
+            baseAmountCents?: number | null;
+            amountCents: number;
+            gstCents: number;
+            accountCode: components["schemas"]["TrustAccountCodeRefDto"];
+            /** @description YYYY-MM-DD */
+            chargeDate: string;
+            /** @enum {string} */
+            status: "PENDING" | "POSTED" | "REVERSED" | "WAIVED";
+            pendingReason?: string | null;
+            transactionId?: string | null;
+            auditNumber?: number | null;
+            /** @description TRUST_SOURCE_TYPE value. */
+            sourceType: string;
+            sourceId: string;
+            waivedReason?: string | null;
+            waivedAt?: string | null;
+            createdAt: string;
+        };
+        TrustFeeChargeTotalsDto: {
+            pendingCents: number;
+            pendingCount: number;
+            /** @description Charges posted by transactions dated this month (Sydney). */
+            postedThisMonthCents: number;
+        };
+        TrustFeeChargeListDto: {
+            total: number;
+            page: number;
+            pageSize: number;
+            items: components["schemas"]["TrustFeeChargeDto"][];
+            totals: components["schemas"]["TrustFeeChargeTotalsDto"];
+        };
+        CreateManualFeeDto: {
+            /** @description UUID the client generates when the dialog opens. */
+            idempotencyKey: string;
+            name: string;
+            /** @description Integer cents, positive. */
+            amountCents: number;
+            /** @description True: the amount already includes GST. */
+            gstInclusive: boolean;
+            accountCodeId: string;
+            /**
+             * @description Not after today (Sydney).
+             * @example 2026-09-30
+             */
+            chargeDate: string;
+        };
+        TrustPostPendingFeesResultDto: {
+            posted: number;
+            postedCents: number;
+            stillPending: number;
+            /** @description The last journal posted, when any. */
+            transactionId?: string | null;
+        };
+        WaiveFeeChargeDto: {
+            reason: string;
+        };
+        TrustPaymentBatchDto: {
+            id: string;
+            trustBankAccountId: string;
+            batchNumber: number;
+            /** @enum {string} */
+            method: "EFT" | "BPAY";
+            fileName: string;
+            reportFileName: string;
+            paymentCount: number;
+            totalCents: number;
+            processingDate: string;
+            createdAt: string;
+            createdByName?: string | null;
+        };
+        TrustPoolMethodDto: {
+            /** @enum {string} */
+            method: "EFT" | "BPAY";
+            count: number;
+            totalCents: number;
+            lastBatch?: components["schemas"]["TrustPaymentBatchDto"] | null;
+        };
+        TrustPaymentsSummaryDto: {
+            eft: components["schemas"]["TrustPoolMethodDto"];
+            bpay: components["schemas"]["TrustPoolMethodDto"];
+            /** @description Cheques recorded and not reversed. */
+            chequeCount: number;
+            /** @description D120: an ABA file can be built: the bank code plus the trust account BSB and number. */
+            abaReady: boolean;
+            /** @description Human names of the ABA settings still blank. */
+            abaMissing: string[];
+        };
+        TrustPaymentBatchListDto: {
+            total: number;
+            page: number;
+            pageSize: number;
+            items: components["schemas"]["TrustPaymentBatchDto"][];
+        };
+        CreatePaymentBatchDto: {
+            /** @enum {string} */
+            method: "EFT" | "BPAY";
+            /**
+             * @description The day the bank processes the file; defaults to today (Sydney).
+             * @example 2026-10-01
+             */
+            processingDate?: string;
+        };
+        TrustPaymentBatchDetailDto: {
+            id: string;
+            trustBankAccountId: string;
+            batchNumber: number;
+            /** @enum {string} */
+            method: "EFT" | "BPAY";
+            fileName: string;
+            reportFileName: string;
+            paymentCount: number;
+            totalCents: number;
+            processingDate: string;
+            createdAt: string;
+            createdByName?: string | null;
+            payments: components["schemas"]["TrustPaymentDto"][];
+        };
+        ReadBankFileDto: {
+            fileName: string;
+            /** @example application/qif */
+            mimeType: string;
+            sizeBytes: number;
+            /**
+             * Format: base64
+             * @description The QIF file, base64 without a data: prefix.
+             */
+            contentBase64: string;
+        };
+        TrustBankFileCountsDto: {
+            all: number;
+            unmatched: number;
+            matched: number;
+            reconciled: number;
+        };
+        TrustBankLineSuggestionDto: {
+            /** @enum {string} */
+            source: "LEDGER_CODE" | "PAYMENT_REFERENCE" | "REMEMBERED_PAYER" | "AMOUNT_AND_DATE";
+            /** @description Credit lines: the suggested tenant ledger. */
+            ledgerId?: string | null;
+            ledgerCode?: string | null;
+            ledgerName?: string | null;
+            propertyAddress?: string | null;
+            /** @description D108: the reference address tables and pickers show, "Suburb, street" (e.g. "Zetland, 906/301 Botany Rd"). */
+            propertyReferenceAddress?: string | null;
+            rentAmountCents?: number | null;
+            /** @enum {string|null} */
+            rentPeriod?: "WEEKLY" | "FORTNIGHTLY" | "MONTHLY" | null;
+            /** @description True when the line amount is not the tenant rent. */
+            amountDiffersFromRent: boolean;
+            /** @description Debit lines: the posted withdrawal to reconcile. */
+            transactionId?: string | null;
+            transactionAuditNumber?: number | null;
+            transactionDescription?: string | null;
+            transactionEffectiveDate?: string | null;
+        };
+        TrustBankLineTransactionDto: {
+            id: string;
+            auditNumber: number;
+            receiptNumber?: number | null;
+            /** @enum {string} */
+            kind: "RECEIPT" | "WITHDRAWAL" | "JOURNAL" | "OPENING";
+            /** @enum {string} */
+            status: "POSTED" | "REVERSED";
+            description: string;
+            partyName?: string | null;
+        };
+        TrustBankFileLineDto: {
+            /** @description The line fingerprint (sha256 hex): its stable id on this account across reads. */
+            key: string;
+            /** @description YYYY-MM-DD */
+            lineDate: string;
+            memo: string;
+            /** @description Signed: > 0 credit (money in), < 0 debit (money out). */
+            amountCents: number;
+            reference?: string | null;
+            /** @description 1 for the first identical (date, amount, memo) line in the file, 2 for the second, ... */
+            ordinal: number;
+            /**
+             * @description UNMATCHED, MATCHED (a suggestion exists) or PROCESSED (already reconciled). Never DISMISSED.
+             * @enum {string}
+             */
+            status: "UNMATCHED" | "MATCHED" | "PROCESSED" | "DISMISSED";
+            suggestion?: components["schemas"]["TrustBankLineSuggestionDto"] | null;
+            /** @description PROCESSED lines. */
+            transaction?: components["schemas"]["TrustBankLineTransactionDto"] | null;
+            /** @description PROCESSED lines: the saved line, to unlink. */
+            savedLineId?: string | null;
+        };
+        TrustBankFileDto: {
+            fileName: string;
+            /** @description Every line in the file. */
+            lineCount: number;
+            /** @description Lines dated before the account's opening date, left out of `lines`. */
+            skippedBeforeOpeningCount: number;
+            /** @description YYYY-MM-DD of the earliest line in `lines`. */
+            dateFrom?: string | null;
+            dateTo?: string | null;
+            counts: components["schemas"]["TrustBankFileCountsDto"];
+            /** @description Newest first, file order within a day. */
+            lines: components["schemas"]["TrustBankFileLineDto"][];
+        };
+        LinkBankLineDto: {
+            bankLine: components["schemas"]["TrustBankLineInputDto"];
+            transactionId: string;
+        };
+        TrustBankLineReconciledDto: {
+            /** @description The saved line. */
+            lineId: string;
+            transactionId: string;
+        };
+        ProcessMatchedLineDto: {
+            bankLine: components["schemas"]["TrustBankLineInputDto"];
+            /** @description Generated by the client once per line per read; a double submit posts once. */
+            idempotencyKey: string;
+            /** @description Credit line: the suggested tenant ledger, receipted as rent. */
+            ledgerId?: string;
+            /** @description Debit line: the suggested posted withdrawal, linked. */
+            transactionId?: string;
+        };
+        ProcessMatchedDto: {
+            lines: components["schemas"]["ProcessMatchedLineDto"][];
+        };
+        TrustProcessMatchedFailureDto: {
+            /** @description The line fingerprint, as `TrustBankFileLineDto.key`. */
+            key: string;
+            reason: string;
+        };
+        TrustProcessMatchedResultDto: {
+            processedCount: number;
+            transactionIds: string[];
+            failed: components["schemas"]["TrustProcessMatchedFailureDto"][];
+        };
+        TrustBankLineUnlinkedDto: {
+            /** @description The transaction that is Unreconciled again. */
+            transactionId: string;
+        };
+        TrustReportRowDto: {
+            dateKey: string;
+            auditNumber: number;
+            receiptNumber?: number | null;
+            description: string;
+            partyName?: string | null;
+            reference?: string | null;
+            method?: string | null;
+            /** @description Positive. */
+            amountCents: number;
+            /** @description A bank line dated on or before the period end explains it. */
+            reconciled: boolean;
+            isReversal: boolean;
+        };
+        TrustCashReportDto: {
+            /** @enum {string} */
+            kind: "receipts" | "withdrawals" | "folio-balances" | "unpresented-payments";
+            /** @example Receipts */
+            label: string;
+            /** @description Period reports: the first day. As-at reports: the as-at date. */
+            from: string;
+            /** @description Period reports: the last day. As-at reports: null. */
+            to?: string | null;
+            /** @description Every matching row, not only the rows returned. */
+            totalCents: number;
+            /** @description Every matching row, not only the rows returned. */
+            rowCount: number;
+            /** @description More rows matched than the report returns. */
+            truncated: boolean;
+            rows: components["schemas"]["TrustReportRowDto"][];
+        };
+        TrustFolioBalanceReportRowDto: {
+            code: string;
+            name: string;
+            /** @enum {string} */
+            kind: "OWNER" | "TENANT" | "SUPPLIER" | "AGENCY";
+            propertyAddress?: string | null;
+            /** @description D108: the reference address tables and pickers show, "Suburb, street" (e.g. "Zetland, 906/301 Botany Rd"). */
+            propertyReferenceAddress?: string | null;
+            balanceCents: number;
+        };
+        TrustFolioBalanceReportDto: {
+            /** @enum {string} */
+            kind: "receipts" | "withdrawals" | "folio-balances" | "unpresented-payments";
+            /** @example Receipts */
+            label: string;
+            /** @description Period reports: the first day. As-at reports: the as-at date. */
+            from: string;
+            /** @description Period reports: the last day. As-at reports: null. */
+            to?: string | null;
+            /** @description Every matching row, not only the rows returned. */
+            totalCents: number;
+            /** @description Every matching row, not only the rows returned. */
+            rowCount: number;
+            /** @description More rows matched than the report returns. */
+            truncated: boolean;
+            rows: components["schemas"]["TrustFolioBalanceReportRowDto"][];
+        };
+        TrustUnpresentedReportRowDto: {
+            dateKey: string;
+            auditNumber: number;
+            description: string;
+            payeeName?: string | null;
+            method?: string | null;
+            reference?: string | null;
+            /** @description Positive. */
+            amountCents: number;
+            daysOutstanding: number;
+        };
+        TrustUnpresentedReportDto: {
+            /** @enum {string} */
+            kind: "receipts" | "withdrawals" | "folio-balances" | "unpresented-payments";
+            /** @example Receipts */
+            label: string;
+            /** @description Period reports: the first day. As-at reports: the as-at date. */
+            from: string;
+            /** @description Period reports: the last day. As-at reports: null. */
+            to?: string | null;
+            /** @description Every matching row, not only the rows returned. */
+            totalCents: number;
+            /** @description Every matching row, not only the rows returned. */
+            rowCount: number;
+            /** @description More rows matched than the report returns. */
+            truncated: boolean;
+            rows: components["schemas"]["TrustUnpresentedReportRowDto"][];
+        };
+        TrustTakeOnLedgerRowDto: {
+            ledgerId: string;
+            code: string;
+            name: string;
+            /** @enum {string} */
+            kind: "OWNER" | "TENANT" | "SUPPLIER" | "AGENCY";
+            propertyAddress?: string | null;
+            /** @description D108: the reference address tables and pickers show, "Suburb, street" (e.g. "Zetland, 906/301 Botany Rd"). */
+            propertyReferenceAddress?: string | null;
+            /** @description The ledger balance now (the opening amount once posted). */
+            balanceCents: number;
+            /** @description Tenant ledgers: rent is set up (D82). True for every other kind. */
+            hasRentProfile: boolean;
+        };
+        TrustTakeOnStatusDto: {
+            bankAccountId: string;
+            openingBalanceCents: number;
+            openingDate?: string | null;
+            /** @description An OPENING transaction is posted and not reversed. */
+            posted: boolean;
+            openingTransactionId?: string | null;
+            openingAuditNumber?: number | null;
+            postedAt?: string | null;
+            postedByName?: string | null;
+            /** @description No server-side blocker; the client still checks the total and tenants without rent. */
+            canPost: boolean;
+            /** @enum {string|null} */
+            blocker?: "ALREADY_POSTED" | "NOT_FIRST" | "DATE_MISSING" | "NOTHING_TO_POST" | null;
+            blockerLabel?: string | null;
+            /** @description POSTED or REVERSED transactions other than the opening and its reversals. */
+            otherTransactionCount: number;
+            /** @description OPEN ledgers: owners, tenants, suppliers, agency, each by code. */
+            ledgers: components["schemas"]["TrustTakeOnLedgerRowDto"][];
+            /** @description Ledger ids of OPEN tenant ledgers with no rent profile yet. */
+            tenantsWithoutRent: string[];
+        };
+        TakeOnRowDto: {
+            ledgerId: string;
+            /** @description Integer cents, 0 or more. A $0 row is left out of the posting. */
+            amountCents: number;
+        };
+        PostTakeOnDto: {
+            rows: components["schemas"]["TakeOnRowDto"][];
+            /** @description Written as the transaction reference. */
+            note?: string;
+        };
+        AgentOpenLedgerDto: {
+            /** @enum {string} */
+            kind: "OWNER" | "TENANT" | "AGENCY";
+            /** @description Defaults to the property's landlord or tenant name, or the agency name. */
+            name?: string;
+            /** @description OWNER and TENANT: a property of this agency. */
+            propertyId?: string;
+            /** @description TENANT only: the tenancy on that property. */
+            tenancyId?: string;
+            /**
+             * @description OWNER only: the first day of management.
+             * @example 2026-09-01
+             */
+            managementStart?: string;
+        };
+        TrustFolioSyncOwnerDto: {
+            propertyId: string;
+            propertyAddress: string;
+            /** @description D108: "Suburb, street". */
+            propertyReferenceAddress: string;
+            /** @description The folio's name: the property's landlord name. */
+            name: string;
+        };
+        TrustFolioSyncTenantDto: {
+            propertyId: string;
+            propertyAddress: string;
+            /** @description D108: "Suburb, street". */
+            propertyReferenceAddress: string;
+            /** @description The folio's name: the property's landlord name. */
+            name: string;
+            tenancyId: string;
+        };
+        TrustFolioSyncSkippedDto: {
+            propertyId: string;
+            propertyAddress: string;
+            tenancyId?: string | null;
+            /** @enum {string} */
+            reason: "NO_NAME";
+            /** @example The current tenancy has no tenant name */
+            reasonLabel: string;
+        };
+        TrustFolioSyncPreviewDto: {
+            owners: components["schemas"]["TrustFolioSyncOwnerDto"][];
+            tenants: components["schemas"]["TrustFolioSyncTenantDto"][];
+            skipped: components["schemas"]["TrustFolioSyncSkippedDto"][];
+            /** @description Agencies linked to the account's workspace. */
+            agencyCount: number;
+            /** @description More than 500 folios are missing; one run opens that many, a second run the rest. */
+            truncated: boolean;
+        };
+        TrustFolioSyncResultDto: {
+            /** @description The folios opened, owners first. */
+            opened: components["schemas"]["TrustLedgerDto"][];
+            skipped: components["schemas"]["TrustFolioSyncSkippedDto"][];
+        };
+        UpdateLedgerDto: {
+            name?: string;
+            /**
+             * @description Null clears it.
+             * @example 2026-09-01
+             */
+            managementStart?: string | null;
+            /**
+             * @description Null clears it.
+             * @example 2027-09-01
+             */
+            managementEnd?: string | null;
+        };
+        TrustPayoutMethodDto: {
+            id: string;
+            ledgerId: string;
+            /** @enum {string} */
+            method: "EFT" | "BPAY" | "CHEQUE";
+            payeeName: string;
+            /** @description Six digits, no dash. */
+            bsb?: string | null;
+            /** @example ****6930 */
+            accountNumberMasked?: string | null;
+            bpayBillerCode?: string | null;
+            bpayReference?: string | null;
+            /** @description Share of the payout in basis points (10 000 = 100%). */
+            splitBasisPoints: number;
+            /** @example 60% */
+            splitLabel: string;
+            isActive: boolean;
+            sortOrder: number;
+            createdAt: string;
+        };
+        TrustPayoutMethodsDto: {
+            ledger: components["schemas"]["TrustLedgerRefDto"];
+            /** @enum {string} */
+            payoutFrequency: "WEEKLY" | "FORTNIGHTLY" | "FOUR_WEEKLY" | "MONTHLY" | "ON_DEMAND";
+            lastPayoutDate?: string | null;
+            /** @description Owner ledgers only; null when ON_DEMAND. */
+            nextPayoutDue?: string | null;
+            /**
+             * @description D94: SET when the due date was set by hand (it rolls forward after each payout), COMPUTED when worked out from the last payout. Null when there is no due date.
+             * @enum {string|null}
+             */
+            nextPayoutDueSource?: "SET" | "COMPUTED" | null;
+            /** @description Active rows first, then by sort order. */
+            rows: components["schemas"]["TrustPayoutMethodDto"][];
+            /** @description The active rows total exactly 100%. */
+            splitComplete: boolean;
+        };
+        PayoutMethodRowDto: {
+            /** @description An existing row to keep; its stored account number stays when accountNumber is omitted. */
+            id?: string;
+            /** @enum {string} */
+            method: "EFT" | "BPAY" | "CHEQUE";
+            payeeName: string;
+            /** @description EFT: 6 digits, dash optional. */
+            bsb?: string;
+            /** @description EFT: 4 to 9 digits. Required for a new EFT row; stored encrypted, never returned. */
+            accountNumber?: string;
+            bpayBillerCode?: string;
+            bpayReference?: string;
+            /** @description Basis points; 10 000 = 100%. */
+            splitBasisPoints: number;
+            /** @default true */
+            isActive: boolean;
+        };
+        PutPayoutMethodsDto: {
+            rows: components["schemas"]["PayoutMethodRowDto"][];
+        };
+        SetPayoutScheduleDto: {
+            /** @enum {string} */
+            payoutFrequency: "WEEKLY" | "FORTNIGHTLY" | "FOUR_WEEKLY" | "MONTHLY" | "ON_DEMAND";
+            /**
+             * @description D94: the next payout due date, rolled forward one interval after each payout. Omitted keeps the stored date, null clears it (the due date is then worked out from the last payout). Always cleared for ON_DEMAND.
+             * @example 2026-10-28
+             */
+            nextPayoutDue?: string | null;
+        };
+        TrustFeeSettingDto: {
+            id: string;
+            ownerLedgerId: string;
+            /** @enum {string} */
+            trigger: "EVERY_RENT_RECEIPT" | "FIRST_RENT_RECEIPT" | "AGREEMENT_RENEWED" | "OWNER_INVOICE_RECEIPT" | "INSPECTION_COMPLETED" | "SUPPLIER_BILL_CREATED" | "RECURRING" | "MANUAL";
+            name: string;
+            /** @enum {string} */
+            calc: "FIXED" | "PERCENT";
+            /** @description FIXED: the fee in cents. */
+            amountCents?: number | null;
+            /** @description PERCENT: hundredths of a percent (550 = 5.5%). */
+            rateBasisPoints?: number | null;
+            gstInclusive: boolean;
+            accountCode: components["schemas"]["TrustAccountCodeRefDto"];
+            isActive: boolean;
+            createdAt: string;
+            updatedAt: string;
+        };
+        TrustFeeSettingInputDto: {
+            /** @description An existing setting on this owner ledger; omit to create one. */
+            id?: string;
+            /** @enum {string} */
+            trigger: "EVERY_RENT_RECEIPT" | "FIRST_RENT_RECEIPT" | "AGREEMENT_RENEWED" | "OWNER_INVOICE_RECEIPT" | "INSPECTION_COMPLETED" | "SUPPLIER_BILL_CREATED" | "RECURRING" | "MANUAL";
+            name: string;
+            /** @enum {string} */
+            calc: "FIXED" | "PERCENT";
+            /** @description FIXED only: the fee in cents. */
+            amountCents?: number | null;
+            /** @description PERCENT only: hundredths of a percent (550 = 5.5%). */
+            rateBasisPoints?: number | null;
+            /** @description True: the amount already includes GST (D25). */
+            gstInclusive: boolean;
+            accountCodeId: string;
+            isActive: boolean;
+        };
+        PutFeeSettingsDto: {
+            settings: components["schemas"]["TrustFeeSettingInputDto"][];
+        };
+        SetBondDto: {
+            /** @description The bond the lease requires, in cents. */
+            bondRequiredCents?: number | null;
+            /** @example 2026-10-15 */
+            bondDueOn?: string | null;
+            /** @description Paid by the tenant straight to the bond authority. */
+            bondPaidDirectCents?: number | null;
+            /** @description Receipted by the agent and lodged. */
+            bondReceivedCents?: number | null;
+            /** @description The bond authority reference. Empty clears it. */
+            bondReference?: string | null;
+        };
+        RentResetDto: {
+            /** @description New rent per period. Omit to keep the current rent. */
+            rentAmountCents?: number;
+            /** @enum {string} */
+            rentPeriod?: "WEEKLY" | "FORTNIGHTLY" | "MONTHLY";
+            /**
+             * @description New paid-to. Omit to keep it.
+             * @example 2025-11-08
+             */
+            paidToDate?: string;
+            /** @description New part payment held. Omit to keep it. */
+            partPaymentCents?: number;
+            /** @description True clears a pending rent change. */
+            clearPendingChange?: boolean;
+            /** @description Why. Written on the rent event row and the audit event. */
+            note: string;
+        };
+        TrustWithholdDto: {
+            id: string;
+            ledgerId: string;
+            amountCents: number;
+            reason: string;
+            /** @enum {string} */
+            status: "ACTIVE" | "RELEASED";
+            releaseNote?: string | null;
+            releasedAt?: string | null;
+            createdAt: string;
+            createdByName?: string | null;
+        };
+        TrustWithholdsDto: {
+            active: components["schemas"]["TrustWithholdDto"][];
+            released: components["schemas"]["TrustWithholdDto"][];
+            activeTotalCents: number;
+        };
+        CreateWithholdDto: {
+            /** @description Integer cents, positive. */
+            amountCents: number;
+            reason: string;
+        };
+        ReleaseWithholdDto: {
+            note?: string;
+        };
+        UpdateBillDto: {
+            details?: string;
+            /**
+             * @description Null clears the due date.
+             * @example 2026-10-14
+             */
+            dueDate?: string | null;
+            /** @enum {string} */
+            priority?: "NORMAL" | "HIGH" | "URGENT";
+            invoiceReference?: string | null;
+            /** @description Null clears the period (D123). */
+            period?: string | null;
+            accountCodeId?: string;
+        };
+        TrustCancelDocumentDto: {
+            reason: string;
+        };
+        TrustDisbursementRunListDto: {
+            total: number;
+            page: number;
+            pageSize: number;
+            items: components["schemas"]["TrustDisbursementRunDto"][];
+        };
+        TrustStatementPreviewDto: {
+            snapshot: components["schemas"]["TrustOwnerStatementSnapshotDto"];
+        };
+        RevokeReconciliationDto: {
+            reason: string;
+        };
+        TrustBankBalancesDto: {
+            /** @description In the range asked for, newest first, at most 400. */
+            rows: components["schemas"]["TrustBankBalanceDto"][];
+            /** @description The newest balance recorded on the account at all, whatever the range. */
+            latest?: components["schemas"]["TrustBankBalanceDto"] | null;
+        };
+        TrustInvoicePaymentDto: {
+            id: string;
+            transactionId: string;
+            auditNumber: number;
+            receiptNumber?: number | null;
+            /** @description YYYY-MM-DD */
+            effectiveDate: string;
+            /** @description Signed: negative on the reversal that rolled a payment back. */
+            amountCents: number;
+            createdAt: string;
+        };
+        TrustTenantInvoiceDto: {
+            id: string;
+            invoiceNumber: number;
+            trustBankAccountId: string;
+            tenantLedger: components["schemas"]["TrustLedgerRefDto"];
+            /** @description OWNER = "From owner", SUPPLIER = "From supplier". */
+            beneficiaryLedger: components["schemas"]["TrustLedgerRefDto"];
+            property?: components["schemas"]["TrustPropertyRefDto"] | null;
+            accountCode: components["schemas"]["TrustAccountCodeRefDto"];
+            /** @description YYYY-MM-DD */
+            invoiceDate: string;
+            /** @description YYYY-MM-DD */
+            dueDate: string;
+            details: string;
+            /** @description Free text period (D123). */
+            period?: string | null;
+            amountCents: number;
+            gstCents: number;
+            paidCents: number;
+            outstandingCents: number;
+            /** @enum {string} */
+            status: "UNPAID" | "PART_PAID" | "PAID" | "CANCELLED";
+            /** @enum {string} */
+            displayStatus: "UNPAID" | "PART_PAID" | "PAID" | "CANCELLED" | "OVERDUE";
+            /**
+             * @description D103: the Bills & Invoices tab. DUE = unpaid or part paid and due on or before today (Sydney); FUTURE = due after today.
+             * @enum {string}
+             */
+            stage: "DUE" | "FUTURE" | "PAID" | "CANCELLED";
+            sourceBillId?: string | null;
+            sourceBillNumber?: number | null;
+            cancelledReason?: string | null;
+            cancelledAt?: string | null;
+            attachment?: components["schemas"]["TrustAttachmentDto"] | null;
+            payments: components["schemas"]["TrustInvoicePaymentDto"][];
+            createdAt: string;
+            createdByName?: string | null;
+        };
+        TrustInvoiceCountsDto: {
+            all: number;
+            /** @description Unpaid and not yet overdue. */
+            unpaid: number;
+            /** @description Part paid and not yet overdue. */
+            partPaid: number;
+            overdue: number;
+            paid: number;
+            cancelled: number;
+            /** @description D103: unpaid or part paid, due on or before today (the Due tab). */
+            due: number;
+            /** @description D103: unpaid or part paid, due after today (the Future tab). */
+            future: number;
+        };
+        TrustTenantInvoiceListDto: {
+            total: number;
+            page: number;
+            pageSize: number;
+            items: components["schemas"]["TrustTenantInvoiceDto"][];
+            counts: components["schemas"]["TrustInvoiceCountsDto"];
+        };
+        CreateTenantInvoiceDto: {
+            /** @description The TENANT ledger charged. */
+            tenantLedgerId: string;
+            /** @description The OWNER ("From owner") or SUPPLIER ("From supplier") ledger the money goes to. */
+            beneficiaryLedgerId: string;
+            accountCodeId: string;
+            /** @example 2026-09-30 */
+            invoiceDate: string;
+            /**
+             * @description On or after invoiceDate.
+             * @example 2026-10-07
+             */
+            dueDate: string;
+            details: string;
+            /** @description Free text, e.g. "01/07/2026 to 30/09/2026" (D123). */
+            period?: string;
+            /** @description GST-inclusive total, integer cents, positive. */
+            amountCents: number;
+            /** @description GST inside the amount. Omitted: 1/11 of the amount when the code carries GST, else 0. */
+            gstCents?: number;
+            attachment?: components["schemas"]["TrustAttachmentBodyDto"];
+        };
+        TrustBillsSummaryDto: {
+            /** @description Pending bills. */
+            billsDueCount: number;
+            billsDueCents: number;
+            /** @description Pending bills the owner ledger cannot fund. */
+            insufficientCount: number;
+            insufficientCents: number;
+            /** @description Open tenant invoices. */
+            invoicesOutstandingCount: number;
+            /** @description What is still owed on them. */
+            invoicesOutstandingCents: number;
+            invoicesOverdueCount: number;
+            invoicesOverdueCents: number;
+        };
+        TrustRentPreviewDto: {
+            ledgerId: string;
+            amountCents: number;
+            receiptDate: string;
+            paidToBefore: string;
+            paidToAfter: string;
+            effectivePaidToAfter: string;
+            partPaymentAfterCents: number;
+            periodsCovered: number;
+            /** @example $194.29 (2) */
+            arrearsBeforeText: string;
+            detailsText: string;
+            rentChangeApplied: boolean;
+        };
+        TrustReceiptPreviewFeeDto: {
+            name: string;
+            /** @enum {string} */
+            trigger: "EVERY_RENT_RECEIPT" | "FIRST_RENT_RECEIPT" | "AGREEMENT_RENEWED" | "OWNER_INVOICE_RECEIPT" | "INSPECTION_COMPLETED" | "SUPPLIER_BILL_CREATED" | "RECURRING" | "MANUAL";
+            amountCents: number;
+            gstCents: number;
+            /** @description False when the fee would stay pending (no agency ledger, or the owner cannot fund it). */
+            willPost: boolean;
+            pendingReason?: string | null;
+        };
+        TrustReceiptPreviewPendingDto: {
+            count: number;
+            amountCents: number;
+        };
+        TrustReceiptPreviewDto: {
+            /** @description When rentCents > 0. */
+            rent?: components["schemas"]["TrustRentPreviewDto"] | null;
+            fees: components["schemas"]["TrustReceiptPreviewFeeDto"][];
+            /** @description Earlier PENDING charges this receipt would also post. */
+            pendingFeesToPost: components["schemas"]["TrustReceiptPreviewPendingDto"];
+            /** @description Rent + owner-invoice money − fees posted. */
+            ownerNetCents: number;
+            /** @description What the agency ledger would receive. */
+            agencyCents: number;
+        };
+        TrustTenantHistoryRowDto: {
+            /** @description Transaction id, or the rent event id for RENT_EVENT rows. */
+            id: string;
+            /** @enum {string} */
+            rowKind: "RENT_RECEIPT" | "DEPOSIT_RECEIPT" | "DEPOSIT_TRANSFER" | "OTHER_RECEIPT" | "RENT_EVENT" | "INVOICE_PAYMENT";
+            /** @description YYYY-MM-DD */
+            date: string;
+            transactionId?: string | null;
+            auditNumber?: number | null;
+            receiptNumber?: number | null;
+            /** @example Rent */
+            typeLabel: string;
+            /** @example Paid to 16/08/2025 (from 02/08/2025) */
+            details: string;
+            /** @description Null for rent events. */
+            amountCents?: number | null;
+            /** @description Arrears before this receipt, "$194.29 (2)". */
+            arrearsText?: string | null;
+            /** @enum {string|null} */
+            transactionStatus?: "POSTED" | "REVERSED" | null;
+            /** @enum {string|null} */
+            displayStatus?: "POSTED" | "REVERSED" | null;
+            /** @description INVOICE_PAYMENT rows: the invoice paid. */
+            invoiceId?: string | null;
+            invoiceNumber?: number | null;
+        };
+        TrustTenantHistoryHeaderDto: {
+            /** @description Outstanding on open invoices past their due date. */
+            invoiceArrearsCents: number;
+            /** @description Outstanding on every open invoice. */
+            openInvoiceCents: number;
+        };
+        TrustTenantHistoryTotalsDto: {
+            /** @description Rent received over the tenancy, reversed receipts excluded. */
+            rentPaidCents: number;
+            /** @description Paid against invoices, reversed receipts excluded. */
+            invoicesPaidCents: number;
+            /** @description The tenant ledger balance: deposit held now. */
+            depositHeldCents: number;
+            /** @description Posted, unreversed receipts on this tenant. */
+            receiptCount: number;
+        };
+        TrustTenantHistoryDto: {
+            total: number;
+            page: number;
+            pageSize: number;
+            ledger: components["schemas"]["TrustLedgerDto"];
+            items: components["schemas"]["TrustTenantHistoryRowDto"][];
+            header: components["schemas"]["TrustTenantHistoryHeaderDto"];
+            totals: components["schemas"]["TrustTenantHistoryTotalsDto"];
+        };
+        TrustLedgerSummaryDto: {
+            ledger: components["schemas"]["TrustLedgerDto"];
+            /** @description YYYY-MM of the month summarised (this month, Sydney). */
+            monthKey: string;
+            monthInCents: number;
+            /** @description Positive: money out this month. */
+            monthOutCents: number;
+            monthNetCents: number;
+            lastEntryDate?: string | null;
+            /** @description Owner ledgers: pending bills the balance funds (D47). 0 for other kinds. */
+            reservedCents: number;
+            /** @description Owner ledgers: balance − reserved. Other kinds: the balance. */
+            availableCents: number;
+            pendingBillCount: number;
+            /** @description Owner ledgers: fee charges not yet posted (D53). */
+            pendingFeeCents: number;
+            pendingFeeCount: number;
+            /** @description Tenant ledgers: outstanding on open invoices. */
+            openInvoiceCents: number;
+            openInvoiceCount: number;
+            /** @description Tenant ledgers: outstanding on open invoices past due. */
+            invoiceArrearsCents: number;
+            /** @description Phase 4 (D65): owner ledgers: active withheld amounts. */
+            withheldCents: number;
+            withheldCount: number;
+            /** @description Owner: balance − reserved − pending fees − withheld, floored at 0 (D65). Supplier / agency: the balance. */
+            availableToPayCents: number;
+            /** @description Owner ledgers: when the next payout falls due (D70). */
+            nextPayoutDue?: string | null;
+            lastPayoutDate?: string | null;
+            /** @description Active payment methods (D61). */
+            payoutMethodCount: number;
+            /** @description The active payment methods split exactly 100% (D62). */
+            splitComplete: boolean;
+            /** @description This ledger's payments waiting for a bank file. */
+            pooledPaymentCents: number;
+            pooledPaymentCount: number;
+        };
+        TransferDepositDto: {
+            idempotencyKey: string;
+            /** @description Integer cents, positive, at most the deposit held. */
+            amountCents: number;
+            /** @example 2026-09-29 */
+            effectiveDate: string;
+        };
+        AgentTrustSetupDto: {
+            name: string;
+            bankName?: string;
+            accountName?: string;
+            /** @description 6 digits, dash optional (e.g. 032-090). */
+            bsb?: string;
+            /** @description 4 to 10 digits. Stored encrypted; never returned. */
+            accountNumber?: string;
+            /** @description Opening bank balance in cents. */
+            openingBalanceCents?: number;
+            /** @example 2026-09-01 */
+            openingDate?: string;
+            /**
+             * @description Phase 4 (D68): the bank's three-letter code for the ABA file.
+             * @example CBA
+             */
+            abaBankCode?: string;
+            /**
+             * @description The six-digit direct entry user ID the bank issued.
+             * @example 301500
+             */
+            abaUserId?: string;
+            /** @description Who the payee statement says paid. */
+            abaRemitterName?: string;
+            /** @description The workspace name; defaults to the agency name. Ignored when the workspace already exists. */
+            workspaceName?: string;
+        };
+        CreateBankAccountDto: {
+            name: string;
+            bankName?: string;
+            accountName?: string;
+            /** @description 6 digits, dash optional (e.g. 032-090). */
+            bsb?: string;
+            /** @description 4 to 10 digits. Stored encrypted; never returned. */
+            accountNumber?: string;
+            /** @description Opening bank balance in cents. */
+            openingBalanceCents?: number;
+            /** @example 2026-09-01 */
+            openingDate?: string;
+            /**
+             * @description Phase 4 (D68): the bank's three-letter code for the ABA file.
+             * @example CBA
+             */
+            abaBankCode?: string;
+            /**
+             * @description The six-digit direct entry user ID the bank issued.
+             * @example 301500
+             */
+            abaUserId?: string;
+            /** @description Who the payee statement says paid. */
+            abaRemitterName?: string;
+        };
+        UpdateBankAccountDto: {
+            name?: string;
+            bankName?: string;
+            accountName?: string;
+            /** @description 6 digits, dash optional (e.g. 032-090). */
+            bsb?: string;
+            /** @description 4 to 10 digits. Stored encrypted; never returned. */
+            accountNumber?: string;
+            /** @description Opening bank balance in cents. Locked once a transaction exists. */
+            openingBalanceCents?: number;
+            /**
+             * @description Locked once a transaction exists.
+             * @example 2026-09-01
+             */
+            openingDate?: string;
+            /** @enum {string} */
+            status?: "ACTIVE" | "ARCHIVED";
+            /**
+             * @description Phase 4 (D68): the bank's three-letter code. Empty or null clears it.
+             * @example CBA
+             */
+            abaBankCode?: string | null;
+            /**
+             * @description Six digits. Empty or null clears it.
+             * @example 301500
+             */
+            abaUserId?: string | null;
+            /** @description Empty or null clears it. */
+            abaRemitterName?: string | null;
+        };
+        CreateAccountCodeDto: {
+            code: string;
+            name: string;
+            /** @enum {string} */
+            kind: "INCOME" | "EXPENSE";
+            gstApplies?: boolean;
+        };
+        UpdateAccountCodeDto: {
+            name?: string;
+            gstApplies?: boolean;
+            isActive?: boolean;
+        };
+        PostCashLineDto: {
+            ledgerId: string;
+            /** @description Integer cents, always positive; the endpoint sets the sign. */
+            amountCents: number;
+            /** @description GST inside the amount, 0 to amountCents. */
+            gstCents?: number;
+            accountCodeId?: string;
+            details?: string;
+        };
+        PostLedgerReceiptDto: {
+            /** @description UUID the client generates when the form opens. */
+            idempotencyKey: string;
+            /**
+             * @description Not after today (Sydney).
+             * @example 2026-09-29
+             */
+            effectiveDate: string;
+            /** @enum {string} */
+            method: "EFT" | "CASH" | "CHEQUE" | "CARD" | "BPAY";
+            description: string;
+            partyName?: string;
+            reference?: string;
+            lines: components["schemas"]["PostCashLineDto"][];
+            /** @description The bank line this receipt reconciles (D98: sent back from the file read). Total must equal the line amount. */
+            bankLine?: components["schemas"]["TrustBankLineInputDto"];
+        };
+        ManualWithdrawalDto: {
+            /** @description UUID the client generates when the form opens. */
+            idempotencyKey: string;
+            /** @description Any open ledger on this bank account. */
+            ledgerId: string;
+            /** @description The account code the withdrawal is booked under. */
+            accountCodeId?: string;
+            /**
+             * @description Not after today (Sydney).
+             * @example 2026-10-01
+             */
+            effectiveDate: string;
+            /** @description Pay to one of this ledger's active payment methods; its details are used and no account number is sent. */
+            payoutMethodId?: string;
+            /** @description Required unless payoutMethodId is given (then it overrides the saved payee name). */
+            payeeName?: string;
+            /**
+             * @description Required unless payoutMethodId is given (then the saved method's own method is used).
+             * @enum {string}
+             */
+            method?: "EFT" | "BPAY" | "CHEQUE";
+            /** @description EFT: 6 digits, dash optional. */
+            bsb?: string;
+            /** @description EFT: 4 to 9 digits. Stored encrypted, never returned. */
+            accountNumber?: string;
+            bpayBillerCode?: string;
+            bpayReference?: string;
+            chequeNumber?: string;
+            /** @description Integer cents, positive. */
+            amountCents: number;
+            /** @description GST inside the amount, 0 to amountCents. */
+            gstCents?: number;
+            /** @description Shown as the line details. */
+            note?: string;
+        };
+        PostJournalDto: {
+            /** @description UUID the client generates when the form opens. */
+            idempotencyKey: string;
+            /**
+             * @description Not after today (Sydney).
+             * @example 2026-09-29
+             */
+            effectiveDate: string;
+            description: string;
+            fromLedgerId: string;
+            /** @description Must differ from fromLedgerId. */
+            toLedgerId: string;
+            /** @description Integer cents, always positive. */
+            amountCents: number;
+            /** @description GST inside the amount, 0 to amountCents. */
+            gstCents?: number;
+            accountCodeId?: string;
+            details?: string;
+        };
+        TrustPaymentCountsDto: {
+            eft: number;
+            cheque: number;
+            bpay: number;
+            /** @description Generated batches on the bank account. */
+            batches: number;
+        };
+        TrustPaymentListDto: {
+            total: number;
+            page: number;
+            pageSize: number;
+            items: components["schemas"]["TrustPaymentDto"][];
+            counts: components["schemas"]["TrustPaymentCountsDto"];
+        };
+        TrustAuditEventDto: {
+            id: string;
+            workspaceId?: string | null;
+            actorUserId?: string | null;
+            actorName?: string | null;
+            entityType: string;
+            entityId: string;
+            /** @description Phase 5 (D80): what the entity is called when cheaply known (#audit no., ledger code, locked month), else null. */
+            entityLabel?: string | null;
+            action: string;
+            /** @description The fields that changed, as they were before. Never holds an account number. */
+            before?: {
+                [key: string]: unknown;
+            } | null;
+            /** @description The fields that changed, as they are now. Never holds an account number. */
+            after?: {
+                [key: string]: unknown;
+            } | null;
+            createdAt: string;
+        };
+        TrustAuditEventListDto: {
+            total: number;
+            page: number;
+            pageSize: number;
+            items: components["schemas"]["TrustAuditEventDto"][];
+        };
+        TrustAuditActorDto: {
+            userId: string;
+            name: string;
+        };
+        TrustAuditActorsDto: {
+            actors: components["schemas"]["TrustAuditActorDto"][];
+        };
+        TrustLedgerBalanceCheckDto: {
+            ledgerId: string;
+            cachedBalanceCents: number;
+            computedBalanceCents: number;
+            cachedEntryCount: number;
+            computedEntryCount: number;
+            matches: boolean;
+        };
+        PeopleAgencyRefDto: {
+            id: string;
+            name: string;
+        };
+        PersonListItemDto: {
+            id: string;
+            /** @description Crossub reference, e.g. CP-00012 */
+            reference: string;
+            displayName: string;
+            email: string | null;
+            phone: string | null;
+            roles: ("TENANT" | "OWNER" | "SUPPLIER" | "APPLICANT" | "AGENCY_STAFF")[];
+            agency: components["schemas"]["PeopleAgencyRefDto"] | null;
+            hasLogin: boolean;
+        };
+        PeopleListResponseDto: {
+            items: components["schemas"]["PersonListItemDto"][];
+            total: number;
+            page: number;
+            pageSize: number;
+        };
+        PersonAgencyDto: {
+            id: string;
+            name: string;
+            /** @description Live properties of the agency, for agency staff */
+            propertyCount: number | null;
+        };
+        PeoplePropertyRefDto: {
+            id: string;
+            address: string;
+            suburb: string | null;
+            agencyName: string | null;
+            archived: boolean;
+        };
+        PeopleFolioRefDto: {
+            ledgerId: string;
+            /** @description Trust folio code, e.g. TEN00007 */
+            code: string;
+            /** @enum {string} */
+            status: "OPEN" | "CLOSED";
+        };
+        PersonTenancyDto: {
+            tenancyId: string;
+            /** @enum {string} */
+            status: "PENDING" | "ACTIVE" | "PERIODIC" | "VACATING" | "ENDED";
+            /** @enum {string} */
+            role: "PRIMARY_TENANT" | "CO_TENANT" | "OCCUPANT" | "GUARANTOR";
+            /** @enum {string} */
+            memberStatus: "ACTIVE" | "ENDED";
+            isPrimary: boolean;
+            /** @description YYYY-MM-DD (Sydney) */
+            startDate: string | null;
+            /** @description YYYY-MM-DD (Sydney) */
+            endDate: string | null;
+            property: components["schemas"]["PeoplePropertyRefDto"];
+            /** @description False when the property's agency keeps its trust money outside Crossub */
+            trustManaged: boolean;
+            folio: components["schemas"]["PeopleFolioRefDto"] | null;
+        };
+        PersonTenantContactDto: {
+            property: components["schemas"]["PeoplePropertyRefDto"];
+            isPrimary: boolean;
+        };
+        PersonOwnedPropertyDto: {
+            property: components["schemas"]["PeoplePropertyRefDto"];
+            isPrimary: boolean;
+            trustManaged: boolean;
+            folio: components["schemas"]["PeopleFolioRefDto"] | null;
+        };
+        PersonSupplierAgencyDto: {
+            agencyId: string;
+            agencyName: string;
+            serviceTypes: string[];
+            isBlacklisted: boolean;
+        };
+        PersonJobDto: {
+            id: string;
+            /** @description Job reference, e.g. MR-00238 */
+            reference: string | null;
+            /** @enum {string} */
+            status: "OPEN" | "APPROVED" | "QUOTING" | "SCHEDULED" | "INVOICED" | "COMPLETED" | "CANCELLED";
+            property: components["schemas"]["PeoplePropertyRefDto"] | null;
+            createdAt: string;
+        };
+        PersonSupplierDto: {
+            agencies: components["schemas"]["PersonSupplierAgencyDto"][];
+            jobCount: number;
+            /** @description Newest first */
+            recentJobs: components["schemas"]["PersonJobDto"][];
+            folios: components["schemas"]["PeopleFolioRefDto"][];
+        };
+        PersonApplicationDto: {
+            id: string;
+            /** @enum {string} */
+            status: "DRAFT" | "SUBMITTED" | "APPROVED" | "DECLINED" | "LEASED" | "WITHDRAWN";
+            property: components["schemas"]["PeoplePropertyRefDto"] | null;
+            createdAt: string;
+        };
+        PersonProfileDto: {
+            id: string;
+            /** @description Crossub reference, e.g. CP-00012 */
+            reference: string;
+            displayName: string;
+            firstName: string | null;
+            lastName: string | null;
+            email: string | null;
+            phone: string | null;
+            /** @enum {string} */
+            kind: "PORTAL_USER" | "AGENCY_ADMIN";
+            roles: ("TENANT" | "OWNER" | "SUPPLIER" | "APPLICANT" | "AGENCY_STAFF")[];
+            hasLogin: boolean;
+            agency: components["schemas"]["PersonAgencyDto"] | null;
+            /** @description Newest first */
+            tenancies: components["schemas"]["PersonTenancyDto"][];
+            /** @description Tenant contact on a property with no tenancy membership */
+            tenantContacts: components["schemas"]["PersonTenantContactDto"][];
+            ownedProperties: components["schemas"]["PersonOwnedPropertyDto"][];
+            supplier: components["schemas"]["PersonSupplierDto"] | null;
+            /** @description Newest first */
+            applications: components["schemas"]["PersonApplicationDto"][];
+            createdAt: string;
+        };
+        AgentConversationParticipantDto: {
+            name: string;
+            /** @description tenant, landlord, contractor, agent, … */
+            userType: string | null;
+            email: string | null;
+        };
+        AgentConversationSummaryDto: {
+            /** Format: uuid */
+            id: string;
+            /** @description The email subject line replies thread on. */
+            subject: string;
+            /** @description Headline; show subject when null. */
+            title: string | null;
+            /** @enum {string} */
+            kind: "inbox" | "message_center" | "property";
+            /** Format: uuid */
+            propertyId: string | null;
+            propertyAddress: string | null;
+            /** Format: uuid */
+            agencyId: string | null;
+            /** @description maintenance, inspection, leasing, … */
+            caseType: string | null;
+            caseId: string | null;
+            /** @description The job reference, e.g. MR-00076. */
+            caseLabel: string | null;
+            /** Format: uuid */
+            assignedToId: string | null;
+            assignedToName: string | null;
+            resolved: boolean;
+            /** Format: date-time */
+            resolvedAt: string | null;
+            /** Format: date-time */
+            snoozedUntil: string | null;
+            /** @description Something came in that the thread’s owner (or I, when unassigned) has not opened. */
+            unread: boolean;
+            preview: string | null;
+            /** Format: date-time */
+            lastMessageAt: string | null;
+            /** @enum {string|null} */
+            lastMessageDirection: "inbound" | "outbound" | null;
+            attachmentCount: number;
+            participants: components["schemas"]["AgentConversationParticipantDto"][];
+        };
+        AgentConversationListDto: {
+            /**
+             * @description Total records matching the query.
+             * @example 42
+             */
+            total: number;
+            /**
+             * @description 1-based page returned.
+             * @example 1
+             */
+            page: number;
+            /**
+             * @description Items per page applied.
+             * @example 20
+             */
+            pageSize: number;
+            /**
+             * @description Whether a further page exists after this one.
+             * @example true
+             */
+            hasMore: boolean;
+            items: components["schemas"]["AgentConversationSummaryDto"][];
+        };
+        AgentConversationUnreadCountDto: {
+            /** @description Open threads in the inbox with a message the agent has not read. */
+            count: number;
+        };
+        AgentConversationTemplateDto: {
+            id: string;
+            name: string;
+            /** @description email, sms, … */
+            type: string;
+            category: string | null;
+            subject: string | null;
+            body: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        AgentConversationTemplateListDto: {
+            items: components["schemas"]["AgentConversationTemplateDto"][];
+        };
+        AgentCreateConversationDto: {
+            /** Format: uuid */
+            propertyId: string;
+            /** @enum {string} */
+            recipient: "tenant" | "landlord" | "contractor";
+            /**
+             * @description Email, or a message in the tenant app (tenant only). Owners and contractors are written to by email.
+             * @default email
+             * @enum {string}
+             */
+            channel: "email" | "app";
+            /**
+             * Format: email
+             * @description Email only: the address to write to. Optional for tenant and landlord (the property record’s email is used); required for a contractor.
+             */
+            toEmail?: string;
+            subject: string;
+            body: string;
+        };
+        AgentConversationAttachmentDto: {
+            fileName: string;
+            mimeType: string;
+            sizeBytes: number;
+            url: string;
+            /** @description An embedded signature image rather than a real document. */
+            inline: boolean;
+        };
+        AgentConversationMessageDto: {
+            id: string;
+            /** @enum {string} */
+            channel: "app" | "email" | "voice" | "internal_note" | "push" | "sms" | "whatsapp";
+            /** @enum {string} */
+            direction: "inbound" | "outbound";
+            /** @description Sender as recorded. */
+            from: string;
+            fromEmail: string | null;
+            toEmail: string | null;
+            ccEmail: string | null;
+            /** @description tenant, landlord, contractor, agent, internal, … */
+            userType: string;
+            body: string;
+            /** Format: date-time */
+            sentAt: string;
+            /** @enum {string} */
+            source: "hub" | "archive" | "mailbox";
+            attachments: components["schemas"]["AgentConversationAttachmentDto"][];
+        };
+        AgentConversationDetailDto: {
+            /** Format: uuid */
+            id: string;
+            /** @description The email subject line replies thread on. */
+            subject: string;
+            /** @description Headline; show subject when null. */
+            title: string | null;
+            /** @enum {string} */
+            kind: "inbox" | "message_center" | "property";
+            /** Format: uuid */
+            propertyId: string | null;
+            propertyAddress: string | null;
+            /** Format: uuid */
+            agencyId: string | null;
+            /** @description maintenance, inspection, leasing, … */
+            caseType: string | null;
+            caseId: string | null;
+            /** @description The job reference, e.g. MR-00076. */
+            caseLabel: string | null;
+            /** Format: uuid */
+            assignedToId: string | null;
+            assignedToName: string | null;
+            resolved: boolean;
+            /** Format: date-time */
+            resolvedAt: string | null;
+            /** Format: date-time */
+            snoozedUntil: string | null;
+            /** @description Something came in that the thread’s owner (or I, when unassigned) has not opened. */
+            unread: boolean;
+            preview: string | null;
+            /** Format: date-time */
+            lastMessageAt: string | null;
+            /** @enum {string|null} */
+            lastMessageDirection: "inbound" | "outbound" | null;
+            attachmentCount: number;
+            participants: components["schemas"]["AgentConversationParticipantDto"][];
+            messages: components["schemas"]["AgentConversationMessageDto"][];
+        };
+        AgentConversationReplyResultDto: {
+            conversation: components["schemas"]["AgentConversationDetailDto"];
+            /** @description Email only: sent, blocked_landlord, blocked_recipient, failed, … — never assume sent. */
+            delivery: string | null;
+            /** @description Email only: who it went to, comma-joined. */
+            sentTo: string | null;
+        };
+        AgentConversationAttachmentUploadDto: {
+            fileName: string;
+            mimeType: string;
+            sizeBytes: number;
+            /** @description The file, base64. */
+            contentBase64: string;
+        };
+        AgentConversationReplyDto: {
+            /**
+             * @default email
+             * @enum {string}
+             */
+            channel: "email" | "app";
+            body: string;
+            /** @description Email only. Defaults to the thread subject. */
+            subject?: string;
+            /**
+             * @description Email only: the party to write to when it is not the thread’s counterparty. The address is resolved server-side.
+             * @enum {string}
+             */
+            recipient?: "tenant" | "landlord" | "contractor";
+            /** @description Email only: typed To addresses, overriding the resolved recipient. */
+            toEmails?: string[];
+            ccEmails?: string[];
+            /** @description Email only. */
+            bccEmails?: string[];
+            /** @description Email only: the formatted body. `body` stays the plain-text copy that is stored; this is sanitised server-side to bold, italic, underline, lists and links. */
+            bodyHtml?: string;
+            /** @description Email only: up to 10 files, 4 MB each (20 MB a video), 40 MB in all. */
+            attachments?: components["schemas"]["AgentConversationAttachmentUploadDto"][];
+            /**
+             * Format: uuid
+             * @description The message being answered (email threading).
+             */
+            replyToMessageId?: string;
+        };
+        AgentConversationAssigneeDto: {
+            /**
+             * Format: uuid
+             * @description A member of the thread’s agency team, or null to unassign.
+             */
+            assignedToId: string | null;
+        };
+        AgentConversationStateDto: {
+            /** @enum {string} */
+            action: "resolve" | "reopen";
+        };
+        AgentConversationPropertyDto: {
+            /**
+             * Format: uuid
+             * @description A Self-Manage property of the thread’s agency.
+             */
+            propertyId: string;
+        };
+        WorkflowOptionDto: {
+            /** @enum {string} */
+            workflowType: "MAINTENANCE_REQUEST" | "INSPECTION" | "LEASING_CYCLE" | "RENT_REVIEW" | "TRIBUNAL_CASE" | "VACATING_TASK";
+            workflowId: string;
+            reference: string | null;
+            status: string | null;
+            statusLabel: string | null;
+            /** Format: date-time */
+            openedAt: string | null;
+        };
+        WorkflowOptionListResponseDto: {
+            items: components["schemas"]["WorkflowOptionDto"][];
+        };
+        AgentConversationJobDto: {
+            /** @enum {string} */
+            workflowType: "MAINTENANCE_REQUEST" | "INSPECTION" | "LEASING_CYCLE" | "RENT_REVIEW" | "VACATING_TASK";
+            workflowId: string;
+        };
+        ConversationWorkflowLinkResponseDto: {
+            conversationId: string;
+            /** @enum {string|null} */
+            workflowType: "MAINTENANCE_REQUEST" | "INSPECTION" | "LEASING_CYCLE" | "RENT_REVIEW" | "TRIBUNAL_CASE" | "VACATING_TASK" | null;
+            workflowId: string | null;
+            reference: string | null;
+        };
+        AgentConversationAiDraftRequestDto: {
+            /** @description What the reply should say — a steer, not the text. */
+            instruction: string;
+            /** @enum {string} */
+            tone?: "professional" | "friendly" | "firm";
+        };
+        AgentConversationAiDraftDto: {
+            /** Format: uuid */
+            conversationId: string;
+            subject: string;
+            bodyText: string;
+            /** @enum {string} */
+            source: "ai" | "fallback";
+            /** @enum {string} */
+            tone: "professional" | "friendly" | "firm";
+            recipientName: string;
+            recipientEmail: string | null;
+            /** @description Why a plain starter came back instead of an AI draft. */
+            notice: string | null;
+        };
+        AgentTenancyPartyDto: {
+            name: string | null;
+            email: string | null;
+            mobile: string | null;
+        };
+        AgentTenancyOverviewSnapshotDto: {
+            /** @example 2026-08-24 */
+            leaseStartDate: string | null;
+            /** @example 2027-08-23 */
+            leaseEndDate: string | null;
+            /** @enum {string|null} */
+            leaseTermType: "fixed" | "periodic" | null;
+            nextRentReviewDate: string | null;
+            lastRentIncreaseDate: string | null;
+            rentPaidUntilDate: string | null;
+            vacateDate: string | null;
+            nextRoutineInspectionDate: string | null;
+            /** @description Routine inspections per year (2 or 3). */
+            routineInspectionFrequency: number | null;
+            /** @description Months between routine inspections (4 or 6). */
+            routineInspectionFrequencyMonths: number | null;
+            furnished: boolean | null;
+            buildingName: string | null;
+            strataPlanNumber: string | null;
+            landlordInsuranceExpiry: string | null;
+            managementRatePercent: number | null;
+            /** @enum {string|null} */
+            managementRateGst: "include" | "exclude" | null;
+            buildingManager: components["schemas"]["AgentTenancyPartyDto"] | null;
+            strataContact: components["schemas"]["AgentTenancyPartyDto"] | null;
+        };
+        AgentTenancyFinancialDto: {
+            /** @description Weekly rent the property is on now. */
+            currentRentWeekly: number | null;
+            /** @enum {string|null} */
+            rentSource: "registry" | "leasing_cycle" | "lease_agreement" | "none" | null;
+            bondAmount: number | null;
+            depositAmount: number | null;
+        };
+        AgentTenancyArrearsDto: {
+            /** @description Rent + bill + bond arrears summed across open cases. Null when none are open. */
+            outstandingAmount: number | null;
+            /** @description Days the oldest open case has run. */
+            outstandingDays: number | null;
+            /** @description Rent arrears across open cases. */
+            rentArrears: number | null;
+            /** @description Unpaid invoice arrears across open cases. */
+            invoiceArrears: number | null;
+        };
+        AgentTenancyTenantPartyDto: {
+            id: string;
+            name: string;
+            email: string | null;
+            mobile: string | null;
+            /** Format: uuid */
+            personId: string | null;
+        };
+        AgentTenancyTenantDto: {
+            name: string;
+            email: string | null;
+            mobile: string | null;
+            leaseStartDate: string | null;
+            leaseEndDate: string | null;
+            /**
+             * Format: uuid
+             * @description The person behind this tenant. Null for a name held only on the property record.
+             */
+            personId: string | null;
+            coTenants: components["schemas"]["AgentTenancyTenantPartyDto"][];
+        };
+        AgentCurrentTenancyDto: {
+            /** @description Agreements of the household living here now. */
+            tenancyIds: string[];
+            /** @description Agreements signed for a start date still to come. */
+            incomingTenancyIds: string[];
+            /** Format: uuid */
+            pinnedTenancyId: string | null;
+            /** Format: date-time */
+            pinnedAt: string | null;
+            /**
+             * @description Set when the pin is not honoured, saying why.
+             * @enum {string|null}
+             */
+            pinStaleReason: "missing" | "not_live" | null;
+        };
+        AgentTenancyContactDto: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            role: "TENANT" | "LANDLORD";
+            /** Format: uuid */
+            personId: string | null;
+            name: string | null;
+            email: string | null;
+            mobile: string | null;
+            isPrimary: boolean;
+        };
+        AgentArchivedTenancyContactDto: {
+            name: string | null;
+            email: string | null;
+            mobile: string | null;
+            isPrimary: boolean;
+        };
+        AgentArchivedTenancyDto: {
+            id: string;
+            tenantName: string;
+            email: string | null;
+            mobile: string | null;
+            contacts: components["schemas"]["AgentArchivedTenancyContactDto"][];
+            leaseStartDate: string | null;
+            leaseEndDate: string | null;
+            vacateDate: string | null;
+            rentWeekly: number | null;
+            bondAmount: number | null;
+            /**
+             * @description The handle Restore tenant posts back.
+             * @example 2026-08-11T05:35:24.751Z
+             */
+            archivedAt: string;
+            source: string;
+            /** @description False for a heading rebuilt from history; it cannot be restored. */
+            restorable: boolean;
+            /** @description An upcoming household withdrawn before it moved in. */
+            withdrawnBeforeStart: boolean;
+        };
+        AgentLeaseTenantDto: {
+            name: string;
+            email: string | null;
+            mobile: string | null;
+            /** Format: uuid */
+            personId: string | null;
+        };
+        AgentLeaseMaintenanceJobDto: {
+            id: string;
+            /** @description The portal status word (closed and deleted mean finished). */
+            status: string;
+        };
+        AgentLeaseHistoryDto: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            status: "DRAFT" | "SENT" | "PARTIALLY_SIGNED" | "SIGNED" | "ACTIVE" | "ENDED";
+            leaseStartDate: string | null;
+            leaseEndDate: string | null;
+            tenantName: string;
+            tenant: components["schemas"]["AgentLeaseTenantDto"];
+            /** @description Vacate date recorded on a manually added tenancy. */
+            vacateDate: string | null;
+            /** @description Rent paid to, recorded on a manually added tenancy. */
+            rentPaidUntil: string | null;
+            /** @description Written by Add tenancy: removable while a draft or upcoming. */
+            manualTenancy: boolean;
+            rentWeekly: number | null;
+            bondAmount: number | null;
+            maintenanceJobs: components["schemas"]["AgentLeaseMaintenanceJobDto"][];
+        };
+        AgentTenancyCaseDto: {
+            id: string;
+            /** @enum {string} */
+            type: "new_leasing" | "rent_review" | "termination";
+            title: string;
+            /** @description Humanised status, e.g. "Active", "Open", "Completed". */
+            status: string;
+            currentRent: number | null;
+            proposedRent: number | null;
+            agreedRent: number | null;
+            /** @description When an agreed rent takes effect. */
+            effectiveDate: string | null;
+            /** @enum {string|null} */
+            workflowState: "PENDING_CONFIRMATION" | "AGENT_REVIEW" | "TENANT_NOTIFIED" | "NEGOTIATION" | "TENANT_ACCEPTED" | "TENANT_REJECTED" | "ACCOUNTING" | "COMPLETED" | "CANCELLED" | "POSTPONED" | null;
+            vacateDate: string | null;
+            detailSummary: string | null;
+            /** @description End of lease only: bond settled and paid out. */
+            bondReleased: boolean | null;
+            /**
+             * Format: uuid
+             * @description End of lease only: the tenancy the case was opened for.
+             */
+            tenancyAgreementId: string | null;
+        };
+        AgentPropertyTenancyOverviewDto: {
+            /** Format: uuid */
+            propertyId: string;
+            /** @example PRP-6761 */
+            propertyReference: string;
+            /** @description The property is on Self-Manage — its live management override, else its agency. The same rule the tenancy writes check; the app shows the Self-Manage Overview and Tenancies on it. */
+            selfManaged: boolean;
+            overview: components["schemas"]["AgentTenancyOverviewSnapshotDto"];
+            financial: components["schemas"]["AgentTenancyFinancialDto"];
+            arrears: components["schemas"]["AgentTenancyArrearsDto"];
+            tenant: components["schemas"]["AgentTenancyTenantDto"] | null;
+            currentTenancy: components["schemas"]["AgentCurrentTenancyDto"] | null;
+            contacts: components["schemas"]["AgentTenancyContactDto"][];
+            archivedTenancies: components["schemas"]["AgentArchivedTenancyDto"][];
+            leaseHistory: components["schemas"]["AgentLeaseHistoryDto"][];
+            leasingCases: components["schemas"]["AgentTenancyCaseDto"][];
+        };
+        ManualTenancyTenantDto: {
+            /** @description An existing person. Omit when adding someone new. */
+            personId?: string;
+            firstName?: string;
+            lastName?: string;
+            /** Format: email */
+            email?: string;
+            phone?: string;
+        };
+        AddManualTenancyDto: {
+            /** @description Save incomplete details without making this an active tenancy. */
+            draft: boolean;
+            tenants: components["schemas"]["ManualTenancyTenantDto"][];
+            /** @example 2026-10-26 */
+            leaseStartDate?: string;
+            /** @example 2027-10-25 */
+            leaseEndDate?: string;
+            /** @example 2027-10-25 */
+            vacateDate?: string;
+            rentWeekly?: number;
+            bondAmount?: number;
+            /** @example 2026-11-26 */
+            rentPaidTo?: string;
+        };
+        AgentManualTenancyAddedDto: {
+            draft: boolean;
+            /** @description Starts after today (Sydney): listed under Upcoming tenancy. */
+            upcoming: boolean;
+            agreementIds: string[];
+            /** @description Tenants left off the property contact list because it was full. */
+            contactsLeftOff: string[];
+        };
+        RemoveManualTenancyDto: {
+            /** @description The agreements of one manually added household that is still a draft or upcoming. */
+            agreementIds: string[];
+        };
+        AgentManualTenancyRemovedDto: {
+            /** @description Agreements removed. */
+            removed: number;
+        };
+        UpdateTenantDetailsDto: {
+            /** @example Hayley */
+            firstName?: string | null;
+            /** @example Buncombe */
+            lastName?: string | null;
+            /**
+             * Format: email
+             * @example hayley.buncombe@example.com
+             */
+            email?: string | null;
+            /** @example 0412 345 678 */
+            phone?: string | null;
+        };
+        AgentTenantDetailsUpdatedDto: {
+            /** Format: uuid */
+            personId: string;
+            name: string | null;
+            email: string | null;
+            phone: string | null;
+            /** @description Records the edit changed: person, login_user, property_contact, registry_scalar. */
+            updated: string[];
+            /** @description Why the property record name was left alone, when it was. */
+            registrySkipped: string | null;
+        };
+        AgentOutstandingReminderCardDto: {
+            /** Format: uuid */
+            recipientUserId: string;
+            /** @enum {string} */
+            type: "APPROVAL" | "URGENT" | "UPDATE" | "REPORT" | "REMINDER";
+            title: string;
+            body: string;
+            /** @description Where the card opens in the agent app. */
+            href: string;
+            /** Format: uuid */
+            propertyId: string;
+            actionRequired: string;
+            /** @description Case, recipient and reminder wave: one card per wave. */
+            sourceRef: string;
+        };
+        AgentOutstandingReminderSweepDto: {
+            agencies: number;
+            cases: number;
+            cards: number;
+            inserted: number;
+            dropped: number;
+            skipped: boolean;
+            /** @description Dry run only. */
+            planned?: components["schemas"]["AgentOutstandingReminderCardDto"][];
+        };
+        AgentOutstandingReminderPreviewDto: {
+            result: components["schemas"]["AgentOutstandingReminderSweepDto"];
+        };
+        AgentServiceOfferButtonsDto: {
+            buttons: ("arrange_inspections" | "explore_full_service")[];
+        };
+        AgentServiceOfferInspectionDto: {
+            /**
+             * @description INSPECTION when the cycle already has an open inspection, else ROUTINE_SCHEDULE.
+             * @enum {string}
+             */
+            subjectType: "INSPECTION" | "ROUTINE_SCHEDULE";
+            /**
+             * Format: uuid
+             * @description The inspection or routine schedule id to snooze or dismiss.
+             */
+            subjectId: string;
+            /** Format: uuid */
+            propertyId: string;
+            address: string;
+            /**
+             * @description Due date, YYYY-MM-DD, Sydney calendar.
+             * @example 2026-11-12
+             */
+            dueOn: string;
+            buttons: ("arrange_inspections" | "explore_full_service")[];
+        };
+        AgentFullServiceTermsDto: {
+            feeSummary: string;
+            termsSummary: string;
+        };
+        AgentServiceRecommendationsDto: {
+            /**
+             * @description The offer on screen; null shows none.
+             * @enum {string|null}
+             */
+            kind: "INSPECTION" | "FULL_SERVICE" | "QUOTE" | null;
+            cros: components["schemas"]["AgentServiceOfferButtonsDto"] | null;
+            inspections: components["schemas"]["AgentServiceOfferInspectionDto"][];
+            home: components["schemas"]["AgentServiceOfferButtonsDto"] | null;
+            fullService: components["schemas"]["AgentFullServiceTermsDto"] | null;
+        };
+        FocusServiceOfferDto: {
+            /** @enum {string} */
+            kind: "INSPECTION" | "FULL_SERVICE" | "QUOTE";
+        };
+        AgentServiceOfferFocusResultDto: {
+            /** @enum {string|null} */
+            kind: "INSPECTION" | "FULL_SERVICE" | "QUOTE" | null;
+        };
+        AgentServiceOfferSnoozeResultDto: {
+            /** Format: date-time */
+            snoozeUntil: string;
+        };
+        AgentServiceOfferDismissResultDto: {
+            dismissed: boolean;
+        };
+        AgentFullServiceApplicationDto: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            status: "PENDING_REVIEW" | "CONFIRMED" | "ACTIVE" | "DECLINED";
+            feeSummary: string | null;
+            termsSummary: string | null;
+            /** @example 2026-11-12 */
+            requestedEffectiveDate: string | null;
+            /** @example 2026-11-12 */
+            effectiveDate: string | null;
+            declineReason: string | null;
+            propertyIds: string[];
+            /** @description Always true: an application never changes a service level. */
+            serviceLevelUnchanged: boolean;
+        };
+        AgentFullServiceApplicationsDto: {
+            offer: components["schemas"]["AgentFullServiceTermsDto"];
+            requests: components["schemas"]["AgentFullServiceApplicationDto"][];
+        };
+        CreateFullServiceApplicationDto: {
+            propertyIds: string[];
+            /** @example 2026-11-12 */
+            requestedEffectiveDate: string;
+        };
+        AgentQuoteOfferDto: {
+            showModal: boolean;
+            /** @description Held back until the urgent job is authorised. */
+            deferForUrgent: boolean;
+            /** @description Show the small "Need help arranging a quote?" entry instead. */
+            lightweightEntry: boolean;
+            choices: ("preferred_tradie" | "crossub_assistance")[];
+            /** @example Crossub Assistance */
+            offerName: string;
+            /** @example Brightness AU */
+            partnerName: string;
+            lightweightLabel: string | null;
+            confirmBeforePay: string;
+            /** @description The CROSSUB partner is already invited on this job. */
+            requested: boolean;
+            feeExGstAud: number;
+            feeIncGstAud: number;
+        };
         MeProfileResponseDto: {
             /** Format: uuid */
             id: string;
@@ -12373,8 +21307,12 @@ export interface components {
              */
             personId: string | null;
         };
+        WebPushKeyResponseDto: {
+            /** @description The VAPID public key, base64url; null when web push is not configured on this server. */
+            publicKey: string | null;
+        };
         RegisterDeviceTokenDto: {
-            /** @description The opaque provider push token (FCM / APNs / Expo). */
+            /** @description The opaque provider push token (FCM / APNs / Expo), or for WEB the browser push subscription as JSON. */
             token: string;
             /**
              * @example IOS
@@ -19372,6 +28310,55 @@ export interface operations {
             };
         };
     };
+    InspectorAccountController_markMessageThreadRead: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                threadId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InspectorMessageThreadResponseDto"];
+                };
+            };
+            /** @description threadId is not a valid UUID. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing/invalid/expired token, or the user is not active. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Caller is not an INSPECTOR, or has no inspector roster record. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description threadId does not exist or is not a thread this inspector can see. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     InspectorAccountController_listNotifications: {
         parameters: {
             query?: never;
@@ -20223,6 +29210,32 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentTeamResponseDto"];
+                };
+            };
+        };
+    };
+    AgentPortalController_updateTeamMemberModules: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agencyId: string;
+                userId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateAgencyTeamModulesDto"];
+            };
+        };
         responses: {
             200: {
                 headers: {
@@ -21107,6 +30120,315 @@ export interface operations {
             };
         };
     };
+    AgentPortalController_removePropertyContact: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                propertyId: string;
+                contactId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentPropertyContactsResponseDto"];
+                };
+            };
+            /** @description Missing/invalid/expired token, or the user is not active. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Caller is not an ACCOUNT_MANAGER. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description propertyId is not within an assigned agency, or the contact is not live on it. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentPortalController_updatePropertyContact: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                propertyId: string;
+                contactId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateAgentPropertyContactDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentPropertyContactsResponseDto"];
+                };
+            };
+            /** @description Invalid body, or a path parameter is not a valid UUID. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing/invalid/expired token, or the user is not active. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Caller is not an ACCOUNT_MANAGER. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description propertyId is not within an assigned agency, or the contact is not live on that property. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentPortalController_sendTenantLogin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                propertyId: string;
+                contactId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentTenantLoginSentDto"];
+                };
+            };
+            /** @description No email on the contact, or the email could not be sent. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing/invalid/expired token, or the user is not active. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Caller is not an ACCOUNT_MANAGER. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description propertyId is not within an assigned agency. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The tenant already has an active login, or the email belongs to another role. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentPortalController_archiveTenancy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                propertyId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentPropertyResponseDto"];
+                };
+            };
+            /** @description There is no tenant to archive. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing/invalid/expired token, or the user is not active. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Caller is not an ACCOUNT_MANAGER. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description propertyId is not within an assigned agency. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentPortalController_restoreTenancy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                propertyId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentRestoreTenancyDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentPropertyResponseDto"];
+                };
+            };
+            /** @description The property already has a tenant, or the row is not restorable. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing/invalid/expired token, or the user is not active. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Caller is not an ACCOUNT_MANAGER. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description propertyId is not within an assigned agency. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentPortalController_setCurrentTenancy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                propertyId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentSetCurrentTenancyDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentPropertyResponseDto"];
+                };
+            };
+            /** @description The tenancy is not a live agreement on this property. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing/invalid/expired token, or the user is not active. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Caller is not an ACCOUNT_MANAGER. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description propertyId is not within an assigned agency. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     AgentPortalController_assignPropertyAgent: {
         parameters: {
             query?: never;
@@ -21295,6 +30617,39 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["AgentWorkflowCreateResultDto"];
                 };
+            };
+        };
+    };
+    AgentPortalController_setApplicationDecision: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                propertyId: string;
+                applicationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetApplicantDecisionDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentWorkflowCreateResultDto"];
+                };
+            };
+            /** @description The application is already decided, or the letting’s offer is locked to another applicant. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -22192,6 +31547,38 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["AgentWorkflowCreateResultDto"];
                 };
+            };
+        };
+    };
+    AgentPortalController_sendPropertyArrearsReminder: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                propertyId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentSendArrearsReminderDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentArrearsReminderResultDto"];
+                };
+            };
+            /** @description There is no open arrears, or no tenant email on file. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -23974,7 +33361,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["AgentApproveMaintenanceQuoteDto"];
+            };
+        };
         responses: {
             200: {
                 headers: {
@@ -23993,6 +33384,13 @@ export interface operations {
             };
             /** @description Missing/invalid/expired token, or the user is not active. */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A CROSSUB quote on a Self-Manage job needs its paid CROSSUB charge. */
+            402: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -24449,6 +33847,423 @@ export interface operations {
             };
         };
     };
+    AgentGiiController_getBriefing: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentGiiBriefingDto"];
+                };
+            };
+        };
+    };
+    AgentGiiController_markBriefingSeen: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentGiiBriefingSeenDto"];
+            };
+        };
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentGiiController_getPreferences: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentGiiPreferencesDto"];
+                };
+            };
+        };
+    };
+    AgentGiiController_updatePreferences: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateAgentGiiPreferencesDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentGiiPreferencesDto"];
+                };
+            };
+            /** @description A tone, sign off or quiet hours that cannot be saved; the message says why. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentGiiController_currentHandoff: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentGiiCurrentHandoffDto"];
+                };
+            };
+        };
+    };
+    AgentGiiController_getHandoff: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                threadId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentGiiHandoffDto"];
+                };
+            };
+            /** @description Not a chat this officer handed to the team. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentGiiController_sendHandoffMessage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                threadId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentGiiHandoffMessageRequestDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentGiiHandoffDto"];
+                };
+            };
+            /** @description Not a chat this officer handed to the team. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The team closed the chat; it is back with Cros. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentGiiController_closeHandoff: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                threadId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentGiiHandoffDto"];
+                };
+            };
+            /** @description Not a chat this officer handed to the team. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentGiiController_confirm: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GiiConfirmRequestDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GiiConfirmResponseDto"];
+                };
+            };
+            /** @description The proposal has expired, was altered, or is not yours. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Your permissions no longer allow this change. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentGiiController_summarise: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GiiSummariseRequestDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GiiSummariseResponseDto"];
+                };
+            };
+            /** @description The AI provider is unavailable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentGiiController_listConversations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GiiConversationSummaryDto"][];
+                };
+            };
+        };
+    };
+    AgentGiiController_getConversation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GiiConversationDto"];
+                };
+            };
+            /** @description No such chat for this officer. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentGiiController_saveConversation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GiiConversationSaveDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GiiConversationSummaryDto"];
+                };
+            };
+            /** @description The property is not one this officer can see. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The id belongs to another officer’s chat. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentGiiController_deleteConversation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such chat for this officer. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentGiiController_listChanges: {
+        parameters: {
+            query: {
+                propertyId: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GiiChangesResponseDto"];
+                };
+            };
+            /** @description `propertyId` is not a UUID. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The property is not in this officer’s book. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     AgentGiiController_voiceStatus: {
         parameters: {
             query?: never;
@@ -24568,6 +34383,8794 @@ export interface operations {
             };
         };
     };
+    AgentSelfManagedMaintenanceController_authoriseUrgentWork: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                requestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AuthoriseUrgentWorkDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentMaintenanceDetailDto"];
+                };
+            };
+            /** @description A required contractor, scope, spending limit or reason is missing. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The property is not Self-Manage — CROSSUB runs this step on other plans. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The job is not in this agent’s book. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The job changed since it was opened. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentSelfManagedMaintenanceController_splitJob: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                requestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SplitMaintenanceFlowDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentMaintenanceDetailDto"];
+                };
+            };
+            /** @description The property is not Self-Manage — CROSSUB runs this step on other plans. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The job is not in this agent’s book. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentSelfManagedMaintenanceController_listCombineCandidates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                requestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MaintenanceCombineCandidatesResponseDto"];
+                };
+            };
+            /** @description The property is not Self-Manage — CROSSUB runs this step on other plans. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The job is not in this agent’s book. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentSelfManagedMaintenanceController_combineInto: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                requestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CombineMaintenanceCasesDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentMaintenanceDetailDto"];
+                };
+            };
+            /** @description The property is not Self-Manage — CROSSUB runs this step on other plans. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The job is not in this agent’s book. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The jobs cannot be combined, or commitments on them have not been acknowledged. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentSelfManagedMaintenanceController_resolveEscalation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                requestId: string;
+                escalationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResolveMaintenanceEscalationDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentMaintenanceDetailDto"];
+                };
+            };
+            /** @description An override is missing its reason, or a keep-manual reason is missing. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The property is not Self-Manage — CROSSUB runs this step on other plans. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The job is not in this agent’s book. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The escalation is already resolved. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentSelfManagedMaintenanceController_sendEmail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                requestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SendMaintenanceCaseEmailDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentMaintenanceDetailDto"];
+                };
+            };
+            /** @description The body is invalid, the owner was named with others, or no address is on file for a recipient. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The property is not Self-Manage — CROSSUB runs this step on other plans. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The job is not in this agent’s book. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The email to the owner did not send. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentSelfManagedMaintenanceController_takeControl: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                requestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TakeControlDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentMaintenanceDetailDto"];
+                };
+            };
+            /** @description The reason is missing or too short. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The property is not Self-Manage — CROSSUB runs this step on other plans. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The job is not in this agent’s book. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The job changed since it was opened. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentSelfManagedMaintenanceController_resumeAutomation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                requestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResumeAutomationDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentMaintenanceDetailDto"];
+                };
+            };
+            /** @description The property is not Self-Manage — CROSSUB runs this step on other plans. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The job is not in this agent’s book. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The job changed since it was opened. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentSelfManagedMaintenanceController_updateJob: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                requestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentSelfManagedUpdateJobDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentMaintenanceDetailDto"];
+                };
+            };
+            /** @description The job is completed or cancelled, or the body is invalid. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The property is not Self-Manage — CROSSUB runs this step on other plans. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The job is not in this agent’s book. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentSelfManagedMaintenanceController_setResponsibility: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                requestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentSelfManagedSetResponsibilityDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentMaintenanceDetailDto"];
+                };
+            };
+            /** @description The job is finished, or a contractor is already engaged on it. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The property is not Self-Manage — CROSSUB runs this step on other plans. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The job is not in this agent’s book. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentSelfManagedMaintenanceController_addIssue: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                requestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateMaintenanceIssueDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentMaintenanceDetailDto"];
+                };
+            };
+            /** @description The property is not Self-Manage — CROSSUB runs this step on other plans. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The job is not in this agent’s book. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentSelfManagedMaintenanceController_updateIssue: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                requestId: string;
+                issueId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateMaintenanceIssueDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentMaintenanceDetailDto"];
+                };
+            };
+            /** @description The fault is dismissed or merged, or the body is invalid. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The property is not Self-Manage — CROSSUB runs this step on other plans. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The job is not in this agent’s book. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentSelfManagedMaintenanceController_rerunAiReview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                requestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentMaintenanceDetailDto"];
+                };
+            };
+            /** @description The property is not Self-Manage — CROSSUB runs this step on other plans. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The job is not in this agent’s book. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentSelfManagedMaintenanceController_sendQuestions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                requestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SendMaintenanceQuestionsDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentMaintenanceDetailDto"];
+                };
+            };
+            /** @description The property is not Self-Manage — CROSSUB runs this step on other plans. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The job is not in this agent’s book. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentSelfManagedMaintenanceController_recordAnswers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                requestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RecordMaintenanceIssueAnswersDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentMaintenanceDetailDto"];
+                };
+            };
+            /** @description The property is not Self-Manage — CROSSUB runs this step on other plans. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The job is not in this agent’s book. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentSelfManagedMaintenanceController_dismissIssue: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                requestId: string;
+                issueId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DismissMaintenanceIssueDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentMaintenanceDetailDto"];
+                };
+            };
+            /** @description The property is not Self-Manage — CROSSUB runs this step on other plans. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The job is not in this agent’s book. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentSelfManagedMaintenanceController_inviteContractors: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                requestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentSelfManagedInviteContractorsDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentMaintenanceDetailDto"];
+                };
+            };
+            /** @description The property is not Self-Manage — CROSSUB runs this step on other plans. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The job is not in this agent’s book. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentSelfManagedMaintenanceController_requestCrossubQuote: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                requestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentMaintenanceDetailDto"];
+                };
+            };
+            /** @description The property is not Self-Manage — CROSSUB runs this step on other plans. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The job is not in this agent’s book. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentSelfManagedMaintenanceController_quoteCrossubCharge: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                requestId: string;
+                /** @description The workflow quotation id (`Q-<timestamp>`). */
+                quotationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentBillingChargeDto"];
+                };
+            };
+            /** @description The quote is not a CROSSUB quote, or has no price. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The property is not Self-Manage — CROSSUB runs this step on other plans. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The job is not in this agent’s book. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The quote is already decided, or a colleague is paying it. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Card payments are not switched on. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentSelfManagedMaintenanceController_withdrawContractor: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                requestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentSelfManagedWithdrawContractorDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentMaintenanceDetailDto"];
+                };
+            };
+            /** @description The tradie is not invited, or has already quoted or declined. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The property is not Self-Manage — CROSSUB runs this step on other plans. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The job is not in this agent’s book. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentSelfManagedMaintenanceController_issueQuoteFormLink: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                requestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IssueQuoteRequestLinkDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentQuoteRequestLinkDto"];
+                };
+            };
+            /** @description The tradie is not on this quote request. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The property is not Self-Manage — CROSSUB runs this step on other plans. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The job is not in this agent’s book. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentSelfManagedMaintenanceController_createQuote: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                requestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentSelfManagedCreateQuoteDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentMaintenanceDetailDto"];
+                };
+            };
+            /** @description The tradie was not invited to quote on this job. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The property is not Self-Manage — CROSSUB runs this step on other plans. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The job is not in this agent’s book. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentSelfManagedMaintenanceController_sendQuoteToOwner: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                requestId: string;
+                /** @description A quote id from `quotes` (not a UUID). */
+                quotationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentSelfManagedSendQuoteToOwnerDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentMaintenanceDetailDto"];
+                };
+            };
+            /** @description No owner email address is on file for the property. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The property is not Self-Manage — CROSSUB runs this step on other plans. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The job is not in this agent’s book. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The quote has already been approved or declined. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The email to the owner did not send. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentSelfManagedMaintenanceController_recordOwnerQuoteReply: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                requestId: string;
+                /** @description A quote id from `quotes` (not a UUID). */
+                quotationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentSelfManagedOwnerQuoteReplyDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentMaintenanceDetailDto"];
+                };
+            };
+            /** @description The property is not Self-Manage — CROSSUB runs this step on other plans. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The job is not in this agent’s book. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The quote has already been approved or declined. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentSelfManagedMaintenanceController_submitScheduleAvailability: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                requestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentSelfManagedScheduleAvailabilityDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentMaintenanceDetailDto"];
+                };
+            };
+            /** @description The job is not at the scheduling step. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The property is not Self-Manage — CROSSUB runs this step on other plans. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The job is not in this agent’s book. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentSelfManagedMaintenanceController_recordScheduleArranged: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                requestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentSelfManagedScheduleArrangedDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentMaintenanceDetailDto"];
+                };
+            };
+            /** @description The job is not at the scheduling step, or no contractor is assigned. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The property is not Self-Manage — CROSSUB runs this step on other plans. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The job is not in this agent’s book. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentSelfManagedMaintenanceController_resolveInvoiceMatch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                requestId: string;
+                matchId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResolveMaintenanceInvoiceMatchDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentMaintenanceDetailDto"];
+                };
+            };
+            /** @description The property is not Self-Manage — CROSSUB runs this step on other plans. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The job is not in this agent’s book. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The invoice match was already resolved. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentSelfManagedMaintenanceController_reopenInvoiceMatch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                requestId: string;
+                matchId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentMaintenanceDetailDto"];
+                };
+            };
+            /** @description The property is not Self-Manage — CROSSUB runs this step on other plans. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The job is not in this agent’s book. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The invoice is not disputed. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentSelfManagedMaintenanceController_recordPayment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                requestId: string;
+                matchId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentSelfManagedRecordPaymentDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentMaintenanceDetailDto"];
+                };
+            };
+            /** @description The property is not Self-Manage — CROSSUB runs this step on other plans. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The job is not in this agent’s book. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentSelfManagedMaintenanceController_uploadCompletionFile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                requestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentSelfManagedUploadDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentMaintenanceDetailDto"];
+                };
+            };
+            /** @description The file is too large or of an unsupported type. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The property is not Self-Manage — CROSSUB runs this step on other plans. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The job is not in this agent’s book. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentSelfManagedMaintenanceController_recordTenantSignOff: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                requestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentMaintenanceDetailDto"];
+                };
+            };
+            /** @description The property is not Self-Manage — CROSSUB runs this step on other plans. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The job is not in this agent’s book. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentSelfManagedMaintenanceController_approveCompletion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                requestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentMaintenanceDetailDto"];
+                };
+            };
+            /** @description No completion evidence has been uploaded. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The property is not Self-Manage — CROSSUB runs this step on other plans. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The job is not in this agent’s book. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentSelfManagedInspectionController_createAgencyInspection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                propertyId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentCreateAgencyInspectionDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentInspectionDetailDto"];
+                };
+            };
+            /** @description The user is not an active agency inspector, or the time is in the past / inside the routine notice period. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description This is available on Self-Manage properties only */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The inspection or property is not in this agent’s book. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A live inspection of this type already exists for the property. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentSelfManagedInspectionController_getInspection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                inspectionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentInspectionDetailDto"];
+                };
+            };
+            /** @description The inspection or property is not in this agent’s book. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentSelfManagedInspectionController_downloadReportPdf: {
+        parameters: {
+            query?: {
+                /** @description `1` or `true` to save the PDF as a file instead of showing it. */
+                download?: unknown;
+            };
+            header?: never;
+            path: {
+                inspectionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The PDF. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/pdf": string;
+                };
+            };
+            /** @description A filed report: a short-lived storage link to follow. Open it as a navigation, not a credentialed fetch. */
+            302: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The inspection or property is not in this agent’s book. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentSelfManagedInspectionController_signOff: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                inspectionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentInspectionDetailDto"];
+                };
+            };
+            /** @description This is available on Self-Manage properties only Also for a CROSSUB job. Principal only — a team member gets the same 404 as for a job outside the book. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The inspection or property is not in this agent’s book. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The report is not submitted yet, or is already signed off. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentSelfManagedInspectionController_sendOwnerCopy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                inspectionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentInspectionDetailDto"];
+                };
+            };
+            /** @description This is available on Self-Manage properties only Also for a CROSSUB job. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The inspection or property is not in this agent’s book. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The report is not submitted yet, or the owner already has this version of it. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentSelfManagedInspectionController_rejectReport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                inspectionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RejectInspectionReportDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentInspectionDetailDto"];
+                };
+            };
+            /** @description A reason is required; routine reports cannot be sent back. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description This is available on Self-Manage properties only Also for a CROSSUB job. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The inspection or property is not in this agent’s book. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No submitted report, or it is already signed off or tenant-signed. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentSelfManagedInspectionController_reassign: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                inspectionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentReassignAgencyInspectionDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentInspectionDetailDto"];
+                };
+            };
+            /** @description The user is not an active agency inspector. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description This is available on Self-Manage properties only Also for a CROSSUB job. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The inspection or property is not in this agent’s book. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The inspection is already completed. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentSelfManagedInspectionController_quoteCrossubInspector: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                inspectionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentBillingQuoteResponseDto"];
+                };
+            };
+            /** @description Not an unbooked routine, ingoing or outgoing agency job. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description This is available on Self-Manage properties only */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The inspection or property is not in this agent’s book. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The job is already with CROSSUB. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentSelfManagedInspectionController_orderCrossubInspector: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                inspectionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentOrderCrossubInspectorDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentInspectionDetailDto"];
+                };
+            };
+            /** @description Not an unbooked routine, ingoing or outgoing agency job. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The charge is missing or unpaid. */
+            402: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description This is available on Self-Manage properties only */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The inspection or property is not in this agent’s book. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Already with CROSSUB, the charge is for another job, or the job changed while paying (refunded). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentSelfManagedLeasingController_addNegotiationRound: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                propertyId: string;
+                cycleId: string;
+                applicationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AddNegotiationRoundDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentWorkflowCreateResultDto"];
+                };
+            };
+            /** @description The property is not Self-Manage — CROSSUB runs this step on other plans. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The letting, rent review or property is not in this agent’s book. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The offer on this letting is locked to another applicant. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentSelfManagedLeasingController_respondToNegotiationRound: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                propertyId: string;
+                cycleId: string;
+                applicationId: string;
+                roundId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RespondToNegotiationRoundDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentWorkflowCreateResultDto"];
+                };
+            };
+            /** @description The property is not Self-Manage — CROSSUB runs this step on other plans. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The letting, rent review or property is not in this agent’s book. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The round is no longer open, or the offer is locked to another applicant. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentSelfManagedLeasingController_requestApplicantInformation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                propertyId: string;
+                cycleId: string;
+                applicationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RequestApplicantInformationDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentWorkflowCreateResultDto"];
+                };
+            };
+            /** @description The property is not Self-Manage — CROSSUB runs this step on other plans. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The letting, rent review or property is not in this agent’s book. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentSelfManagedLeasingController_updateContract: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                propertyId: string;
+                cycleId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateContractDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentWorkflowCreateResultDto"];
+                };
+            };
+            /** @description The property is not Self-Manage — CROSSUB runs this step on other plans. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The letting, rent review or property is not in this agent’s book. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The agreement is signed and cannot be edited. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentSelfManagedLeasingController_addContractCondition: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                propertyId: string;
+                cycleId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AddContractConditionDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentWorkflowCreateResultDto"];
+                };
+            };
+            /** @description The property is not Self-Manage — CROSSUB runs this step on other plans. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The letting, rent review or property is not in this agent’s book. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentSelfManagedLeasingController_confirmContract: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                propertyId: string;
+                cycleId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentWorkflowCreateResultDto"];
+                };
+            };
+            /** @description The property is not Self-Manage — CROSSUB runs this step on other plans. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The letting, rent review or property is not in this agent’s book. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentSelfManagedLeasingController_regenerateContract: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                propertyId: string;
+                cycleId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentWorkflowCreateResultDto"];
+                };
+            };
+            /** @description The property is not Self-Manage — CROSSUB runs this step on other plans. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The letting, rent review or property is not in this agent’s book. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentSelfManagedLeasingController_sendContractToTenant: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                propertyId: string;
+                cycleId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentWorkflowCreateResultDto"];
+                };
+            };
+            /** @description The property is not Self-Manage — CROSSUB runs this step on other plans. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The letting, rent review or property is not in this agent’s book. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentSelfManagedLeasingController_uploadContract: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                propertyId: string;
+                cycleId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UploadContractDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentWorkflowCreateResultDto"];
+                };
+            };
+            /** @description The property is not Self-Manage — CROSSUB runs this step on other plans. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The letting, rent review or property is not in this agent’s book. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentSelfManagedLeasingController_uploadSignedAgreement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                propertyId: string;
+                cycleId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UploadSignedAgreementDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentWorkflowCreateResultDto"];
+                };
+            };
+            /** @description The property is not Self-Manage — CROSSUB runs this step on other plans. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The letting, rent review or property is not in this agent’s book. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentSelfManagedLeasingController_setBondLink: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                propertyId: string;
+                cycleId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetBondLinkDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentWorkflowCreateResultDto"];
+                };
+            };
+            /** @description The property is not Self-Manage — CROSSUB runs this step on other plans. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The letting, rent review or property is not in this agent’s book. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentSelfManagedLeasingController_getReferenceCheck: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                propertyId: string;
+                cycleId: string;
+                applicationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentReferenceCheckDto"];
+                };
+            };
+            /** @description The property is not Self-Manage — CROSSUB runs this step on other plans. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The letting, rent review or property is not in this agent’s book. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentSelfManagedLeasingController_recordReferenceCheck: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                propertyId: string;
+                cycleId: string;
+                applicationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetApplicantFeedbackDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentReferenceCheckDto"];
+                };
+            };
+            /** @description Neither notes nor a recommendation were given. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The property is not Self-Manage — CROSSUB runs this step on other plans. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The letting, rent review or property is not in this agent’s book. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentSelfManagedLeasingController_summariseReferenceCheck: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                propertyId: string;
+                cycleId: string;
+                applicationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentReferenceCheckDto"];
+                };
+            };
+            /** @description The property is not Self-Manage — CROSSUB runs this step on other plans. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The letting, rent review or property is not in this agent’s book. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentSelfManagedLeasingController_skipApplicationScreening: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                propertyId: string;
+                cycleId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentWorkflowCreateResultDto"];
+                };
+            };
+            /** @description The property is not Self-Manage — CROSSUB runs this step on other plans. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The letting, rent review or property is not in this agent’s book. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Screening is already skipped, or an applicant has already been approved. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentSelfManagedLeasingController_createTenancy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                propertyId: string;
+                cycleId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RecordAgencyTenancyDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentCreateTenancyResultDto"];
+                };
+            };
+            /** @description A fixed term without an end after its start, a periodic lease with an end, or a primary tenant with no email or phone. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The property is not Self-Manage — CROSSUB runs this step on other plans. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The letting, rent review or property is not in this agent’s book. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The letting is closed or cancelled, already has a tenancy or an approved applicant, a person is listed twice, or a tenant has a live application on another letting. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentSelfManagedLeasingController_withdrawIncomingTenancy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                propertyId: string;
+                cycleId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WithdrawLeasingTenancyDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentWorkflowCreateResultDto"];
+                };
+            };
+            /** @description No reason given. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The property is not Self-Manage — CROSSUB runs this step on other plans. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The letting, rent review or property is not in this agent’s book. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The letting was cancelled, or the household has already moved in. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentSelfManagedLeasingController_markDepositPaid: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                propertyId: string;
+                cycleId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentWorkflowCreateResultDto"];
+                };
+            };
+            /** @description Not Self-Manage, or not the agency principal or accountant. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The letting, rent review or property is not in this agent’s book. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The letting is closed. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentSelfManagedLeasingController_approveDepositProof: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                propertyId: string;
+                cycleId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentWorkflowCreateResultDto"];
+                };
+            };
+            /** @description No deposit proof is waiting for review. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not Self-Manage, or not the agency principal or accountant. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The letting, rent review or property is not in this agent’s book. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentSelfManagedLeasingController_rejectDepositProof: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                propertyId: string;
+                cycleId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RejectOnboardingProofDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentWorkflowCreateResultDto"];
+                };
+            };
+            /** @description No deposit proof is waiting for review, or the deposit is already confirmed. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The property is not Self-Manage — CROSSUB runs this step on other plans. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The letting, rent review or property is not in this agent’s book. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentSelfManagedLeasingController_markBondPaid: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                propertyId: string;
+                cycleId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentWorkflowCreateResultDto"];
+                };
+            };
+            /** @description No bond amount is set on the letting, agreement or property. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not Self-Manage, or not the agency principal or accountant. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The letting, rent review or property is not in this agent’s book. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The letting is closed. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentSelfManagedLeasingController_approveBondProof: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                propertyId: string;
+                cycleId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentWorkflowCreateResultDto"];
+                };
+            };
+            /** @description No bond proof is waiting for review. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not Self-Manage, or not the agency principal or accountant. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The letting, rent review or property is not in this agent’s book. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentSelfManagedLeasingController_rejectBondProof: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                propertyId: string;
+                cycleId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RejectOnboardingProofDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentWorkflowCreateResultDto"];
+                };
+            };
+            /** @description No bond proof is waiting for review, or the bond is already confirmed. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The property is not Self-Manage — CROSSUB runs this step on other plans. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The letting, rent review or property is not in this agent’s book. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentSelfManagedLeasingController_generateOpenReport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                propertyId: string;
+                cycleId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentWorkflowCreateResultDto"];
+                };
+            };
+            /** @description The property is not Self-Manage — CROSSUB runs this step on other plans. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The letting, rent review or property is not in this agent’s book. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentSelfManagedLeasingController_listOpenInspections: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                propertyId: string;
+                cycleId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentLettingOpenInspectionsDto"];
+                };
+            };
+            /** @description The property is not Self-Manage — CROSSUB runs this step on other plans. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The letting, rent review or property is not in this agent’s book. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentSelfManagedLeasingController_addOpenInspection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                propertyId: string;
+                cycleId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentAddLettingOpenInspectionDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentLettingOpenInspectionsDto"];
+                };
+            };
+            /** @description The window is missing or ends before it starts, or the host is not on the team. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The property is not Self-Manage — CROSSUB runs this step on other plans. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The letting, rent review or property is not in this agent’s book. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The letting is closed, leased, or awaiting the re-let decision. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentSelfManagedLeasingController_startOpenInspection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                propertyId: string;
+                cycleId: string;
+                sessionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentLettingOpenInspectionsDto"];
+                };
+            };
+            /** @description The property is not Self-Manage — CROSSUB runs this step on other plans. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The letting, rent review or property is not in this agent’s book. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The open has already finished or been cancelled. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentSelfManagedLeasingController_closeOpenInspection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                propertyId: string;
+                cycleId: string;
+                sessionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentLettingOpenInspectionsDto"];
+                };
+            };
+            /** @description The property is not Self-Manage — CROSSUB runs this step on other plans. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The letting, rent review or property is not in this agent’s book. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The open has already finished or been cancelled. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentSelfManagedLeasingController_cancelOpenInspection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                propertyId: string;
+                cycleId: string;
+                sessionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentCancelLettingOpenInspectionDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentLettingOpenInspectionsDto"];
+                };
+            };
+            /** @description The property is not Self-Manage — CROSSUB runs this step on other plans. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The letting, rent review or property is not in this agent’s book. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The open has already finished or been cancelled. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentSelfManagedLeasingController_generateOpenInspectionReport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                propertyId: string;
+                cycleId: string;
+                sessionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentLettingOpenInspectionsDto"];
+                };
+            };
+            /** @description The open has not started yet. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The property is not Self-Manage — CROSSUB runs this step on other plans. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The letting, rent review or property is not in this agent’s book. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The open was cancelled. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentSelfManagedLeasingController_downloadOpenInspectionReport: {
+        parameters: {
+            query?: {
+                /** @description `1` or `true` to save the PDF as a file instead of showing it. */
+                download?: unknown;
+            };
+            header?: never;
+            path: {
+                propertyId: string;
+                cycleId: string;
+                sessionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The PDF. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/pdf": string;
+                };
+            };
+            /** @description The property is not Self-Manage — CROSSUB runs this step on other plans. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The letting, rent review or property is not in this agent’s book. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentSelfManagedLeasingController_orderIngoingInspection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                propertyId: string;
+                cycleId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentWorkflowCreateResultDto"];
+                };
+            };
+            /** @description The property is not Self-Manage — CROSSUB runs this step on other plans. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The letting, rent review or property is not in this agent’s book. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentSelfManagedLeasingController_recordRentReviewTenantResponse: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                propertyId: string;
+                reviewId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TenantResponseDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentRentReviewResultDto"];
+                };
+            };
+            /** @description The property is not Self-Manage — CROSSUB runs this step on other plans. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The letting, rent review or property is not in this agent’s book. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The offer is no longer current, or the review changed since it was read. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentSelfManagedRentReviewController_chooseReviewKind: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                propertyId: string;
+                reviewId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetTenancyReviewKindDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentRentReviewResultDto"];
+                };
+            };
+            /** @description The property is not Self-Manage — CROSSUB runs this step on other plans. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The rent review or property is not in this agent’s book. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The review is not at a stage where this step applies. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentSelfManagedRentReviewController_completeLeaseRenewal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                propertyId: string;
+                reviewId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CompleteLeaseRenewalDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentRentReviewResultDto"];
+                };
+            };
+            /** @description Lease Renewal is not selected, a fixed term has no end after its start, or the increase date is inside the 12-month rule. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The property is not Self-Manage — CROSSUB runs this step on other plans. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The rent review or property is not in this agent’s book. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The review is not at a stage where this step applies. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentSelfManagedRentReviewController_confirmReview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                propertyId: string;
+                reviewId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConfirmReviewDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentRentReviewResultDto"];
+                };
+            };
+            /** @description The property is not Self-Manage — CROSSUB runs this step on other plans. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The rent review or property is not in this agent’s book. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The review is not at a stage where this step applies. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentSelfManagedRentReviewController_postponeReview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                propertyId: string;
+                reviewId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentRentReviewResultDto"];
+                };
+            };
+            /** @description The property is not Self-Manage — CROSSUB runs this step on other plans. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The rent review or property is not in this agent’s book. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The review is not at a stage where this step applies. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentSelfManagedRentReviewController_runMarketResearch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                propertyId: string;
+                reviewId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentRentReviewResultDto"];
+                };
+            };
+            /** @description The property is not Self-Manage — CROSSUB runs this step on other plans. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The rent review or property is not in this agent’s book. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The review is not at a stage where this step applies. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentSelfManagedRentReviewController_uploadNoticeOfRentIncrease: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                propertyId: string;
+                reviewId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UploadRentReviewPdfDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentRentReviewResultDto"];
+                };
+            };
+            /** @description The upload is invalid. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The property is not Self-Manage — CROSSUB runs this step on other plans. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The rent review or property is not in this agent’s book. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentSelfManagedRentReviewController_uploadLeaseExtensionAgreement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                propertyId: string;
+                reviewId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UploadRentReviewPdfDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentRentReviewResultDto"];
+                };
+            };
+            /** @description The upload is invalid, or the renewal is not a fixed term. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The property is not Self-Manage — CROSSUB runs this step on other plans. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The rent review or property is not in this agent’s book. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The tenant has not accepted, or the agreement is with the tenant or signed. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentSelfManagedRentReviewController_uploadSignedLeaseExtensionAgreement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                propertyId: string;
+                reviewId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UploadSignedLeaseAgreementDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentRentReviewResultDto"];
+                };
+            };
+            /** @description The upload is invalid, or the renewal is not a fixed term. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The property is not Self-Manage — CROSSUB runs this step on other plans. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The rent review or property is not in this agent’s book. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The review is not at a stage where this step applies. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentSelfManagedRentReviewController_reviseLeaseExtensionAgreement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                propertyId: string;
+                reviewId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReviseLeaseAgreementDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentRentReviewResultDto"];
+                };
+            };
+            /** @description The property is not Self-Manage — CROSSUB runs this step on other plans. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The rent review or property is not in this agent’s book. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Nothing has been sent yet, a correction is already open, or the agreement is signed. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentSelfManagedRentReviewController_sendTenantNotice: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                propertyId: string;
+                reviewId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SendTenantNoticeDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentRentReviewResultDto"];
+                };
+            };
+            /** @description The effective date gives less than the notice period. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The property is not Self-Manage — CROSSUB runs this step on other plans. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The rent review or property is not in this agent’s book. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The review is not at a stage where this step applies. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentSelfManagedRentReviewController_reserveTenantNotice: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                propertyId: string;
+                reviewId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReserveTenantNoticeDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentRentReviewResultDto"];
+                };
+            };
+            /** @description The date gives less than 60 days from today, or no notice has been sent. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The property is not Self-Manage — CROSSUB runs this step on other plans. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The rent review or property is not in this agent’s book. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The review is not waiting on the tenant. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentSelfManagedRentReviewController_resolveNegotiation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                propertyId: string;
+                reviewId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResolveNegotiationDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentRentReviewResultDto"];
+                };
+            };
+            /** @description The property is not Self-Manage — CROSSUB runs this step on other plans. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The rent review or property is not in this agent’s book. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A newer offer exists, or the review changed since it was read. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentSelfManagedRentReviewController_reopenNegotiation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                propertyId: string;
+                reviewId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReopenNegotiationDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentRentReviewResultDto"];
+                };
+            };
+            /** @description The property is not Self-Manage — CROSSUB runs this step on other plans. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The rent review or property is not in this agent’s book. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The tenant has not accepted, or the lease agreement is with the tenant or signed. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentSelfManagedRentReviewController_forceClose: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                propertyId: string;
+                reviewId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ForceCloseRentReviewDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentRentReviewResultDto"];
+                };
+            };
+            /** @description Invalid terms, or an effective date inside the 12-month rule. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The property is not Self-Manage — CROSSUB runs this step on other plans. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The rent review or property is not in this agent’s book. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The review is already completed or cancelled. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentSelfManagedEndLeasingController_updateReportComparison: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                caseId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateReportComparisonDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentWorkflowCreateResultDto"];
+                };
+            };
+            /** @description The property is not Self-Manage — CROSSUB runs this step on other plans. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The end-of-lease case is not in this agent’s book, or has no property. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentSelfManagedEndLeasingController_sendTenantBondAcknowledgement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                caseId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SendTenantBondDeductionAckDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentWorkflowCreateResultDto"];
+                };
+            };
+            /** @description The tenant has not accepted the responsibility list, there are no tenant items, or no tenant email. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The property is not Self-Manage — CROSSUB runs this step on other plans. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The end-of-lease case is not in this agent’s book, or has no property. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentSelfManagedEndLeasingController_sendLandlordQuotation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                caseId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentWorkflowCreateResultDto"];
+                };
+            };
+            /** @description The landlord list is not agreed, an item has no quote or contractor, or the property has no owner email. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The property is not Self-Manage — CROSSUB runs this step on other plans. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The end-of-lease case is not in this agent’s book, or has no property. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentSelfManagedEndLeasingController_setSettlementMethod: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                caseId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetVacatingSettlementMethodDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentWorkflowCreateResultDto"];
+                };
+            };
+            /** @description The property is not Self-Manage — CROSSUB runs this step on other plans. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The end-of-lease case is not in this agent’s book, or has no property. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The bond has been settled on this case, or the settlement is already confirmed. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentSelfManagedEndLeasingController_editSettlement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                caseId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EditVacatingSettlementDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentWorkflowCreateResultDto"];
+                };
+            };
+            /** @description The property is not Self-Manage — CROSSUB runs this step on other plans. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The end-of-lease case is not in this agent’s book, or has no property. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The bond has been settled on this case, or the settlement is already confirmed. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentSelfManagedEndLeasingController_completeVacating: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                caseId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentWorkflowCreateResultDto"];
+                };
+            };
+            /** @description The property is not Self-Manage — CROSSUB runs this step on other plans. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The end-of-lease case is not in this agent’s book, or has no property. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The comparison is not confirmed yet, a confirmed settlement is waiting on the tenant (their acceptance refunds the bond and completes the case), or the case is already completed or cancelled. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentSelfManagedEndLeasingController_confirmSettlement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                caseId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentWorkflowCreateResultDto"];
+                };
+            };
+            /** @description The property is not Self-Manage — CROSSUB runs this step on other plans. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The end-of-lease case is not in this agent’s book, or has no property. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustController_workspace: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agencyId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentTrustWorkspaceDto"];
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the row is not in this agency’s trust account. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustController_overview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agencyId: string;
+                bankAccountId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrustOverviewDto"];
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the row is not in this agency’s trust account. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustController_listLedgers: {
+        parameters: {
+            query?: {
+                page?: number;
+                pageSize?: number;
+                kind?: "OWNER" | "TENANT" | "SUPPLIER" | "AGENCY";
+                status?: "OPEN" | "CLOSED";
+                /** @description Folio name or code, property address, suburb, payment reference, tenant name, or a tenancy member's name. */
+                search?: string;
+                /** @description Only ledgers on this property (combines with kind and status). */
+                propertyId?: string;
+                /** @description Phase 6 (D87, D97), owner ledgers only, by today (Sydney): current = open, management period covers today; ended = management ended before today (open until paid out and closed); upcoming = open, management starts after today. */
+                ownerState?: "current" | "ended" | "upcoming";
+            };
+            header?: never;
+            path: {
+                agencyId: string;
+                bankAccountId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrustLedgerListDto"];
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the row is not in this agency’s trust account. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustManageController_openLedger: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agencyId: string;
+                bankAccountId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentOpenLedgerDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrustLedgerDto"];
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the row is not in this agency’s trust account. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustController_addSupplier: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agencyId: string;
+                bankAccountId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentAddSupplierDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrustLedgerDto"];
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the row is not in this agency’s trust account. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustController_getLedger: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agencyId: string;
+                ledgerId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrustLedgerDto"];
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the row is not in this agency’s trust account. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustManageController_updateLedger: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agencyId: string;
+                ledgerId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateLedgerDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrustLedgerDto"];
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the row is not in this agency’s trust account. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustController_ledgerEntries: {
+        parameters: {
+            query?: {
+                page?: number;
+                pageSize?: number;
+            };
+            header?: never;
+            path: {
+                agencyId: string;
+                ledgerId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrustLedgerEntryListDto"];
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the row is not in this agency’s trust account. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustController_rentList: {
+        parameters: {
+            query?: {
+                page?: number;
+                pageSize?: number;
+                /** @description Ledger code, tenant name, property address, the "Suburb, street" reference address, or payment reference. */
+                search?: string;
+                /** @description Only tenants in arrears. */
+                arrearsOnly?: boolean;
+            };
+            header?: never;
+            path: {
+                agencyId: string;
+                bankAccountId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrustRentListDto"];
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the row is not in this agency’s trust account. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustController_postTenantReceipt: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agencyId: string;
+                bankAccountId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PostTenantReceiptDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrustTransactionDto"];
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the row is not in this agency’s trust account. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustController_setRentProfile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agencyId: string;
+                ledgerId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetRentProfileDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrustLedgerDto"];
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the row is not in this agency’s trust account. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustController_listBills: {
+        parameters: {
+            query?: {
+                page?: number;
+                pageSize?: number;
+                /** @description Status chip (owner folio page) or the D103 tab DUE / FUTURE / PAID (Bills & Invoices); omit for all. */
+                status?: "PENDING" | "INSUFFICIENT_FUNDS" | "DUE_SOON" | "PAID" | "CANCELLED" | "DUE" | "FUTURE";
+                /** @description Bill number, details, reference, supplier, owner or property. */
+                search?: string;
+                /** @description Only the bills of this OWNER ledger; the counts narrow with it. */
+                ownerLedgerId?: string;
+            };
+            header?: never;
+            path: {
+                agencyId: string;
+                bankAccountId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrustBillListDto"];
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the row is not in this agency’s trust account. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustController_createBill: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agencyId: string;
+                bankAccountId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateBillDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrustBillDto"];
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the row is not in this agency’s trust account. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustController_payBill: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agencyId: string;
+                billId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PayBillDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrustBillDto"];
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the row is not in this agency’s trust account. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustController_disbursementCandidates: {
+        parameters: {
+            query?: {
+                page?: number;
+                pageSize?: number;
+                tab?: "DUE_OWNERS" | "ALL_OWNERS" | "ALL_SUPPLIERS";
+                /** @description Ledger code, ledger name or property address. */
+                search?: string;
+            };
+            header?: never;
+            path: {
+                agencyId: string;
+                bankAccountId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrustDisbursementCandidatesDto"];
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the row is not in this agency’s trust account. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustManageController_listDisbursements: {
+        parameters: {
+            query?: {
+                page?: number;
+                pageSize?: number;
+            };
+            header?: never;
+            path: {
+                agencyId: string;
+                bankAccountId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrustDisbursementRunListDto"];
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the row is not in this agency’s trust account. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustController_disburse: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agencyId: string;
+                bankAccountId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DisburseDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentTrustDisbursementResultDto"];
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the row is not in this agency’s trust account. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustController_listPendingMail: {
+        parameters: {
+            query?: {
+                status?: "PENDING" | "SENT" | "FAILED";
+                page?: number;
+                pageSize?: number;
+            };
+            header?: never;
+            path: {
+                agencyId: string;
+                bankAccountId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrustPendingMailListDto"];
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the row is not in this agency’s trust account. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustController_pendingMailPdf: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agencyId: string;
+                bankAccountId: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The PDF. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/pdf": string;
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the row is not in this agency’s trust account. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustController_sendPendingMail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agencyId: string;
+                bankAccountId: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrustPendingMailDto"];
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the row is not in this agency’s trust account. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustController_listStatements: {
+        parameters: {
+            query?: {
+                page?: number;
+                pageSize?: number;
+            };
+            header?: never;
+            path: {
+                agencyId: string;
+                ledgerId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrustOwnerStatementListDto"];
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the row is not in this agency’s trust account. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustController_statementPdf: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agencyId: string;
+                statementId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The PDF. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/pdf": string;
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the row is not in this agency’s trust account. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustController_emailStatement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agencyId: string;
+                statementId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentTrustStatementEmailDto"];
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the row is not in this agency’s trust account. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustController_reconciliationMonths: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agencyId: string;
+                bankAccountId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrustReconciliationMonthsDto"];
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the row is not in this agency’s trust account. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustController_reconciliationFigures: {
+        parameters: {
+            query?: {
+                /** @description The bank statement balance being typed (cents). Fills the bank section and the result of an OPEN month so the screen can show Reconciled / Out by before locking. */
+                statementBalanceCents?: number;
+                /** @description Serve this lock row of the month (a revoked one included) instead of the active lock. */
+                lockId?: string;
+                /** @description D117: the statement date the OPEN month is checked as at — inside the month and not after today. Defaults to the month end, or today for the current month. Ignored for a locked month (its snapshot is as at the month end). */
+                asAt?: string;
+                /** @description D117: comma-separated transaction ids ticked as not yet shown by the bank at the statement date (receipts and withdrawals of this account). None ticked by default. Ignored for a locked month. */
+                unpresented?: string;
+            };
+            header?: never;
+            path: {
+                agencyId: string;
+                bankAccountId: string;
+                month: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrustReconciliationFiguresDto"];
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the row is not in this agency’s trust account. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustController_recordBankBalance: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agencyId: string;
+                bankAccountId: string;
+                date: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RecordBankBalanceDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrustBankBalanceDto"];
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the row is not in this agency’s trust account. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustManageController_removeBankBalance: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agencyId: string;
+                bankAccountId: string;
+                date: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The removed row. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrustBankBalanceDto"];
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the row is not in this agency’s trust account. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustController_lockMonth: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agencyId: string;
+                bankAccountId: string;
+                month: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LockReconciliationDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrustReconciliationFiguresDto"];
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the row is not in this agency’s trust account. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustController_listTransactions: {
+        parameters: {
+            query?: {
+                page?: number;
+                pageSize?: number;
+                kind?: "RECEIPT" | "WITHDRAWAL" | "JOURNAL" | "OPENING";
+                status?: "POSTED" | "REVERSED";
+                /** @description Transactions tab: MONEY_IN (receipts, not reversals), MONEY_OUT (withdrawals, not reversals), JOURNALS_AND_REVERSALS (journals, opening balance, every reversal). */
+                category?: "MONEY_IN" | "MONEY_OUT" | "JOURNALS_AND_REVERSALS";
+                from?: string;
+                to?: string;
+                search?: string;
+                /** @description Linked to a bank line or not (internal import matching). Applies to receipts and withdrawals only; D116: the screen no longer filters on it, a transaction reads Posted or Reversed. */
+                reconciled?: boolean;
+            };
+            header?: never;
+            path: {
+                agencyId: string;
+                bankAccountId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrustTransactionListDto"];
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the row is not in this agency’s trust account. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustController_getTransaction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agencyId: string;
+                transactionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrustTransactionDto"];
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the row is not in this agency’s trust account. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustController_reverseTransaction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agencyId: string;
+                transactionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReverseTransactionDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrustTransactionDto"];
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the row is not in this agency’s trust account. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustController_listFeeCharges: {
+        parameters: {
+            query?: {
+                page?: number;
+                pageSize?: number;
+                status?: "PENDING" | "POSTED" | "REVERSED" | "WAIVED";
+            };
+            header?: never;
+            path: {
+                agencyId: string;
+                ledgerId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrustFeeChargeListDto"];
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the row is not in this agency’s trust account. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustController_createFeeCharge: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agencyId: string;
+                ledgerId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateManualFeeDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrustFeeChargeDto"];
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the row is not in this agency’s trust account. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustController_postPendingFees: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agencyId: string;
+                ledgerId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrustPostPendingFeesResultDto"];
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the row is not in this agency’s trust account. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustController_waiveFeeCharge: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agencyId: string;
+                chargeId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WaiveFeeChargeDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrustFeeChargeDto"];
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the row is not in this agency’s trust account. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustController_paymentsSummary: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agencyId: string;
+                bankAccountId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrustPaymentsSummaryDto"];
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the row is not in this agency’s trust account. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustController_listPaymentBatches: {
+        parameters: {
+            query?: {
+                page?: number;
+                pageSize?: number;
+            };
+            header?: never;
+            path: {
+                agencyId: string;
+                bankAccountId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrustPaymentBatchListDto"];
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the row is not in this agency’s trust account. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustController_createPaymentBatch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agencyId: string;
+                bankAccountId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreatePaymentBatchDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrustPaymentBatchDetailDto"];
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the row is not in this agency’s trust account. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustController_getPaymentBatch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agencyId: string;
+                batchId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrustPaymentBatchDetailDto"];
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the row is not in this agency’s trust account. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustController_paymentBatchFile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agencyId: string;
+                batchId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The file. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                    "text/csv": string;
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the row is not in this agency’s trust account. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustController_paymentBatchReport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agencyId: string;
+                batchId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The file. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/csv": string;
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the row is not in this agency’s trust account. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustController_readBankStatement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agencyId: string;
+                bankAccountId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReadBankFileDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrustBankFileDto"];
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the row is not in this agency’s trust account. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustController_linkBankLine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agencyId: string;
+                bankAccountId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LinkBankLineDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrustBankLineReconciledDto"];
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the row is not in this agency’s trust account. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustController_processMatchedBankLines: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agencyId: string;
+                bankAccountId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProcessMatchedDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrustProcessMatchedResultDto"];
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the row is not in this agency’s trust account. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustController_unlinkBankLine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agencyId: string;
+                lineId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrustBankLineUnlinkedDto"];
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the row is not in this agency’s trust account. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustController_receiptsReport: {
+        parameters: {
+            query?: {
+                /** @description Period reports: first day (Sydney). */
+                from?: string;
+                /** @description Period reports: last day (Sydney), at most a year after `from`. */
+                to?: string;
+                /** @description As-at reports: the date; defaults to today (Sydney). */
+                asOf?: string;
+            };
+            header?: never;
+            path: {
+                agencyId: string;
+                bankAccountId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrustCashReportDto"];
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the row is not in this agency’s trust account. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustController_withdrawalsReport: {
+        parameters: {
+            query?: {
+                /** @description Period reports: first day (Sydney). */
+                from?: string;
+                /** @description Period reports: last day (Sydney), at most a year after `from`. */
+                to?: string;
+                /** @description As-at reports: the date; defaults to today (Sydney). */
+                asOf?: string;
+            };
+            header?: never;
+            path: {
+                agencyId: string;
+                bankAccountId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrustCashReportDto"];
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the row is not in this agency’s trust account. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustController_folioBalancesReport: {
+        parameters: {
+            query?: {
+                /** @description Period reports: first day (Sydney). */
+                from?: string;
+                /** @description Period reports: last day (Sydney), at most a year after `from`. */
+                to?: string;
+                /** @description As-at reports: the date; defaults to today (Sydney). */
+                asOf?: string;
+            };
+            header?: never;
+            path: {
+                agencyId: string;
+                bankAccountId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrustFolioBalanceReportDto"];
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the row is not in this agency’s trust account. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustController_unpresentedPaymentsReport: {
+        parameters: {
+            query?: {
+                /** @description Period reports: first day (Sydney). */
+                from?: string;
+                /** @description Period reports: last day (Sydney), at most a year after `from`. */
+                to?: string;
+                /** @description As-at reports: the date; defaults to today (Sydney). */
+                asOf?: string;
+            };
+            header?: never;
+            path: {
+                agencyId: string;
+                bankAccountId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrustUnpresentedReportDto"];
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the row is not in this agency’s trust account. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustController_reportCsv: {
+        parameters: {
+            query?: {
+                /** @description Period reports: first day (Sydney). */
+                from?: string;
+                /** @description Period reports: last day (Sydney), at most a year after `from`. */
+                to?: string;
+                /** @description As-at reports: the date; defaults to today (Sydney). */
+                asOf?: string;
+            };
+            header?: never;
+            path: {
+                agencyId: string;
+                bankAccountId: string;
+                kind: "receipts" | "withdrawals" | "folio-balances" | "unpresented-payments";
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The CSV file. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/csv": string;
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the row is not in this agency’s trust account. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustController_ledgerFile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agencyId: string;
+                ledgerId: string;
+                format: "csv" | "pdf";
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The ledger file. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/csv": string;
+                    "application/pdf": string;
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the row is not in this agency’s trust account. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustManageController_takeOnStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agencyId: string;
+                bankAccountId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrustTakeOnStatusDto"];
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the row is not in this agency’s trust account. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustManageController_postTakeOn: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agencyId: string;
+                bankAccountId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PostTakeOnDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrustTransactionDto"];
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the row is not in this agency’s trust account. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustManageController_folioSyncPreview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agencyId: string;
+                bankAccountId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrustFolioSyncPreviewDto"];
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the row is not in this agency’s trust account. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustManageController_folioSyncRun: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agencyId: string;
+                bankAccountId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrustFolioSyncResultDto"];
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the row is not in this agency’s trust account. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustManageController_closeLedger: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agencyId: string;
+                ledgerId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrustLedgerDto"];
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the row is not in this agency’s trust account. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustManageController_getPayoutMethods: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agencyId: string;
+                ledgerId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrustPayoutMethodsDto"];
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the row is not in this agency’s trust account. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustManageController_putPayoutMethods: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agencyId: string;
+                ledgerId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PutPayoutMethodsDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrustPayoutMethodsDto"];
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the row is not in this agency’s trust account. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustManageController_setPayoutSchedule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agencyId: string;
+                ledgerId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetPayoutScheduleDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrustPayoutMethodsDto"];
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the row is not in this agency’s trust account. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustManageController_getFeeSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agencyId: string;
+                ledgerId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrustFeeSettingDto"][];
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the row is not in this agency’s trust account. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustManageController_putFeeSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agencyId: string;
+                ledgerId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PutFeeSettingsDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrustFeeSettingDto"][];
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the row is not in this agency’s trust account. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustManageController_setBond: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agencyId: string;
+                ledgerId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetBondDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrustRentProfileDto"];
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the row is not in this agency’s trust account. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustManageController_resetRent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agencyId: string;
+                ledgerId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RentResetDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrustLedgerDto"];
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the row is not in this agency’s trust account. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustManageController_listWithholds: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agencyId: string;
+                ledgerId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrustWithholdsDto"];
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the row is not in this agency’s trust account. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustManageController_createWithhold: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agencyId: string;
+                ledgerId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateWithholdDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrustWithholdDto"];
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the row is not in this agency’s trust account. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustManageController_releaseWithhold: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agencyId: string;
+                withholdId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReleaseWithholdDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrustWithholdDto"];
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the row is not in this agency’s trust account. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustManageController_getBill: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agencyId: string;
+                billId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrustBillDto"];
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the row is not in this agency’s trust account. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustManageController_updateBill: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agencyId: string;
+                billId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateBillDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrustBillDto"];
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the row is not in this agency’s trust account. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustManageController_cancelBill: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agencyId: string;
+                billId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TrustCancelDocumentDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrustBillDto"];
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the row is not in this agency’s trust account. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustManageController_billAttachment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agencyId: string;
+                billId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The file. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/pdf": string;
+                    "image/jpeg": string;
+                    "image/png": string;
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the row is not in this agency’s trust account. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustManageController_getDisbursement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agencyId: string;
+                runId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrustDisbursementRunDto"];
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the row is not in this agency’s trust account. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustManageController_statementPreview: {
+        parameters: {
+            query?: {
+                /** @description The statement date; defaults to today (Sydney). Not in the future. */
+                asOf?: string;
+            };
+            header?: never;
+            path: {
+                agencyId: string;
+                ledgerId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrustStatementPreviewDto"];
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the row is not in this agency’s trust account. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustManageController_revokeLock: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agencyId: string;
+                lockId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RevokeReconciliationDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrustReconciliationFiguresDto"];
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the row is not in this agency’s trust account. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustManageController_listBankBalances: {
+        parameters: {
+            query?: {
+                /** @description First day (Sydney); defaults to 93 days before `to`. */
+                from?: string;
+                /** @description Last day (Sydney); defaults to today. */
+                to?: string;
+            };
+            header?: never;
+            path: {
+                agencyId: string;
+                bankAccountId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrustBankBalancesDto"];
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the row is not in this agency’s trust account. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustInvoicesController_listInvoices: {
+        parameters: {
+            query?: {
+                page?: number;
+                pageSize?: number;
+                /** @description Status chip (tenant folio page) or the D103 tab DUE / FUTURE / PAID (Bills & Invoices); omit for all. */
+                status?: "UNPAID" | "PART_PAID" | "OVERDUE" | "PAID" | "CANCELLED" | "DUE" | "FUTURE";
+                /** @description Invoice number, details, tenant or beneficiary. */
+                search?: string;
+                /** @description Only this tenant folio's invoices (the folio page, D104). */
+                tenantLedgerId?: string;
+            };
+            header?: never;
+            path: {
+                agencyId: string;
+                bankAccountId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrustTenantInvoiceListDto"];
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the row is not in this agency’s trust account. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustInvoicesController_createInvoice: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agencyId: string;
+                bankAccountId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateTenantInvoiceDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrustTenantInvoiceDto"];
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the row is not in this agency’s trust account. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustInvoicesController_getInvoice: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agencyId: string;
+                invoiceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrustTenantInvoiceDto"];
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the row is not in this agency’s trust account. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustInvoicesController_cancelInvoice: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agencyId: string;
+                invoiceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TrustCancelDocumentDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrustTenantInvoiceDto"];
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the row is not in this agency’s trust account. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustInvoicesController_invoicePdf: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agencyId: string;
+                invoiceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The PDF. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/pdf": string;
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the row is not in this agency’s trust account. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustInvoicesController_invoiceAttachment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agencyId: string;
+                invoiceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The file. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/pdf": string;
+                    "image/jpeg": string;
+                    "image/png": string;
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the row is not in this agency’s trust account. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustInvoicesController_openInvoices: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agencyId: string;
+                ledgerId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrustTenantInvoiceDto"][];
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the row is not in this agency’s trust account. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustInvoicesController_billsSummary: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agencyId: string;
+                bankAccountId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrustBillsSummaryDto"];
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the row is not in this agency’s trust account. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustInvoicesController_tenantReceiptPreview: {
+        parameters: {
+            query: {
+                /** @description The TENANT ledger being receipted. */
+                ledgerId: string;
+                receiptDate: string;
+                /** @description Rent allocated, integer cents. */
+                rentCents?: number;
+                /** @description An open invoice on this tenant ledger. */
+                invoiceId?: string;
+                /** @description Allocated to invoiceId, integer cents. */
+                invoiceCents?: number;
+            };
+            header?: never;
+            path: {
+                agencyId: string;
+                bankAccountId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrustReceiptPreviewDto"];
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the row is not in this agency’s trust account. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustInvoicesController_tenantHistory: {
+        parameters: {
+            query?: {
+                page?: number;
+                pageSize?: number;
+            };
+            header?: never;
+            path: {
+                agencyId: string;
+                ledgerId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrustTenantHistoryDto"];
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the row is not in this agency’s trust account. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustInvoicesController_ledgerSummary: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agencyId: string;
+                ledgerId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrustLedgerSummaryDto"];
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the row is not in this agency’s trust account. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustInvoicesController_rentPreview: {
+        parameters: {
+            query: {
+                /** @description Integer cents, positive. */
+                amountCents: number;
+                receiptDate: string;
+            };
+            header?: never;
+            path: {
+                agencyId: string;
+                ledgerId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrustRentPreviewDto"];
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the row is not in this agency’s trust account. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustInvoicesController_transferDeposit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agencyId: string;
+                ledgerId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TransferDepositDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrustTransactionDto"];
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the row is not in this agency’s trust account. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustSettingsController_setup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agencyId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentTrustSetupDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentTrustWorkspaceDto"];
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the row is not in this agency’s own trust workspace. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Already set up, the agency is in a CROSSUB workspace, or the name is taken. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustSettingsController_createBankAccount: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agencyId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateBankAccountDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrustBankAccountDto"];
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the row is not in this agency’s own trust workspace. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A bank account in the workspace already has this name. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustSettingsController_updateBankAccount: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agencyId: string;
+                bankAccountId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateBankAccountDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrustBankAccountDto"];
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the row is not in this agency’s own trust workspace. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustSettingsController_createAccountCode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agencyId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateAccountCodeDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrustAccountCodeDto"];
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the row is not in this agency’s own trust workspace. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustSettingsController_updateAccountCode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agencyId: string;
+                accountCodeId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateAccountCodeDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrustAccountCodeDto"];
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the row is not in this agency’s own trust workspace. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Renaming or switching off a built-in (system) account code. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustTransactionsController_postLedgerReceipt: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agencyId: string;
+                bankAccountId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PostLedgerReceiptDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrustTransactionDto"];
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the bank account, a ledger or an account code is not in this agency’s trust account. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustTransactionsController_manualWithdrawal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agencyId: string;
+                bankAccountId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ManualWithdrawalDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrustPaymentDto"];
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the bank account, a ledger or an account code is not in this agency’s trust account. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustTransactionsController_postJournal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agencyId: string;
+                bankAccountId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PostJournalDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrustTransactionDto"];
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the bank account, a ledger or an account code is not in this agency’s trust account. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustTransactionsController_listPayments: {
+        parameters: {
+            query?: {
+                page?: number;
+                pageSize?: number;
+                /** @description Omit for every method. */
+                method?: "EFT" | "CHEQUE" | "BPAY";
+                /** @description With `stage` too, the list is their intersection. */
+                status?: "POOLED" | "FILED" | "RECORDED" | "REVERSED";
+                /** @description D115: PENDING = waiting for export (POOLED); COMPLETED = FILED, RECORDED or REVERSED. Omit for every status. */
+                stage?: "PENDING" | "COMPLETED";
+            };
+            header?: never;
+            path: {
+                agencyId: string;
+                bankAccountId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrustPaymentListDto"];
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the bank account, a ledger or an account code is not in this agency’s trust account. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustAuditController_auditEvents: {
+        parameters: {
+            query?: {
+                page?: number;
+                pageSize?: number;
+                action?: "WORKSPACE_CREATED" | "WORKSPACE_UPDATED" | "AGENCY_LINKED" | "AGENCY_UNLINKED" | "BANK_ACCOUNT_CREATED" | "BANK_ACCOUNT_UPDATED" | "ACCOUNT_CODE_CREATED" | "ACCOUNT_CODE_UPDATED" | "LEDGER_OPENED" | "LEDGER_UPDATED" | "LEDGER_CLOSED" | "LEDGER_BALANCE_REBUILT" | "TRANSACTION_POSTED" | "TRANSACTION_REVERSED" | "STATEMENT_IMPORTED" | "BANK_LINE_PROCESSED" | "BANK_LINE_UNLINKED" | "BANK_LINE_DISMISSED" | "BANK_LINE_RESTORED" | "RENT_PROFILE_SET" | "RENT_RESET" | "PAYER_RULE_CREATED" | "BILL_CREATED" | "BILL_UPDATED" | "BILL_PAID" | "BILL_CANCELLED" | "INVOICE_CREATED" | "INVOICE_CANCELLED" | "INVOICE_PAYMENT_ALLOCATED" | "FEE_SETTING_SET" | "FEE_CHARGE_CREATED" | "FEE_CHARGE_POSTED" | "FEE_CHARGE_WAIVED" | "PAYOUT_METHOD_SET" | "PAYOUT_SCHEDULE_SET" | "WITHHOLD_CREATED" | "WITHHOLD_RELEASED" | "PAYMENT_RECORDED" | "PAYMENT_BATCH_CREATED" | "DISBURSEMENT_RUN" | "STATEMENT_ISSUED" | "RECONCILIATION_LOCKED" | "RECONCILIATION_REVOKED" | "BOND_RECORD_SET" | "OWNER_CHANGED" | "WORKSPACE_MEMBER_ADDED" | "WORKSPACE_MEMBER_REMOVED" | "BANK_BALANCE_RECORDED" | "BANK_BALANCE_REMOVED";
+                entityType?: "TrustWorkspace" | "TrustWorkspaceAgency" | "TrustBankAccount" | "TrustAccountCode" | "TrustLedger" | "TrustTransaction" | "TrustTenantRentProfile" | "TrustBankStatementImport" | "TrustBankStatementLine" | "TrustPayerRule" | "TrustBill" | "TrustTenantInvoice" | "TrustFeeSetting" | "TrustFeeCharge" | "TrustPayoutMethod" | "TrustWithhold" | "TrustPayment" | "TrustPaymentBatch" | "TrustDisbursementRun" | "TrustOwnerStatement" | "TrustReconciliationLock" | "TrustWorkspaceMember" | "TrustBankBalance";
+                /** @description Exact entity id. */
+                entityId?: string;
+                actorUserId?: string;
+                /** @description First day (Sydney) of the events, on createdAt. */
+                from?: string;
+                /** @description Last day (Sydney) of the events, on createdAt. */
+                to?: string;
+                /** @description The start of an entity id. */
+                search?: string;
+            };
+            header?: never;
+            path: {
+                agencyId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrustAuditEventListDto"];
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the row is not in this agency’s own trust workspace. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustAuditController_auditActors: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agencyId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrustAuditActorsDto"];
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the row is not in this agency’s own trust workspace. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentTrustAuditController_balanceCheck: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agencyId: string;
+                ledgerId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrustLedgerBalanceCheckDto"];
+                };
+            };
+            /** @description Not the agency’s principal or accountant, not Self-Manage, trust not set up yet, or the row is not in this agency’s own trust workspace. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentInspectorTeamController_addInspector: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agencyId: string;
+                /** @description The team member’s user id. */
+                userId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentTeamResponseDto"];
+                };
+            };
+            /** @description The user is not an active member of this agency team. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description This is available on Self-Manage properties only */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The agency is not in the caller’s book, or the caller is not its principal. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The member is already a CROSSUB (or another agency’s) inspector. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentInspectorTeamController_removeInspector: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agencyId: string;
+                /** @description The team member’s user id. */
+                userId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentTeamResponseDto"];
+                };
+            };
+            /** @description The agency is not in the caller’s book, or the caller is not its principal. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentPeopleController_list: {
+        parameters: {
+            query?: {
+                search?: string;
+                role?: "TENANT" | "OWNER" | "SUPPLIER" | "APPLICANT" | "AGENCY_STAFF";
+                page?: number;
+                pageSize?: number;
+            };
+            header?: never;
+            path: {
+                agencyId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PeopleListResponseDto"];
+                };
+            };
+            /** @description This is available on Self-Manage properties only */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The agency is not in the caller’s book. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentPeopleController_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agencyId: string;
+                personId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PersonProfileDto"];
+                };
+            };
+            /** @description This is available on Self-Manage properties only */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The agency is not in the caller’s book, or the person is not the agency’s. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentConversationController_list: {
+        parameters: {
+            query?: {
+                /** @description 1-based page number. */
+                page?: number;
+                /** @description Items per page (max 100). */
+                pageSize?: number;
+                /** @description open hides resolved (and still-snoozed) threads. A search ignores this. */
+                state?: "open" | "resolved" | "all";
+                /** @description Only threads assigned to me. */
+                assignedToMe?: boolean;
+                /** @description Only threads on this property. */
+                propertyId?: string;
+                /** @description Subject, message text, sender or property address. 2 characters or more. */
+                search?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentConversationListDto"];
+                };
+            };
+        };
+    };
+    AgentConversationController_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentCreateConversationDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentConversationReplyResultDto"];
+                };
+            };
+            /** @description No address on file for that party and none typed. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The property is not Self-Manage — CROSSUB answers on other plans. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The property is not in this agent’s book. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentConversationController_unreadCount: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentConversationUnreadCountDto"];
+                };
+            };
+        };
+    };
+    AgentConversationController_listTemplates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentConversationTemplateListDto"];
+                };
+            };
+            /** @description The agent has no Self-Manage agency or property. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentConversationController_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentConversationDetailDto"];
+                };
+            };
+            /** @description Not one of this agent’s Self-Manage conversations. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentConversationController_reply: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentConversationReplyDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentConversationReplyResultDto"];
+                };
+            };
+            /** @description No address resolvable, or an app message on a thread with no property. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not one of this agent’s Self-Manage conversations. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The same message was just sent. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentConversationController_setAssignee: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentConversationAssigneeDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentConversationDetailDto"];
+                };
+            };
+            /** @description Not an active member of the agency’s team. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not one of this agent’s Self-Manage conversations. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentConversationController_setState: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentConversationStateDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentConversationDetailDto"];
+                };
+            };
+            /** @description Not one of this agent’s Self-Manage conversations. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentConversationController_setProperty: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentConversationPropertyDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentConversationDetailDto"];
+                };
+            };
+            /** @description The property belongs to another agency. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The property is not Self-Manage — CROSSUB answers on other plans. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not one of this agent’s Self-Manage conversations. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentConversationController_listJobs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkflowOptionListResponseDto"];
+                };
+            };
+            /** @description The conversation is not filed under a property yet. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not one of this agent’s Self-Manage conversations. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentConversationController_unlinkJob: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConversationWorkflowLinkResponseDto"];
+                };
+            };
+            /** @description Not one of this agent’s Self-Manage conversations. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentConversationController_linkJob: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentConversationJobDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConversationWorkflowLinkResponseDto"];
+                };
+            };
+            /** @description The conversation is not filed under a property yet. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not one of this agent’s Self-Manage conversations. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The job is not on the conversation’s property. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentConversationController_aiDraft: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentConversationAiDraftRequestDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentConversationAiDraftDto"];
+                };
+            };
+            /** @description AI drafting is disabled on this server. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not one of this agent’s Self-Manage conversations. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentPropertyTenanciesController_getTenancyOverview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                propertyId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentPropertyTenancyOverviewDto"];
+                };
+            };
+            /** @description The property, tenancy, contact or person is not in this agent’s book. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentPropertyTenanciesController_addManualTenancy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                propertyId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AddManualTenancyDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentManualTenancyAddedDto"];
+                };
+            };
+            /** @description Incomplete details, too many tenants, or overlapping dates. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Writes are Self-Manage only — CROSSUB runs tenancy changes on the other plans. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The property, tenancy, contact or person is not in this agent’s book. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The same tenancy was saved twice at once. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentPropertyTenanciesController_removeManualTenancy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                propertyId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RemoveManualTenancyDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentManualTenancyRemovedDto"];
+                };
+            };
+            /** @description The tenancy has started. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Writes are Self-Manage only — CROSSUB runs tenancy changes on the other plans. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The property, tenancy, contact or person is not in this agent’s book. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentPropertyTenanciesController_updateTenantDetails: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                propertyId: string;
+                personId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateTenantDetailsDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentTenantDetailsUpdatedDto"];
+                };
+            };
+            /** @description Invalid body, or the email is the login of another user. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Writes are Self-Manage only — CROSSUB runs tenancy changes on the other plans. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The property, tenancy, contact or person is not in this agent’s book. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentPropertyTenanciesController_setPrimaryContact: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                propertyId: string;
+                contactId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentPropertyContactsResponseDto"];
+                };
+            };
+            /** @description Writes are Self-Manage only — CROSSUB runs tenancy changes on the other plans. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The property, tenancy, contact or person is not in this agent’s book. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentOutstandingReminderController_preview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentOutstandingReminderPreviewDto"];
+                };
+            };
+            /** @description Missing/invalid/expired token, or the user is not active. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Caller lacks the required permission or role. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentServiceOfferController_recommendations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentServiceRecommendationsDto"];
+                };
+            };
+            /** @description Missing/invalid/expired token, or the user is not active. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Caller lacks the required role. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentServiceOfferController_focus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FocusServiceOfferDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentServiceOfferFocusResultDto"];
+                };
+            };
+            /** @description Missing/invalid/expired token, or the user is not active. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Caller lacks the required role. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentServiceOfferController_clearFocus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentServiceOfferFocusResultDto"];
+                };
+            };
+            /** @description Missing/invalid/expired token, or the user is not active. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Caller lacks the required role. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentServiceOfferController_snoozeInspection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                inspectionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentServiceOfferSnoozeResultDto"];
+                };
+            };
+            /** @description Missing/invalid/expired token, or the user is not active. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Caller lacks the required role. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentServiceOfferController_dismissInspection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                inspectionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentServiceOfferDismissResultDto"];
+                };
+            };
+            /** @description Missing/invalid/expired token, or the user is not active. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Caller lacks the required role. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentServiceOfferController_snoozeSchedule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                scheduleId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentServiceOfferSnoozeResultDto"];
+                };
+            };
+            /** @description Missing/invalid/expired token, or the user is not active. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Caller lacks the required role. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentServiceOfferController_dismissSchedule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                scheduleId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentServiceOfferDismissResultDto"];
+                };
+            };
+            /** @description Missing/invalid/expired token, or the user is not active. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Caller lacks the required role. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentServiceOfferController_listApplications: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentFullServiceApplicationsDto"];
+                };
+            };
+            /** @description Missing/invalid/expired token, or the user is not active. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Caller lacks the required role. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentServiceOfferController_createApplication: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateFullServiceApplicationDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentFullServiceApplicationDto"];
+                };
+            };
+            /** @description Missing/invalid/expired token, or the user is not active. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Caller lacks the required role. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentServiceOfferController_quoteOffer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                requestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentQuoteOfferDto"];
+                };
+            };
+            /** @description Missing/invalid/expired token, or the user is not active. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Caller lacks the required role. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentServiceOfferController_snoozeQuote: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                requestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentServiceOfferSnoozeResultDto"];
+                };
+            };
+            /** @description Missing/invalid/expired token, or the user is not active. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Caller lacks the required role. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AgentServiceOfferController_dismissQuote: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                requestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentServiceOfferDismissResultDto"];
+                };
+            };
+            /** @description Missing/invalid/expired token, or the user is not active. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Caller lacks the required role. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     MeController_getMe: {
         parameters: {
             query?: never;
@@ -24583,6 +43186,32 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MeProfileResponseDto"];
+                };
+            };
+            /** @description Missing/invalid/expired token, or the user is not active. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    MeController_getWebPushKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WebPushKeyResponseDto"];
                 };
             };
             /** @description Missing/invalid/expired token, or the user is not active. */
