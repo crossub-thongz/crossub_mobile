@@ -1,9 +1,9 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { ROUTINE_OPEN_INSPECTOR_FEE_INC_GST_AUD } from '@/src/constants/inspection';
 import { formatCurrency } from '@/src/lib/datetime';
-import { googleMapsUrl } from '@/src/lib/property-address';
+import { promptJobDirections } from '@/src/lib/open-map';
 import type { InspectionJob } from '@/src/lib/types';
 import {
   computeTravelEstimate,
@@ -40,12 +40,12 @@ export function JobTravelCard({
         </View>
         <Pressable
           onPress={() => {
-            void Linking.openURL(googleMapsUrl(job, deviceLocation));
+            promptJobDirections(job, deviceLocation);
           }}
           style={styles.dirBtn}
         >
           <Ionicons name="compass-outline" size={16} color={colors.primary} />
-          <Text style={styles.dirText}>Google Maps</Text>
+          <Text style={styles.dirText}>Maps</Text>
         </Pressable>
       </View>
       <Text style={styles.hint}>

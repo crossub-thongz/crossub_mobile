@@ -1,7 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image';
 import { useState } from 'react';
-import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { NoImageDialog } from '@/src/jobs/no-image-dialog';
 import {
@@ -10,7 +10,8 @@ import {
   isCoreInspectionType,
 } from '@/src/constants/inspection';
 import { formatScheduleWhen, personInitials } from '@/src/lib/datetime';
-import { formatJobRefId, googleMapsUrl, propertyAddressLines } from '@/src/lib/property-address';
+import { promptJobDirections } from '@/src/lib/open-map';
+import { formatJobRefId, propertyAddressLines } from '@/src/lib/property-address';
 import type { InspectionJob } from '@/src/lib/types';
 import { colors, typeAccent } from '@/src/theme';
 
@@ -96,7 +97,7 @@ export function DirectionsButton({
   return (
     <Pressable
       onPress={() => {
-        void Linking.openURL(googleMapsUrl(job, origin));
+        promptJobDirections(job, origin);
       }}
       style={styles.directions}
     >

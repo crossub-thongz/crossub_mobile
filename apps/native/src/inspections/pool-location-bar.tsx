@@ -2,7 +2,6 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image';
 import { useEffect, useRef, useState } from 'react';
 import {
-  Linking,
   Pressable,
   StyleSheet,
   Text,
@@ -15,7 +14,6 @@ import { AppTextInput } from '@/src/ui/app-text-input';
 
 import {
   mapTile,
-  mapsSearchUrl,
   reverseGeocodeLabel,
   searchPlaces,
   type GeocodeHit,
@@ -25,6 +23,7 @@ import {
   POOL_RADIUS_OPTIONS,
   POOL_SORT_LABEL,
 } from '@/src/lib/pool-location';
+import { promptMapSearch } from '@/src/lib/open-map';
 import type { GeoPoint } from '@/src/lib/travel';
 import { colors } from '@/src/theme';
 
@@ -117,7 +116,7 @@ export function PoolLocationBar({
   };
 
   const openMaps = () => {
-    void Linking.openURL(mapsSearchUrl(origin ?? gps));
+    promptMapSearch(origin ?? gps);
   };
 
   return (

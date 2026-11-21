@@ -37,7 +37,8 @@ import { mapInspectionDetail, type FindingsRoom } from '@/src/lib/inspection-fin
 import { approvalAwaitingLabel } from '@/src/lib/inspection-job-cta';
 import { toInspectionJob } from '@/src/lib/job-map';
 import { applyKeyCollection } from '@/src/lib/key-access';
-import { formatJobRefId, googleMapsUrl, propertyAddressLines } from '@/src/lib/property-address';
+import { promptJobDirections } from '@/src/lib/open-map';
+import { formatJobRefId, propertyAddressLines } from '@/src/lib/property-address';
 import { shareInspectionReportPdf } from '@/src/lib/report-pdf';
 import type { InspectionJob } from '@/src/lib/types';
 import { colors } from '@/src/theme';
@@ -437,7 +438,7 @@ function JobSummary({
         <Text style={styles.muted}>Job #{formatJobRefId(job.id)}</Text>
         <Pressable
           onPress={() => {
-            void Linking.openURL(googleMapsUrl(job));
+            promptJobDirections(job);
           }}
           style={styles.secondary}
         >
